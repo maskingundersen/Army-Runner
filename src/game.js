@@ -199,6 +199,15 @@ class ArmyRunnerGame {
     // Clock for delta time
     this.clock = new THREE.Clock();
     
+    // Reusable cycle-message overlay (avoids DOM element leaks)
+    this._cycleMsg = document.createElement('div');
+    this._cycleMsg.style.cssText =
+      'position:fixed;top:40%;left:50%;transform:translate(-50%,-50%);' +
+      'font-size:48px;font-weight:bold;color:#44aaff;' +
+      'text-shadow:2px 2px 8px rgba(0,0,0,0.8),0 0 30px rgba(68,170,255,0.5);' +
+      'z-index:150;pointer-events:none;opacity:0;transition:opacity 1.5s ease-out;';
+    document.body.appendChild(this._cycleMsg);
+    
     // Hide HUD initially
     document.getElementById('hud').style.opacity = '0';
     
@@ -554,16 +563,15 @@ class ArmyRunnerGame {
   }
   
   _showCycleMessage(text) {
-    const msgEl = document.createElement('div');
-    msgEl.textContent = text;
-    msgEl.style.cssText =
-      'position:fixed;top:40%;left:50%;transform:translate(-50%,-50%);' +
-      'font-size:48px;font-weight:bold;color:#44aaff;' +
-      'text-shadow:2px 2px 8px rgba(0,0,0,0.8),0 0 30px rgba(68,170,255,0.5);' +
-      'z-index:150;pointer-events:none;opacity:1;transition:opacity 1.5s ease-out;';
-    document.body.appendChild(msgEl);
-    setTimeout(() => { msgEl.style.opacity = '0'; }, 500);
-    setTimeout(() => { if (msgEl.parentNode) msgEl.parentNode.removeChild(msgEl); }, 2500);
+    this._cycleMsg.textContent = text;
+    this._cycleMsg.style.transition = 'none';
+    this._cycleMsg.style.opacity = '1';
+    // Force reflow so the transition reset takes effect
+    void this._cycleMsg.offsetWidth;
+    setTimeout(() => {
+      this._cycleMsg.style.transition = 'opacity 1.5s ease-out';
+      this._cycleMsg.style.opacity = '0';
+    }, 500);
   }
   
   _loop() {
