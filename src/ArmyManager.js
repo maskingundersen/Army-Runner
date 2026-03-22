@@ -190,8 +190,10 @@ class ArmyManager {
    * @param {number} count - Desired soldier count
    * @param {number} armyX - Army center X position
    */
-  // Flow formation: wider spread, organic positioning
-  static BASE_SPREAD = 1.1;  // Base spacing between soldiers
+  // Flow formation constants
+  static BASE_SPREAD = 1.1;       // Base spacing between soldiers
+  static ROW_STAGGER = 0.35;      // Horizontal offset for odd rows
+  static DEPTH_COMPRESSION = 0.9; // Tighter depth spacing
   
   // Available formation width (can be narrowed by obstacles)
   formationWidth = 7.0;
@@ -217,9 +219,9 @@ class ArmyManager {
         const row = Math.floor(i / cols);
         const col = i % cols;
         const rowWidth = Math.min(cols, count - row * cols);
-        const rowStagger = (row % 2) * 0.35; // Offset odd rows
+        const rowStagger = (row % 2) * ArmyManager.ROW_STAGGER;
         const xOff = (col - (rowWidth - 1) / 2) * spacing + rowStagger;
-        const zOff = row * spacing * 0.9; // Tighter depth
+        const zOff = row * spacing * ArmyManager.DEPTH_COMPRESSION;
         
         soldier.targetX = armyX + xOff + soldier.offsetX;
         soldier.targetZ = -zOff + soldier.offsetZ;
@@ -290,9 +292,9 @@ class ArmyManager {
       const row = Math.floor(activeIdx / cols);
       const col = activeIdx % cols;
       const rowWidth = Math.min(cols, count - row * cols);
-      const rowStagger = (row % 2) * 0.35;
+      const rowStagger = (row % 2) * ArmyManager.ROW_STAGGER;
       const xOff = (col - (rowWidth - 1) / 2) * spacing + rowStagger;
-      const zOff = row * spacing * 0.9;
+      const zOff = row * spacing * ArmyManager.DEPTH_COMPRESSION;
       
       soldier.targetX = armyX + xOff + soldier.offsetX;
       soldier.targetZ = -zOff + soldier.offsetZ;

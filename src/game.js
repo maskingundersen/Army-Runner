@@ -1,5 +1,12 @@
 // src/game.js — Three.js 3D Army Runner game (9-segment endless loop)
 
+// Base game constants
+const BASE_SCROLL_SPEED = 14;
+const MAX_SCROLL_SPEED = 20;
+const SCROLL_SPEED_PER_CYCLE = 0.8;
+const ENEMY_COUNT_SCALE_PER_CYCLE = 0.3;
+const OBSTACLE_CLEANUP_THRESHOLD = 50;
+
 // Milestone rankings (ascending order of difficulty)
 const MILESTONE_ORDER = [
   'Reached Ogre',
@@ -76,7 +83,7 @@ const SEGMENT_DEFS = [
     id: 6,
     name: 'Build Defining',
     safeReward: { type: 'soldiers', count: 10, label: '+10' },
-    riskReward: { type: 'upgrade', id: 'sideCannons', label: '\u{1F6F8} Drone+Pierce' },
+    riskReward: { type: 'upgrade', id: 'sideCannons', label: '\u{1F6F8} Drone' },
     // Risk gives both drone companion AND piercing bullets
     riskBonus: { id: 'piercing' },
     enemies: [
@@ -189,7 +196,7 @@ class ArmyRunnerGame {
     this.soldierCount = 20;
     this.upgrades = {};
     this.cameraZ = 0;
-    this.scrollSpeed = 14;
+    this.scrollSpeed = BASE_SCROLL_SPEED;
     this.armyX = 0;
     this.armyTargetX = 0;
     this.score = 0;
@@ -597,7 +604,7 @@ class ArmyRunnerGame {
     this._saveBestMilestone();
     
     // Increase scroll speed slightly each cycle for more pressure
-    this.scrollSpeed = Math.min(20, 14 + this.segmentCycle * 0.8);
+    this.scrollSpeed = Math.min(MAX_SCROLL_SPEED, BASE_SCROLL_SPEED + this.segmentCycle * SCROLL_SPEED_PER_CYCLE);
     
     // Visual feedback
     this.effects.screenFlash(0x44aaff, 0.8);
@@ -691,7 +698,7 @@ class ArmyRunnerGame {
     for (let i = this._pathObstacles.length - 1; i >= 0; i--) {
       const obs = this._pathObstacles[i];
       // Remove obstacles that are far behind camera  
-      if (obs.mesh.position.z > 50) {
+      if (obs.mesh.position.z > OBSTACLE_CLEANUP_THRESHOLD) {
         this.scene.remove(obs.mesh);
         if (obs.mesh.geometry) obs.mesh.geometry.dispose();
         if (obs.mesh.material) obs.mesh.material.dispose();
@@ -910,7 +917,7 @@ class ArmyRunnerGame {
   
   _spawnEnemies(def) {
     // Scale enemy count by cycle (more enemies in later cycles)
-    const countMult = 1 + this.segmentCycle * 0.3;
+    const countMult = 1 + this.segmentCycle * ENEMY_COUNT_SCALE_PER_CYCLE;
     const scaledEnemies = def.enemies.map(e => ({
       ...e,
       count: Math.ceil(e.count * countMult)
