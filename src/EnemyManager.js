@@ -176,6 +176,11 @@ class EnemyManager {
     enemy.bodyMesh.material.color.setHex(def.color);
     enemy.headMesh.material.color.setHex(def.color);
     
+    // Reset HP bar
+    if (enemy.hpBar) {
+      enemy.hpBar.visible = false; // hidden at full HP
+    }
+    
     this.scene.add(enemy.group);
     
     return enemy;
@@ -247,6 +252,15 @@ class EnemyManager {
     rEye.position.set(def.size.head[0] * 0.25, head.position.y, def.size.head[2] / 2 + 0.02);
     group.add(rEye);
     
+    // --- Type-specific visual features ---
+    this._addTypeFeatures(type, def, group, body, head);
+    
+    // --- HP bar (always-face-camera sprite) ---
+    const hpBar = this._createHPBar(def);
+    const hpBarY = head.position.y + def.size.head[1] / 2 + 0.5;
+    hpBar.position.set(0, hpBarY, 0);
+    group.add(hpBar);
+    
     return {
       type,
       def,
@@ -257,6 +271,7 @@ class EnemyManager {
       rArm,
       lLeg,
       rLeg,
+      hpBar,
       hp: def.hp,
       maxHp: def.maxHp,
       walkPhase: 0,
@@ -266,6 +281,163 @@ class EnemyManager {
       worldX: 0,
       worldZ: 0
     };
+  }
+  
+  /**
+   * Add type-specific visual features for distinct silhouettes
+   */
+  _addTypeFeatures(type, def, group, body, head) {
+    switch (type) {
+      case 'zombie': {
+        // Zombie: hunched posture with torn patches
+        const patchGeo = new THREE.BoxGeometry(0.15, 0.15, 0.02);
+        const patchMat = new THREE.MeshLambertMaterial({ color: 0x3a5a2a });
+        for (let i = 0; i < 3; i++) {
+          const patch = new THREE.Mesh(patchGeo, patchMat);
+          patch.position.set(
+            (Math.random() - 0.5) * def.size.body[0] * 0.8,
+            body.position.y + (Math.random() - 0.5) * def.size.body[1] * 0.6,
+            def.size.body[2] / 2 + 0.02
+          );
+          group.add(patch);
+        }
+        break;
+      }
+      case 'fast': {
+        // Runner: spiky crest on head for speed look
+        const crestGeo = new THREE.ConeGeometry(0.12, 0.3, 4);
+        const crestMat = new THREE.MeshLambertMaterial({ color: 0xaa44aa });
+        const crest = new THREE.Mesh(crestGeo, crestMat);
+        crest.position.set(0, head.position.y + def.size.head[1] / 2 + 0.15, 0);
+        group.add(crest);
+        break;
+      }
+      case 'tank': {
+        // Tank: shoulder armor plates
+        const plateGeo = new THREE.BoxGeometry(0.25, 0.2, 0.35);
+        const plateMat = new THREE.MeshLambertMaterial({ color: 0x665533 });
+        const lPlate = new THREE.Mesh(plateGeo, plateMat);
+        lPlate.position.set(-def.size.body[0] / 2 - 0.15, body.position.y + def.size.body[1] * 0.3, 0);
+        group.add(lPlate);
+        const rPlate = new THREE.Mesh(plateGeo, plateMat.clone());
+        rPlate.position.set(def.size.body[0] / 2 + 0.15, body.position.y + def.size.body[1] * 0.3, 0);
+        group.add(rPlate);
+        // Belly plate
+        const bellyGeo = new THREE.BoxGeometry(def.size.body[0] * 0.8, def.size.body[1] * 0.4, 0.1);
+        const bellyMat = new THREE.MeshLambertMaterial({ color: 0x554422 });
+        const belly = new THREE.Mesh(bellyGeo, bellyMat);
+        belly.position.set(0, body.position.y - 0.1, def.size.body[2] / 2 + 0.06);
+        group.add(belly);
+        break;
+      }
+      case 'exploding': {
+        // Exploder: glowing spikes around body
+        const spikeMat = new THREE.MeshBasicMaterial({ color: 0xff8800 });
+        for (let i = 0; i < 6; i++) {
+          const spikeGeo = new THREE.ConeGeometry(0.06, 0.25, 4);
+          const spike = new THREE.Mesh(spikeGeo, spikeMat);
+          const angle = (i / 6) * Math.PI * 2;
+          const r = def.size.body[0] * 0.5 + 0.08;
+          spike.position.set(
+            Math.cos(angle) * r,
+            body.position.y,
+            Math.sin(angle) * r
+          );
+          spike.rotation.z = -Math.cos(angle) * 0.8;
+          spike.rotation.x = Math.sin(angle) * 0.8;
+          group.add(spike);
+        }
+        break;
+      }
+      // Boss types: ogre, giant, fireDragon — already have large distinctive scale
+      case 'ogre': {
+        // Horns
+        const hornGeo = new THREE.ConeGeometry(0.12, 0.5, 5);
+        const hornMat = new THREE.MeshLambertMaterial({ color: 0x554422 });
+        const lHorn = new THREE.Mesh(hornGeo, hornMat);
+        lHorn.position.set(-0.3, head.position.y + def.size.head[1] * 0.4, 0);
+        lHorn.rotation.z = 0.4;
+        group.add(lHorn);
+        const rHorn = new THREE.Mesh(hornGeo, hornMat);
+        rHorn.position.set(0.3, head.position.y + def.size.head[1] * 0.4, 0);
+        rHorn.rotation.z = -0.4;
+        group.add(rHorn);
+        break;
+      }
+      case 'fireDragon': {
+        // Wings
+        const wingGeo = new THREE.BoxGeometry(1.0, 0.05, 0.6);
+        const wingMat = new THREE.MeshLambertMaterial({ color: 0xff4400 });
+        const lWing = new THREE.Mesh(wingGeo, wingMat);
+        lWing.position.set(-def.size.body[0] * 0.6, body.position.y + def.size.body[1] * 0.3, 0);
+        lWing.rotation.z = 0.3;
+        group.add(lWing);
+        const rWing = new THREE.Mesh(wingGeo, wingMat);
+        rWing.position.set(def.size.body[0] * 0.6, body.position.y + def.size.body[1] * 0.3, 0);
+        rWing.rotation.z = -0.3;
+        group.add(rWing);
+        break;
+      }
+    }
+  }
+  
+  /**
+   * Create an HP bar using a Sprite (always faces camera)
+   */
+  _createHPBar(def) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 8;
+    const ctx = canvas.getContext('2d');
+    
+    // Draw full green bar
+    ctx.fillStyle = '#222';
+    ctx.fillRect(0, 0, 64, 8);
+    ctx.fillStyle = '#44ff44';
+    ctx.fillRect(1, 1, 62, 6);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    
+    const mat = new THREE.SpriteMaterial({ map: texture, transparent: true, opacity: 0.9 });
+    const sprite = new THREE.Sprite(mat);
+    
+    // Scale based on max HP (bigger enemies get wider bar)
+    const barWidth = Math.max(0.8, Math.min(2.5, def.maxHp / 10));
+    sprite.scale.set(barWidth, barWidth * 0.12, 1);
+    
+    return sprite;
+  }
+  
+  /**
+   * Update the HP bar visual for an enemy
+   */
+  _updateHPBar(enemy) {
+    if (!enemy.hpBar) return;
+    
+    const ratio = Math.max(0, enemy.hp / enemy.maxHp);
+    
+    const canvas = enemy.hpBar.material.map.image;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    // Background
+    ctx.fillStyle = '#222';
+    ctx.fillRect(0, 0, 64, 8);
+    
+    // HP fill (green → yellow → red)
+    let color;
+    if (ratio > 0.6) color = '#44ff44';
+    else if (ratio > 0.3) color = '#ffcc00';
+    else color = '#ff3333';
+    
+    ctx.fillStyle = color;
+    ctx.fillRect(1, 1, Math.max(0, 62 * ratio), 6);
+    
+    enemy.hpBar.material.map.needsUpdate = true;
+    
+    // Hide bar at full HP to reduce visual clutter
+    enemy.hpBar.visible = ratio < 0.999;
   }
   
   /**
@@ -335,6 +507,9 @@ class EnemyManager {
         enemy.headMesh.material.color.copy(flashColor);
       }
       
+      // Update HP bar
+      this._updateHPBar(enemy);
+      
       // Check if reached army
       if (enemy.worldZ > 1.5) {
         soldierLosses++;
@@ -389,6 +564,9 @@ class EnemyManager {
     
     enemy.hp -= damage;
     enemy.hitFlash = 1.0;
+    
+    // Immediately update HP bar visual
+    this._updateHPBar(enemy);
     
     if (window.audioManager) window.audioManager.enemyHit();
     

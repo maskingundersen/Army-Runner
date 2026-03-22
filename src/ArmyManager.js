@@ -248,15 +248,12 @@ class ArmyManager {
   // Steering / physics constants
   static SEP_RADIUS = 0.75;   // Minimum desired distance between soldiers (units)
   static SEP_STRENGTH = 6.0;  // Separation push force magnitude
-  static ROAD_HALF = 3.8;     // Half-width of the playable road (units)
+  static ROAD_HALF = 9.5;     // Half-width of the playable road (units)
   static DEATH_DURATION = 0.5; // Seconds before a dead soldier is removed
   static DEATH_ANIM_END = 0.4; // Seconds at which the fall animation completes
   
-  // Max soldiers firing per volley (caps bullet pool usage)
-  static MAX_VOLLEY_POSITIONS = 8;
-  
   // Available formation width (can be narrowed by obstacles)
-  formationWidth = 7.0;
+  formationWidth = 18.0;
   
   setCount(count, armyX) {
     count = Math.min(count, this.MAX);
@@ -450,6 +447,47 @@ class ArmyManager {
   }
   
   /**
+   * Push soldiers out of obstacles (walls/barriers).
+   * @param {Array} obstacles - Array of { mesh } with position set in scene space
+   */
+  applyObstacleCollision(obstacles) {
+    if (!obstacles || obstacles.length === 0) return;
+    
+    for (const obs of obstacles) {
+      const mesh = obs.mesh;
+      if (!mesh || !mesh.geometry) continue;
+      
+      // Get obstacle bounding box in scene space
+      if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+      const bb = mesh.geometry.boundingBox;
+      const pos = mesh.position;
+      const halfW = (bb.max.x - bb.min.x) / 2 + 0.3; // padding for soldier radius
+      const halfD = (bb.max.z - bb.min.z) / 2 + 0.3;
+      
+      for (let i = 0; i < this.MAX; i++) {
+        const s = this._soldiers[i];
+        if (!s.active || s.deathTimer >= 0) continue;
+        
+        const dx = s.x - pos.x;
+        const dz = s.z - pos.z;
+        
+        // AABB collision check
+        if (Math.abs(dx) < halfW && Math.abs(dz) < halfD) {
+          // Find shortest push-out direction
+          const overlapX = halfW - Math.abs(dx);
+          const overlapZ = halfD - Math.abs(dz);
+          
+          if (overlapX < overlapZ) {
+            s.x += dx > 0 ? overlapX : -overlapX;
+          } else {
+            s.z += dz > 0 ? overlapZ : -overlapZ;
+          }
+        }
+      }
+    }
+  }
+  
+  /**
    * Update instanced mesh matrices for a single soldier
    */
   _updateSoldierParts(index, soldier) {
@@ -582,7 +620,8 @@ class ArmyManager {
    */
   getMuzzlePositions(count) {
     const positions = [];
-    const maxPos = Math.min(count, 12);
+    // Return up to 'count' positions — one per living soldier
+    const maxPos = Math.min(count, this.MAX);
     
     for (let i = 0; i < this.MAX && positions.length < maxPos; i++) {
       const soldier = this._soldiers[i];
