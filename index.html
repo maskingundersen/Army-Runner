@@ -5,15 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Army Runner 🎮</title>
+  <title>Army Runner 3D 🎮</title>
   <style>
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
+    
     body {
-      background: #1a1a2e;
+      background: #0d1a0e;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -21,32 +22,304 @@
       height: 100vh;
       overflow: hidden;
       touch-action: none;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-    canvas {
+    
+    #game-canvas {
       display: block;
+      width: 100vw;
+      height: 100vh;
       touch-action: none;
+    }
+    
+    /* HUD Overlay */
+    #hud {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      pointer-events: none;
+      z-index: 100;
+    }
+    
+    .hud-left, .hud-right {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .hud-box {
+      background: rgba(13, 26, 14, 0.85);
+      border: 2px solid #4a7c45;
+      border-radius: 8px;
+      padding: 8px 14px;
+      color: #c8e6c9;
+      font-weight: bold;
+      font-size: 16px;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .hud-box .icon {
+      font-size: 20px;
+    }
+    
+    .hud-box .value {
+      color: #ffffff;
+      font-size: 20px;
+    }
+    
+    .hud-level {
+      background: rgba(74, 124, 69, 0.9);
+      border-color: #6aaf5d;
+    }
+    
+    /* Screen Flash Overlay */
+    #screen-flash {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      opacity: 0;
+      z-index: 50;
+    }
+    
+    /* Game Screens */
+    .game-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: rgba(13, 26, 14, 0.95);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+      z-index: 200;
+    }
+    
+    .game-screen.active {
+      opacity: 1;
+      visibility: visible;
+    }
+    
+    /* Boot Screen */
+    #screen-boot {
+      background: linear-gradient(180deg, #0d1a0e 0%, #1a2e1a 50%, #0d1a0e 100%);
+    }
+    
+    .boot-title {
+      font-size: 48px;
+      margin-bottom: 8px;
+    }
+    
+    .boot-title-text {
+      font-size: 36px;
+      font-weight: bold;
+      color: #4a7c45;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8), 0 0 20px rgba(74,124,69,0.5);
+      letter-spacing: 4px;
+      margin-bottom: 20px;
+    }
+    
+    .boot-tagline {
+      color: #8ab886;
+      font-size: 16px;
+      margin-bottom: 50px;
+      text-align: center;
+      max-width: 280px;
+      line-height: 1.4;
+    }
+    
+    .game-btn {
+      background: linear-gradient(180deg, #4a7c45 0%, #2d5a29 100%);
+      border: 3px solid #6aaf5d;
+      border-radius: 12px;
+      padding: 16px 48px;
+      color: #ffffff;
+      font-size: 22px;
+      font-weight: bold;
+      cursor: pointer;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.6);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2);
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+      margin: 8px;
+    }
+    
+    .game-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
+    }
+    
+    .game-btn:active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+    }
+    
+    .game-btn.secondary {
+      background: linear-gradient(180deg, #3a3a4a 0%, #252530 100%);
+      border-color: #5a5a6a;
+    }
+    
+    /* Win Screen */
+    #screen-win {
+      background: linear-gradient(180deg, #0d1a0e 0%, #1a3a1a 50%, #0d1a0e 100%);
+    }
+    
+    .win-icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+      animation: bounce 0.6s ease infinite alternate;
+    }
+    
+    @keyframes bounce {
+      from { transform: translateY(0); }
+      to { transform: translateY(-10px); }
+    }
+    
+    .win-title {
+      font-size: 32px;
+      font-weight: bold;
+      color: #6aaf5d;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8), 0 0 30px rgba(106,175,93,0.5);
+      margin-bottom: 12px;
+      text-align: center;
+    }
+    
+    .win-subtitle {
+      color: #8ab886;
+      font-size: 18px;
+      margin-bottom: 40px;
+    }
+    
+    /* Lose Screen */
+    #screen-lose {
+      background: linear-gradient(180deg, #1a0d0d 0%, #2e1a1a 50%, #1a0d0d 100%);
+    }
+    
+    .lose-icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+    }
+    
+    .lose-title {
+      font-size: 36px;
+      font-weight: bold;
+      color: #c44;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8), 0 0 20px rgba(204,68,68,0.4);
+      margin-bottom: 8px;
+    }
+    
+    .lose-level {
+      color: #a88;
+      font-size: 18px;
+      margin-bottom: 40px;
+    }
+    
+    .game-btn.danger {
+      background: linear-gradient(180deg, #8a3030 0%, #5a2020 100%);
+      border-color: #aa4040;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 400px) {
+      .boot-title-text {
+        font-size: 28px;
+        letter-spacing: 2px;
+      }
+      .hud-box {
+        padding: 6px 10px;
+        font-size: 14px;
+      }
+      .hud-box .value {
+        font-size: 16px;
+      }
+      .game-btn {
+        padding: 14px 36px;
+        font-size: 18px;
+      }
     }
   </style>
 </head>
 <body>
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
-  <!-- Utility / drawing helpers -->
-  <script src="src/utils/AudioManager.js"></script>
-  <script src="src/utils/DrawHelpers.js"></script>
-  <!-- Systems (loaded before scenes) -->
+  <!-- Game Canvas -->
+  <canvas id="game-canvas"></canvas>
+  
+  <!-- HUD Overlay -->
+  <div id="hud">
+    <div class="hud-left">
+      <div class="hud-box">
+        <span class="icon">🪖</span>
+        <span class="value" id="hud-soldier-count">20</span>
+      </div>
+      <div class="hud-box">
+        <span class="icon">🪙</span>
+        <span class="value" id="hud-coins">0</span>
+      </div>
+    </div>
+    <div class="hud-right">
+      <div class="hud-box hud-level" id="hud-level">LEVEL 1</div>
+    </div>
+  </div>
+  
+  <!-- Screen Flash -->
+  <div id="screen-flash"></div>
+  
+  <!-- Boot Screen -->
+  <div id="screen-boot" class="game-screen active">
+    <div class="boot-title">🎖️</div>
+    <div class="boot-title-text">ARMY RUNNER 3D</div>
+    <div class="boot-tagline">Lead your army through enemy territory. Collect soldiers, choose wisely at gates, and defeat the boss!</div>
+    <button class="game-btn" id="boot-play-btn">▶  TAP TO PLAY</button>
+  </div>
+  
+  <!-- Win Screen -->
+  <div id="screen-win" class="game-screen">
+    <div class="win-icon">🏆</div>
+    <div class="win-title" id="win-title">LEVEL COMPLETE!</div>
+    <div class="win-subtitle">Your army is victorious!</div>
+    <button class="game-btn" id="win-next-btn">▶  NEXT LEVEL</button>
+    <button class="game-btn secondary" id="win-menu-btn">🏠  MAIN MENU</button>
+  </div>
+  
+  <!-- Lose Screen -->
+  <div id="screen-lose" class="game-screen">
+    <div class="lose-icon">💀</div>
+    <div class="lose-title">GAME OVER</div>
+    <div class="lose-level" id="lose-level">Level 1</div>
+    <button class="game-btn danger" id="lose-retry-btn">🔄  RETRY</button>
+    <button class="game-btn secondary" id="lose-menu-btn">🏠  MAIN MENU</button>
+  </div>
+  
+  <!-- Three.js -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  
+  <!-- Core Systems -->
   <script src="src/systems/Pool.js"></script>
-  <script src="src/systems/CoinSystem.js"></script>
   <script src="src/systems/UpgradeSystem.js"></script>
-  <script src="src/systems/EnemyManager.js"></script>
-  <script src="src/systems/ShootingSystem.js"></script>
-  <script src="src/systems/BossManager.js"></script>
-  <!-- Scenes -->
-  <script src="src/scenes/BootScene.js"></script>
-  <script src="src/scenes/GameScene.js"></script>
-  <script src="src/scenes/UIScene.js"></script>
-  <script src="src/scenes/UpgradeScene.js"></script>
-  <script src="src/scenes/WinScene.js"></script>
-  <script src="src/scenes/LoseScene.js"></script>
+  <script src="src/utils/AudioManager.js"></script>
+  
+  <!-- 3D Game Systems -->
+  <script src="src/CameraController.js"></script>
+  <script src="src/EffectsManager.js"></script>
+  <script src="src/ArmyManager.js"></script>
+  <script src="src/EnemyManager.js"></script>
+  <script src="src/ProjectileSystem.js"></script>
+  <script src="src/GateSystem.js"></script>
+  
+  <!-- Main Game -->
   <script src="src/game.js"></script>
 </body>
 </html>
