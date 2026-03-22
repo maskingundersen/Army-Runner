@@ -4,11 +4,11 @@
 const BASE_SCROLL_SPEED = 15;
 const MAX_SCROLL_SPEED = 20;
 const SCROLL_SPEED_PER_CYCLE = 0.8;
-const ENEMY_COUNT_SCALE_PER_CYCLE = 0.3;
+const ENEMY_COUNT_SCALE_PER_CYCLE = 0.5;
 const OBSTACLE_CLEANUP_THRESHOLD = 50;
 
 // Army size control
-const ARMY_SOFT_CAP = 50;
+const ARMY_SOFT_CAP = 40;
 const ARMY_HARD_CAP = 100;
 
 // Milestone rankings (ascending order of difficulty)
@@ -31,11 +31,11 @@ const SEGMENT_DEFS = [
   {
     id: 1,
     name: 'Intro',
-    safeReward: { type: 'soldiers', count: 3, label: '+3' },
-    riskReward: { type: 'soldiers', count: 10, label: '+10' },
+    safeReward: { type: 'soldiers', count: 2, label: '+2' },
+    riskReward: { type: 'soldiers', count: 6, label: '+6' },
     enemies: [
-      { count: 6, enemyType: 'zombie', hp: 3 },
-      { count: 3, enemyType: 'fast', hp: 1 },
+      { count: 8, enemyType: 'zombie', hp: 3 },
+      { count: 5, enemyType: 'fast', hp: 1 },
       { count: 2, enemyType: 'zombie', hp: 3, xOffset: -4 },
     ],
     boss: null,
@@ -46,10 +46,10 @@ const SEGMENT_DEFS = [
     id: 2,
     name: 'First Decision',
     safeReward: { type: 'soldiers', count: 5, label: '+5' },
-    riskReward: { type: 'upgrade', id: 'betterGuns', label: '\u26A1 Fire Rate' },
+    riskReward: { type: 'soldiers', count: 12, label: '+12' },
     enemies: [
-      { count: 8, enemyType: 'zombie', hp: 3 },
-      { count: 4, enemyType: 'fast', hp: 1 },
+      { count: 10, enemyType: 'zombie', hp: 3 },
+      { count: 6, enemyType: 'fast', hp: 1 },
       { count: 3, enemyType: 'zombie', hp: 3, xOffset: 4 },
     ],
     boss: null,
@@ -60,7 +60,7 @@ const SEGMENT_DEFS = [
     id: 3,
     name: 'Pressure Intro',
     safeReward: { type: 'soldiers', count: -5, label: '-5 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 5) } },
-    riskReward: { type: 'upgrade', id: 'spreadShot', label: '\u{1F300} Spread Shot' },
+    riskReward: { type: 'soldiers', count: 8, label: '+8' },
     enemies: [
       { count: 10, enemyType: 'zombie', hp: 4, xOffset: 0 },
       { count: 6, enemyType: 'fast', hp: 2, xOffset: -3 },
@@ -74,7 +74,7 @@ const SEGMENT_DEFS = [
     id: 4,
     name: 'Skill Check',
     safeReward: { type: 'soldiers', count: -8, label: '-8 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 8) } },
-    riskReward: { type: 'upgrade', id: 'grenade', label: '\u{1F4A3} Grenade Throw' },
+    riskReward: { type: 'soldiers', count: 10, label: '+10' },
     enemies: [
       { count: 8, enemyType: 'zombie', hp: 5 },
       { count: 6, enemyType: 'exploding', hp: 2 },
@@ -88,8 +88,8 @@ const SEGMENT_DEFS = [
   {
     id: 5,
     name: 'Mini Boss',
-    safeReward: { type: 'soldiers', count: 12, label: '+12 \u{1F6E1}\uFE0F' },
-    riskReward: { type: 'upgrade', id: 'x2Bullets', label: '\u{1F52B} Double Shot' },
+    safeReward: { type: 'soldiers', count: 8, label: '+8 \u{1F6E1}\uFE0F' },
+    riskReward: { type: 'soldiers', count: 15, label: '+15' },
     enemies: [],
     boss: 'ogre',
     duration: 60,
@@ -99,8 +99,7 @@ const SEGMENT_DEFS = [
     id: 6,
     name: 'Build Defining',
     safeReward: { type: 'soldiers', count: 0, label: '\u00D71.5', mod: { apply: (n) => Math.floor(n * 1.5) } },
-    riskReward: { type: 'upgrade', id: 'sideCannons', label: '\u{1F6F8} Drone' },
-    riskBonus: { id: 'piercing' },
+    riskReward: { type: 'soldiers', count: 0, label: '\u00D72', mod: { apply: (n) => Math.min(ARMY_HARD_CAP, n * 2) } },
     enemies: [
       { count: 12, enemyType: 'zombie', hp: 5, xOffset: 0 },
       { count: 8, enemyType: 'fast', hp: 2, xOffset: -3 },
@@ -116,8 +115,7 @@ const SEGMENT_DEFS = [
     id: 7,
     name: 'Heavy Assault',
     safeReward: { type: 'soldiers', count: 0, label: '÷2 ☠️', bad: true, mod: { apply: (n) => Math.max(1, Math.floor(n / 2)) } },
-    riskReward: { type: 'upgrade', id: 'explosive', label: '\u{1F4A5} Explosive Rounds' },
-    riskBonus: { id: 'bulletSpeed' },
+    riskReward: { type: 'soldiers', count: 20, label: '+20' },
     enemies: [
       { count: 16, enemyType: 'fast', hp: 3, xOffset: -2 },
       { count: 8, enemyType: 'exploding', hp: 3, xOffset: 2 },
@@ -132,8 +130,8 @@ const SEGMENT_DEFS = [
   {
     id: 8,
     name: 'Titan Gate',
-    safeReward: { type: 'soldiers', count: 10, label: '+10' },
-    riskReward: { type: 'upgrade', id: 'autoTurret', label: '\u{1F916} Auto-turret' },
+    safeReward: { type: 'soldiers', count: 6, label: '+6' },
+    riskReward: { type: 'soldiers', count: 18, label: '+18' },
     enemies: [],
     boss: 'giant',
     duration: 70,
@@ -143,8 +141,7 @@ const SEGMENT_DEFS = [
     id: 9,
     name: 'Dragon\'s Lair',
     safeReward: { type: 'soldiers', count: 15, label: '+15' },
-    riskReward: { type: 'upgrade', id: 'dragon', label: '\u{1F409} Dragon Companion' },
-    riskBonus: { id: 'damage25' },
+    riskReward: { type: 'soldiers', count: 25, label: '+25' },
     enemies: [],
     boss: 'fireDragon',
     duration: 60,
@@ -181,7 +178,7 @@ const EXTRA_SEGMENTS = [
   {
     id: 10, name: 'Narrow Corridor',
     safeReward: { type: 'soldiers', count: 5, label: '+5' },
-    riskReward: { type: 'upgrade', id: 'bulletSpeed', label: '💨 Bullet Speed' },
+    riskReward: { type: 'soldiers', count: 10, label: '+10' },
     enemies: [
       { count: 12, enemyType: 'fast', hp: 2, xOffset: 0 },
       { count: 4, enemyType: 'tank', hp: 12 },
@@ -191,7 +188,7 @@ const EXTRA_SEGMENTS = [
   {
     id: 11, name: 'Heavy Swarm',
     safeReward: { type: 'soldiers', count: -3, label: '-3 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 3) } },
-    riskReward: { type: 'upgrade', id: 'airstrike', label: '✈️ Airstrike' },
+    riskReward: { type: 'soldiers', count: 8, label: '+8' },
     enemies: [
       { count: 20, enemyType: 'zombie', hp: 3, xOffset: 0 },
       { count: 8, enemyType: 'fast', hp: 2, xOffset: -4 },
@@ -202,7 +199,7 @@ const EXTRA_SEGMENTS = [
   {
     id: 12, name: 'Elite Ambush',
     safeReward: { type: 'soldiers', count: 8, label: '+8' },
-    riskReward: { type: 'upgrade', id: 'homing', label: '🎯 Homing' },
+    riskReward: { type: 'soldiers', count: 12, label: '+12' },
     enemies: [
       { count: 6, enemyType: 'tank', hp: 15, xOffset: -3 },
       { count: 6, enemyType: 'tank', hp: 15, xOffset: 3 },
@@ -213,7 +210,7 @@ const EXTRA_SEGMENTS = [
   {
     id: 13, name: 'Mixed Assault',
     safeReward: { type: 'soldiers', count: 0, label: '÷2 ☠️', bad: true, mod: { apply: (n) => Math.max(1, Math.floor(n / 2)) } },
-    riskReward: { type: 'upgrade', id: 'shockwave', label: '🌊 Shockwave' },
+    riskReward: { type: 'soldiers', count: 0, label: '×1.5', mod: { apply: (n) => Math.floor(n * 1.5) } },
     enemies: [
       { count: 10, enemyType: 'zombie', hp: 5 },
       { count: 6, enemyType: 'fast', hp: 3, xOffset: -4 },
@@ -225,7 +222,7 @@ const EXTRA_SEGMENTS = [
   {
     id: 14, name: 'Obstacle Maze',
     safeReward: { type: 'soldiers', count: 10, label: '+10' },
-    riskReward: { type: 'upgrade', id: 'piercing', label: '➡️ Piercing' },
+    riskReward: { type: 'soldiers', count: 15, label: '+15' },
     enemies: [
       { count: 15, enemyType: 'zombie', hp: 4, xOffset: 0 },
       { count: 5, enemyType: 'exploding', hp: 3, xOffset: 2 },
@@ -235,13 +232,112 @@ const EXTRA_SEGMENTS = [
   {
     id: 15, name: 'Boss Rush',
     safeReward: { type: 'soldiers', count: 15, label: '+15' },
-    riskReward: { type: 'upgrade', id: 'damage25', label: '💢 +25% Dmg' },
+    riskReward: { type: 'soldiers', count: 20, label: '+20' },
     enemies: [
       { count: 4, enemyType: 'tank', hp: 20, xOffset: 0 },
       { count: 8, enemyType: 'zombie', hp: 6 },
       { count: 6, enemyType: 'fast', hp: 3, xOffset: -3 },
     ],
     boss: null, duration: 80, riskNarrow: false,
+  },
+  {
+    id: 16, name: 'Shield Wall',
+    safeReward: { type: 'soldiers', count: 5, label: '+5' },
+    riskReward: { type: 'soldiers', count: 12, label: '+12' },
+    enemies: [
+      { count: 8, enemyType: 'shield', hp: 10, xOffset: 0 },
+      { count: 4, enemyType: 'tank', hp: 15, xOffset: -3 },
+      { count: 6, enemyType: 'zombie', hp: 5, xOffset: 3 },
+    ],
+    boss: null, duration: 70, riskNarrow: true,
+  },
+  {
+    id: 17, name: 'Speed Blitz',
+    safeReward: { type: 'soldiers', count: -3, label: '-3 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 3) } },
+    riskReward: { type: 'soldiers', count: 10, label: '+10' },
+    enemies: [
+      { count: 20, enemyType: 'fast', hp: 2, xOffset: 0 },
+      { count: 10, enemyType: 'fast', hp: 3, xOffset: -4 },
+      { count: 5, enemyType: 'charger', hp: 6, xOffset: 3 },
+    ],
+    boss: null, duration: 60, riskNarrow: false,
+  },
+  {
+    id: 18, name: 'Splitter Swarm',
+    safeReward: { type: 'soldiers', count: 8, label: '+8' },
+    riskReward: { type: 'soldiers', count: 15, label: '+15' },
+    enemies: [
+      { count: 8, enemyType: 'splitter', hp: 6, xOffset: 0 },
+      { count: 6, enemyType: 'zombie', hp: 4, xOffset: -3 },
+      { count: 4, enemyType: 'fast', hp: 2, xOffset: 3 },
+    ],
+    boss: null, duration: 70, riskNarrow: false,
+  },
+  {
+    id: 19, name: 'Charger Rush',
+    safeReward: { type: 'soldiers', count: 5, label: '+5' },
+    riskReward: { type: 'soldiers', count: 0, label: '×1.5', mod: { apply: (n) => Math.floor(n * 1.5) } },
+    enemies: [
+      { count: 10, enemyType: 'charger', hp: 6, xOffset: 0 },
+      { count: 6, enemyType: 'charger', hp: 8, xOffset: -3 },
+      { count: 4, enemyType: 'tank', hp: 12, xOffset: 3 },
+    ],
+    boss: null, duration: 60, riskNarrow: true,
+  },
+  {
+    id: 20, name: 'Explosive Gauntlet',
+    safeReward: { type: 'soldiers', count: -5, label: '-5 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 5) } },
+    riskReward: { type: 'soldiers', count: 12, label: '+12' },
+    enemies: [
+      { count: 12, enemyType: 'exploding', hp: 3, xOffset: 0 },
+      { count: 8, enemyType: 'exploding', hp: 4, xOffset: -3 },
+      { count: 4, enemyType: 'tank', hp: 15, xOffset: 3 },
+    ],
+    boss: null, duration: 80, riskNarrow: false,
+  },
+  {
+    id: 21, name: 'Ranged Siege',
+    safeReward: { type: 'soldiers', count: 10, label: '+10' },
+    riskReward: { type: 'soldiers', count: 18, label: '+18' },
+    enemies: [
+      { count: 8, enemyType: 'ranged', hp: 5, xOffset: 0 },
+      { count: 6, enemyType: 'shield', hp: 10, xOffset: -4 },
+      { count: 4, enemyType: 'zombie', hp: 6, xOffset: 4 },
+    ],
+    boss: null, duration: 70, riskNarrow: true,
+  },
+  {
+    id: 22, name: 'Jump Maze',
+    safeReward: { type: 'soldiers', count: 3, label: '+3' },
+    riskReward: { type: 'soldiers', count: 8, label: '+8' },
+    enemies: [
+      { count: 15, enemyType: 'jumping', hp: 3, xOffset: 0 },
+      { count: 8, enemyType: 'fast', hp: 2, xOffset: -3 },
+      { count: 5, enemyType: 'zombie', hp: 5, xOffset: 3 },
+    ],
+    boss: null, duration: 60, riskNarrow: false,
+  },
+  {
+    id: 23, name: 'Resource Zone',
+    safeReward: { type: 'soldiers', count: 15, label: '+15' },
+    riskReward: { type: 'soldiers', count: 0, label: '×2', mod: { apply: (n) => Math.min(ARMY_HARD_CAP, n * 2) } },
+    enemies: [
+      { count: 4, enemyType: 'zombie', hp: 3, xOffset: 0 },
+      { count: 2, enemyType: 'fast', hp: 1, xOffset: -3 },
+    ],
+    boss: null, duration: 40, riskNarrow: false,
+  },
+  {
+    id: 24, name: 'Mini-Boss Gauntlet',
+    safeReward: { type: 'soldiers', count: 10, label: '+10' },
+    riskReward: { type: 'soldiers', count: 20, label: '+20' },
+    enemies: [
+      { count: 2, enemyType: 'tank', hp: 25, xOffset: 0 },
+      { count: 8, enemyType: 'zombie', hp: 6, xOffset: -3 },
+      { count: 6, enemyType: 'fast', hp: 3, xOffset: 3 },
+      { count: 4, enemyType: 'charger', hp: 8, xOffset: 0 },
+    ],
+    boss: null, duration: 80, riskNarrow: true,
   },
 ];
 
@@ -788,7 +884,7 @@ class ArmyRunnerGame {
   _spawnPathObstacles(worldZ, riskNarrow) {
     // Center divider wall: forces player to commit to left (SAFE) or right (RISK)
     const wallHeight = 3.0;
-    const wallLength = 18;
+    const wallLength = 35;
     const wallGeo = new THREE.BoxGeometry(0.6, wallHeight, wallLength);
     const wallMat = new THREE.MeshLambertMaterial({ color: 0x555555 });
     
@@ -797,7 +893,7 @@ class ArmyRunnerGame {
     wall.castShadow = true;
     wall.receiveShadow = true;
     this.scene.add(wall);
-    this._pathObstacles.push({ mesh: wall, worldZ: worldZ, localY: wallHeight / 2, localZ: wallLength / 2 + 4, localX: 0 });
+    this._pathObstacles.push({ mesh: wall, worldZ: worldZ, localY: wallHeight / 2, localZ: wallLength / 2 - 10, localX: 0 });
     
     // Rocky barrier pieces along divider (visual variety)
     const rockGeo = new THREE.BoxGeometry(0.8, 1.2, 1.5);
@@ -878,59 +974,193 @@ class ArmyRunnerGame {
   
   // ── Barrel weapon system (#4) ──
   
-  _spawnBarrel(worldZ, weaponType) {
-    const wt = WEAPON_TYPES[weaponType];
-    if (!wt) return;
-    const geo = new THREE.CylinderGeometry(0.5, 0.5, 1.0, 12);
-    const mat = new THREE.MeshLambertMaterial({ color: wt.color });
+  _spawnBarrel(worldZ) {
+    const rewards = BARREL_REWARDS;
+    const reward = rewards[Math.floor(Math.random() * rewards.length)];
+    
+    const geo = new THREE.CylinderGeometry(0.6, 0.6, 1.2, 12);
+    const barrelColor = reward.good ? 0x44aa44 : 0xaa4422;
+    const mat = new THREE.MeshLambertMaterial({ color: barrelColor });
     const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.y = 0.5;
+    mesh.position.y = 0.6;
     mesh.castShadow = true;
-    // Random X on the road
     const xPos = (Math.random() - 0.5) * (ArmyManager.ROAD_HALF * 2 - 4);
     mesh.position.x = xPos;
+    
+    // Label sprite above barrel
+    const labelSprite = this._createBarrelLabel(reward.label, reward.good);
+    labelSprite.position.set(xPos, 2.5, 0);
+    labelSprite.scale.set(2.5, 1.0, 1);
+    
+    // HP bar sprite
+    const hpCanvas = document.createElement('canvas');
+    hpCanvas.width = 64;
+    hpCanvas.height = 8;
+    const hpCtx = hpCanvas.getContext('2d');
+    hpCtx.fillStyle = '#222';
+    hpCtx.fillRect(0, 0, 64, 8);
+    hpCtx.fillStyle = '#44ff44';
+    hpCtx.fillRect(1, 1, 62, 6);
+    const hpTexture = new THREE.CanvasTexture(hpCanvas);
+    const hpSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: hpTexture, transparent: true }));
+    hpSprite.position.set(xPos, 2.0, 0);
+    hpSprite.scale.set(1.5, 0.2, 1);
+    
     this.scene.add(mesh);
-    this._barrels.push({ mesh, worldZ, weaponType, xPos });
+    this.scene.add(labelSprite);
+    this.scene.add(hpSprite);
+    
+    this._barrels.push({
+      mesh, worldZ, xPos, reward,
+      label: labelSprite, hpBar: hpSprite, hpCanvas,
+      hp: 3, maxHp: 3, hitFlash: 0, baseColor: barrelColor
+    });
+  }
+  
+  _createBarrelLabel(text, isGood) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = isGood ? 'rgba(0, 140, 60, 0.9)' : 'rgba(170, 40, 0, 0.9)';
+    ctx.fillRect(4, 4, canvas.width - 8, canvas.height - 8);
+    ctx.strokeStyle = isGood ? '#44ff88' : '#ff4444';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 28px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 3;
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    const texture = new THREE.CanvasTexture(canvas);
+    const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true });
+    return new THREE.Sprite(spriteMat);
   }
   
   _updateBarrels() {
     for (let i = this._barrels.length - 1; i >= 0; i--) {
       const barrel = this._barrels[i];
-      barrel.mesh.position.z = barrel.worldZ - this.cameraZ;
+      const visualZ = barrel.worldZ - this.cameraZ;
+      barrel.mesh.position.z = visualZ;
+      barrel.label.position.z = visualZ;
+      barrel.hpBar.position.z = visualZ;
       
-      // Check collision with army
-      if (barrel.mesh.position.z > -1 && barrel.mesh.position.z < 2) {
-        const dx = Math.abs(this.armyX - barrel.xPos);
-        if (dx < 3) {
-          this.currentWeapon = barrel.weaponType;
-          const wt = WEAPON_TYPES[barrel.weaponType];
-          this._showCycleMessage(wt.label);
-          this.effects.gateEffect(barrel.xPos, 1, barrel.mesh.position.z, wt.color);
-          this.scene.remove(barrel.mesh);
-          if (barrel.mesh.geometry) barrel.mesh.geometry.dispose();
-          if (barrel.mesh.material) barrel.mesh.material.dispose();
-          this._barrels.splice(i, 1);
-          continue;
-        }
+      // Hit flash decay
+      if (barrel.hitFlash > 0) {
+        barrel.hitFlash -= 0.05;
+        const flashColor = new THREE.Color(barrel.baseColor).lerp(new THREE.Color(0xffffff), Math.max(0, barrel.hitFlash));
+        barrel.mesh.material.color.copy(flashColor);
       }
       
-      // Cleanup barrels behind camera
-      if (barrel.mesh.position.z > 30) {
-        this.scene.remove(barrel.mesh);
-        if (barrel.mesh.geometry) barrel.mesh.geometry.dispose();
-        if (barrel.mesh.material) barrel.mesh.material.dispose();
-        this._barrels.splice(i, 1);
+      // Cleanup barrels far behind camera
+      if (visualZ > 30) {
+        this._removeBarrel(i);
       }
     }
   }
   
-  _clearBarrels() {
-    for (const barrel of this._barrels) {
-      this.scene.remove(barrel.mesh);
-      if (barrel.mesh.geometry) barrel.mesh.geometry.dispose();
-      if (barrel.mesh.material) barrel.mesh.material.dispose();
+  _checkBarrelBulletHit(bx, by, bz) {
+    for (let i = this._barrels.length - 1; i >= 0; i--) {
+      const barrel = this._barrels[i];
+      const visualZ = barrel.worldZ - this.cameraZ;
+      const dx = Math.abs(bx - barrel.xPos);
+      const dz = Math.abs(bz - visualZ);
+      
+      if (dx < 1.0 && dz < 1.0 && by < 2.0) {
+        barrel.hp--;
+        barrel.hitFlash = 1.0;
+        
+        // Update HP bar
+        const ratio = Math.max(0, barrel.hp / barrel.maxHp);
+        const ctx = barrel.hpCanvas.getContext('2d');
+        ctx.fillStyle = '#222';
+        ctx.fillRect(0, 0, 64, 8);
+        ctx.fillStyle = ratio > 0.5 ? '#44ff44' : '#ff4444';
+        ctx.fillRect(1, 1, Math.max(0, 62 * ratio), 6);
+        barrel.hpBar.material.map.needsUpdate = true;
+        
+        if (barrel.hp <= 0) {
+          this._activateBarrel(barrel);
+          this._removeBarrel(i);
+        }
+        return true;
+      }
     }
-    this._barrels.length = 0;
+    return false;
+  }
+  
+  _activateBarrel(barrel) {
+    const reward = barrel.reward;
+    this.effects.explode(barrel.xPos, 1.5, barrel.mesh.position.z, reward.good ? 0x44ff88 : 0xff4400, 20, 5);
+    this.effects.screenFlash(reward.good ? 0x44ff88 : 0xff4400, 0.4);
+    this.camCtrl.shake(0.4);
+    
+    if (reward.type === 'weapon') {
+      this.currentWeapon = reward.id;
+      this._showCycleMessage(WEAPON_TYPES[reward.id].label);
+    } else if (reward.type === 'soldiers') {
+      this.soldierCount = Math.max(1, this.soldierCount + reward.count);
+      this.soldierCount = Math.min(this.soldierCount, ARMY_HARD_CAP);
+      this.armyMgr.setCount(this.soldierCount, this.armyX);
+      this._showCycleMessage(reward.label);
+    } else if (reward.type === 'fireRate') {
+      if (reward.penalty) {
+        this.upgrades.betterGuns = Math.max(0, (this.upgrades.betterGuns || 0) - 1);
+      } else {
+        this.upgrades[reward.id] = (this.upgrades[reward.id] || 0) + 1;
+      }
+      this._showCycleMessage(reward.label);
+    } else if (reward.type === 'damage') {
+      this.upgrades[reward.id] = (this.upgrades[reward.id] || 0) + 1;
+      this._showCycleMessage(reward.label);
+    }
+    
+    if (window.audioManager) {
+      if (reward.good) window.audioManager.gatGood();
+      else window.audioManager.gateBad();
+    }
+    this._updateHUD();
+  }
+  
+  _removeBarrel(index) {
+    const barrel = this._barrels[index];
+    this.scene.remove(barrel.mesh);
+    this.scene.remove(barrel.label);
+    this.scene.remove(barrel.hpBar);
+    if (barrel.mesh.geometry) barrel.mesh.geometry.dispose();
+    if (barrel.mesh.material) barrel.mesh.material.dispose();
+    if (barrel.label.material) {
+      if (barrel.label.material.map) barrel.label.material.map.dispose();
+      barrel.label.material.dispose();
+    }
+    if (barrel.hpBar.material) {
+      if (barrel.hpBar.material.map) barrel.hpBar.material.map.dispose();
+      barrel.hpBar.material.dispose();
+    }
+    this._barrels.splice(index, 1);
+  }
+  
+  _clearBarrels() {
+    for (let i = this._barrels.length - 1; i >= 0; i--) {
+      this._removeBarrel(i);
+    }
+  }
+  
+  _checkBarrelBulletHitsFromProjectiles() {
+    if (this._barrels.length === 0) return;
+    const bullets = this.projSys._bulletData;
+    const activeList = this.projSys._bullets;
+    for (let i = activeList.length - 1; i >= 0; i--) {
+      const idx = activeList[i];
+      const bullet = bullets[idx];
+      if (!bullet.active) continue;
+      if (this._checkBarrelBulletHit(bullet.x, bullet.y, bullet.z)) {
+        // Bullet hit a barrel - deactivate it
+        this.projSys._deactivateBullet(i, idx);
+      }
+    }
   }
   
   // ── Milestone persistence ──
@@ -1001,6 +1231,8 @@ class ArmyRunnerGame {
     
     // 3. Update army formation
     this.armyMgr.update(dt, this.armyX, this.clock.elapsedTime, this.upgrades);
+    // Update weapon visual
+    this.armyMgr.setWeaponType(this.currentWeapon);
     this.camCtrl.follow(this.armyX, this.soldierCount);
     
     // 4. Update road scrolling
@@ -1043,6 +1275,9 @@ class ArmyRunnerGame {
       
       // Bullet collision checks
       this.projSys.checkHits(this.enemyMgr, stats);
+      
+      // Check barrel bullet hits
+      this._checkBarrelBulletHitsFromProjectiles();
       
       // Active abilities during combat
       this._updateAbilities(dt, stats);
@@ -1283,11 +1518,12 @@ class ArmyRunnerGame {
     // Spawn path obstacles (walls/barriers) before the gate
     this._spawnPathObstacles(baseZ, !!def.riskNarrow);
     
-    // Spawn weapon barrels in the approach zone (#4)
-    const weaponKeys = Object.keys(WEAPON_TYPES).filter(k => k !== 'handgun');
-    if (Math.random() < 0.4) {
-      const randomWeapon = weaponKeys[Math.floor(Math.random() * weaponKeys.length)];
-      this._spawnBarrel(baseZ + 15, randomWeapon);
+    // Spawn weapon barrels in the approach zone
+    if (Math.random() < 0.5) {
+      this._spawnBarrel(baseZ + 15);
+    }
+    if (Math.random() < 0.25) {
+      this._spawnBarrel(baseZ + 25);
     }
   }
   
@@ -1296,7 +1532,7 @@ class ArmyRunnerGame {
     const countMult = 1 + this.segmentCycle * ENEMY_COUNT_SCALE_PER_CYCLE;
     // Within-segment HP scaling (#2) — use internalSegIdx for consistent progression
     const segmentProgress = Math.min(1, this.internalSegIdx / Math.max(this.internalSegments.length, 1));
-    const hpScale = 1 + segmentProgress * 0.5;
+    const hpScale = 1 + segmentProgress * 0.8;
     const scaledEnemies = def.enemies.map(e => ({
       ...e,
       count: Math.ceil(e.count * countMult),

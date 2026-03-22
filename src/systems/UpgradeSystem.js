@@ -25,7 +25,6 @@ const SOLDIER_BAD_MODS = [
 // Gold weapon/ability gates — shown in gold arch
 const WEAPON_GATES = [
   // Fire Modifiers
-  { id: 'spreadShot',   label: 'Spread Shot',       color: '#ffd700', icon: '🌀' },
   { id: 'x2Bullets',    label: 'Double Shot',        color: '#ffd700', icon: '🔫' },
   { id: 'tripleShot',   label: 'Triple Shot',        color: '#ffcc00', icon: '🔱' },
   { id: 'sideCannons',  label: 'Side Cannons',       color: '#ffaa44', icon: '🗡️' },
@@ -97,7 +96,23 @@ const WEAPON_TYPES = {
   shotgun:  { name: 'Shotgun',         fireInterval: 0.9, damage: 2,  bulletSpeed: 0.8, spread: 0.4,  bullets: 5, color: 0x8a5a2a, label: '💥 Shotgun' },
   minigun:  { name: 'Minigun',         fireInterval: 0.1, damage: 1,  bulletSpeed: 1.0, spread: 0.15, bullets: 1, color: 0x3a3a3a, label: '🔧 Minigun' },
   rocket:   { name: 'Rocket',          fireInterval: 1.5, damage: 8,  bulletSpeed: 0.6, spread: 0,    bullets: 1, color: 0x5a2a2a, label: '🚀 Rocket', explosive: true },
+  sniper:   { name: 'Sniper',          fireInterval: 1.8, damage: 12, bulletSpeed: 2.0, spread: 0,    bullets: 1, color: 0x2a2a5a, label: '🎯 Sniper' },
 };
+
+const BARREL_REWARDS = [
+  { type: 'weapon', id: 'assault',  label: 'ASSAULT RIFLE',  good: true },
+  { type: 'weapon', id: 'shotgun',  label: 'SHOTGUN',        good: true },
+  { type: 'weapon', id: 'minigun',  label: 'MINIGUN',        good: true },
+  { type: 'weapon', id: 'rocket',   label: 'ROCKET',         good: true },
+  { type: 'weapon', id: 'sniper',   label: 'SNIPER',         good: true },
+  { type: 'soldiers', count: 10,    label: '+10 SOLDIERS',   good: true },
+  { type: 'soldiers', count: 15,    label: '+15 SOLDIERS',   good: true },
+  { type: 'soldiers', count: -5,    label: '-5 SOLDIERS',    good: false },
+  { type: 'soldiers', count: -10,   label: '-10 SOLDIERS',   good: false },
+  { type: 'fireRate', id: 'betterGuns', label: 'FIRE RATE UP', good: true },
+  { type: 'fireRate', id: 'betterGuns', label: 'LOW FIRE RATE', good: false, penalty: true },
+  { type: 'damage', id: 'damage25', label: '+25% DAMAGE',    good: true },
+];
 
 // ── UpgradeSystem class ───────────────────────────────────────────────────────
 
@@ -113,6 +128,7 @@ class UpgradeSystem {
   static get SOLDIER_BAD_MODS()  { return SOLDIER_BAD_MODS;  }
   static get MAX_DRAGON_COUNT()  { return MAX_DRAGON_COUNT;   }
   static get WEAPON_TYPES()      { return WEAPON_TYPES;       }
+  static get BARREL_REWARDS()    { return BARREL_REWARDS;     }
 
   /**
    * Apply a weapon gate upgrade to the state object.
