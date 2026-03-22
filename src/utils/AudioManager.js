@@ -135,6 +135,16 @@ class AudioManager {
       [900, 0.12, 'square', null, 0.22],
     ]);
   }
+
+  /** Short thud — enemy takes a hit (not death) */
+  enemyHit() {
+    this._play(280, 0.05, 'square', 180, 0.1);
+  }
+
+  /** Deep rumble roar — boss entry */
+  bossRoar() {
+    this._play(55, 0.55, 'sawtooth', 35, 0.45);
+  }
 }
 
 // Single global instance

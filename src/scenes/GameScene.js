@@ -135,6 +135,11 @@ class GameScene extends Phaser.Scene {
     this.upgrades      = {};
     this.phase         = 'running';
 
+    // Endless loop state
+    this.difficultyMult   = data.difficultyMult || 1;
+    this.hasSeenAllLevels = data.hasSeenAllLevels || false;
+    this.levelStartScrollY = 0;
+
     // Road/scroll state
     this.scrollY       = 0;
     this.scrollSpeed   = 200;
@@ -182,6 +187,8 @@ class GameScene extends Phaser.Scene {
 
     // Particles / effects
     this.particles     = [];
+    this.coinParticles = [];
+    this.muzzleFlashes = [];
     this.screenFlash   = 0;   // 0..1, fades out
     this.screenFlashColor = 0xff0000;
     this.comboCount    = 0;
@@ -234,14 +241,16 @@ class GameScene extends Phaser.Scene {
 
     // ---- Touch input ----
     this.input.on('pointerdown', (ptr) => {
-      if (this.phase !== 'running' && this.phase !== 'boss') return;
+      const active = ['running', 'boss', 'bossIntro', 'levelTransition'];
+      if (!active.includes(this.phase)) return;
       this.isDragging = true;
       this.dragStartX = ptr.x;
       if (window.audioManager) window.audioManager._init();
     });
     this.input.on('pointermove', (ptr) => {
       if (!this.isDragging) return;
-      if (this.phase !== 'running' && this.phase !== 'boss') return;
+      const active = ['running', 'boss', 'bossIntro', 'levelTransition'];
+      if (!active.includes(this.phase)) return;
       const dx = ptr.x - this.dragStartX;
       this.dragStartX = ptr.x;
       const roadHalfW = this.getRoadWidthAtY(ARMY_Y) / 2;
@@ -265,9 +274,9 @@ class GameScene extends Phaser.Scene {
   }
 
   // ── buildLevelContent ─────────────────────────────────────────────────────
-  buildLevelContent() {
+  buildLevelContent(startWorldY) {
     const segs = this.levelDef.segments;
-    let worldY = 0; // distance from start
+    let worldY = startWorldY || 0;
 
     for (const seg of segs) {
       if (seg.type === 'intro') {
@@ -390,14 +399,17 @@ class GameScene extends Phaser.Scene {
 
     // Timers & effects always running
     this.updateParticles(dt);
+    this.updateCoinParticles(dt);
+    this.updateMuzzleFlashes(dt);
     this.updateComboTimer(dt);
     if (this.screenFlash > 0) this.screenFlash = Math.max(0, this.screenFlash - dt * 3);
     this.soldierCountBounce = Math.max(0, this.soldierCountBounce - dt * 5);
 
-    if (this.phase === 'running') {
+    if (this.phase === 'running' || this.phase === 'levelTransition') {
       this.updateRunning(dt);
     } else if (this.phase === 'enemyWave') {
-      this.updateEnemyWave(dt);
+      // Legacy: never actually reached now (absorbed into 'running')
+      this.updateRunning(dt);
     } else if (this.phase === 'bossIntro') {
       this.updateBossIntro(dt);
     } else if (this.phase === 'boss') {
@@ -410,7 +422,7 @@ class GameScene extends Phaser.Scene {
 
   // ── updateRunning ─────────────────────────────────────────────────────────
   updateRunning(dt) {
-    // Scroll
+    // Scroll — road always moves forward
     this.scrollY += this.scrollSpeed * dt;
 
     // Army movement (smooth follow)
@@ -459,8 +471,14 @@ class GameScene extends Phaser.Scene {
       this.startBossIntro();
     }
 
+    // Inline enemy combat — road keeps moving while fighting
+    if (this.activeEnemies.length > 0 || this.bullets.length > 0) {
+      this.updateInlineEnemies(dt);
+    }
+
     // Progress bar
-    const prog = Math.min(this.scrollY / this.totalRoadLength, 1);
+    const startY = this.levelStartScrollY || 0;
+    const prog = Math.min((this.scrollY - startY) / Math.max(1, this.totalRoadLength - startY), 1);
     const barMaxH = GH * 0.55;
     const barH = prog * barMaxH;
     this.progressFill.height = barH;
@@ -483,6 +501,52 @@ class GameScene extends Phaser.Scene {
         this.throwGrenade();
       }
     }
+  }
+
+  // ── updateInlineEnemies ───────────────────────────────────────────────────
+  // Handles enemy logic while the road keeps scrolling (never-stop design)
+  updateInlineEnemies(dt) {
+    // Leg animation for enemies
+    this.activeEnemies.forEach(e => {
+      if (!e.dead) {
+        e.legTimer = (e.legTimer || 0) + dt;
+        if (e.legTimer >= 0.3) { e.legTimer = 0; e.legPhase = 1 - e.legPhase; }
+      }
+    });
+
+    // Move enemies downward
+    for (const enemy of this.activeEnemies) {
+      if (enemy.dead) {
+        enemy.deathAnim += dt * 2;
+        continue;
+      }
+      enemy.y += enemy.walkSpeed * dt;
+      if (enemy.hitFlash > 0) enemy.hitFlash = Math.max(0, enemy.hitFlash - dt * 8);
+
+      // Reached army — damage soldiers
+      if (enemy.y >= ARMY_Y - 55 && this.damageCooldown <= 0) {
+        this.damageCooldown = 0.8;
+        enemy.dead = true;
+        enemy.deathAnim = 0;
+        this.loseSoldiers(1);
+        this.cameras.main.shake(200, 0.01);
+        this.screenFlash = 0.6;
+        this.screenFlashColor = 0xff0000;
+      }
+    }
+
+    if (this.damageCooldown > 0) this.damageCooldown -= dt;
+
+    // Auto-shoot at enemies
+    this.updateShooting(dt);
+
+    // Remove fully dead enemies
+    this.activeEnemies = this.activeEnemies.filter(e => !(e.dead && e.deathAnim > 1));
+
+    // Grenade upgrade (handled in updateRunning, skip here)
+
+    // Army dead?
+    if (this.soldierCount <= 0) this.endGame(false);
   }
 
   // ── handleGateCollision ───────────────────────────────────────────────────
@@ -554,14 +618,13 @@ class GameScene extends Phaser.Scene {
 
   // ── spawnEnemyWave ────────────────────────────────────────────────────────
   spawnEnemyWave(waveDefs) {
-    this.phase = 'enemyWave';
-    this.scrollSpeed = 0; // pause road scroll during wave
-
-    // Build enemy list from all wave definitions
+    // Road keeps scrolling — enemies spawn inline while army runs
+    // Build enemy list from all wave definitions, scaling HP by difficulty
     let allEnemies = [];
     for (const waveDef of waveDefs) {
       for (let i = 0; i < waveDef.count; i++) {
-        allEnemies.push({ hp: waveDef.hp, maxHp: waveDef.hp, type: waveDef.type });
+        const scaledHp = Math.ceil(waveDef.hp * this.difficultyMult);
+        allEnemies.push({ hp: scaledHp, maxHp: scaledHp, type: waveDef.type });
       }
     }
 
@@ -593,67 +656,12 @@ class GameScene extends Phaser.Scene {
     });
   }
 
-  // ── updateEnemyWave ───────────────────────────────────────────────────────
+  // ── updateEnemyWave ─── (dead code — never called after refactor) ──────────
+  // Enemy logic is now handled by updateInlineEnemies() called from
+  // updateRunning(), so the road never stops scrolling. This method remains
+  // as a no-op fallback for any external callers.
   updateEnemyWave(dt) {
-    // Leg animation for all
-    this.legTimer += dt;
-    if (this.legTimer >= 0.3) {
-      this.legTimer = 0;
-      this.legPhase = 1 - this.legPhase;
-      this.activeEnemies.forEach(e => { if (!e.dead) e.legPhase = 1 - e.legPhase; });
-    }
-
-    // Move enemies downward
-    for (const enemy of this.activeEnemies) {
-      if (enemy.dead) {
-        enemy.deathAnim += dt * 2;
-        continue;
-      }
-      enemy.y += enemy.walkSpeed * dt;
-      if (enemy.hitFlash > 0) enemy.hitFlash = Math.max(0, enemy.hitFlash - dt * 8);
-
-      // Reached army — damage soldiers
-      if (enemy.y >= ARMY_Y - 55 && this.damageCooldown <= 0) {
-        this.damageCooldown = 0.8;
-        enemy.dead = true;
-        enemy.deathAnim = 0;
-        this.loseSoldiers(1);
-        this.cameras.main.shake(200, 0.01);
-        this.screenFlash = 0.6;
-        this.screenFlashColor = 0xff0000;
-      }
-    }
-
-    if (this.damageCooldown > 0) this.damageCooldown -= dt;
-
-    // Auto-shoot at enemies
-    this.updateShooting(dt);
-
-    // Remove fully dead enemies
-    this.activeEnemies = this.activeEnemies.filter(e => !(e.dead && e.deathAnim > 1));
-
-    // Grenade upgrade
-    if (this.upgrades.grenade) {
-      this.grenadeTimer += dt;
-      if (this.grenadeTimer >= 4) { this.grenadeTimer = 0; this.throwGrenade(); }
-    }
-
-    // Medic
-    if (this.upgrades.medic) {
-      this.medicTimer += dt;
-      if (this.medicTimer >= 4) { this.medicTimer = 0; this.addSoldiers(1, false); }
-    }
-
-    // Wave cleared?
-    if (this.activeEnemies.length === 0) {
-      this.phase = 'running';
-      this.scrollSpeed = this.upgrades.speed
-        ? this.baseScrollSpeed * 1.4
-        : this.baseScrollSpeed;
-    }
-
-    // Army dead?
-    if (this.soldierCount <= 0) this.endGame(false);
+    this.updateInlineEnemies(dt);
   }
 
   // ── updateShooting ────────────────────────────────────────────────────────
@@ -690,6 +698,14 @@ class GameScene extends Phaser.Scene {
           isBoss: !!target.isBoss,
           targetEnemy: target.isBoss ? null : target,
           dead: false,
+        });
+
+        // Muzzle flash at gun tip
+        this.muzzleFlashes.push({
+          x: originX + 12,
+          y: originY - 4,
+          life: 0.08,
+          maxLife: 0.08,
         });
       }
       if (window.audioManager) window.audioManager.shoot();
@@ -736,11 +752,30 @@ class GameScene extends Phaser.Scene {
     enemy.hp -= dmg;
     enemy.hitFlash = 1;
 
+    // Floating damage number
+    const dmgTxt = this.add.text(
+      enemy.x + Phaser.Math.Between(-12, 12),
+      enemy.y - 20 * enemy.scale,
+      `-${dmg}`,
+      { fontSize: '13px', fontStyle: 'bold', fill: '#ff4444', stroke: '#000000', strokeThickness: 2 }
+    ).setOrigin(0.5).setDepth(9);
+    this.tweens.add({
+      targets: dmgTxt,
+      y: dmgTxt.y - 36,
+      alpha: 0,
+      duration: 650,
+      ease: 'Power2',
+      onComplete: () => dmgTxt.destroy(),
+    });
+
+    if (window.audioManager) window.audioManager.enemyHit();
+
     if (enemy.hp <= 0) {
       enemy.dead = true;
       enemy.deathAnim = 0;
       this.score += 10;
       this.spawnDeathParticles(enemy.x, enemy.y);
+      this.spawnCoin(enemy.x, enemy.y - 15 * enemy.scale);
       if (window.audioManager) window.audioManager.enemyDeath();
 
       // Combo tracking
@@ -839,6 +874,38 @@ class GameScene extends Phaser.Scene {
       if (p.life <= 0) p.dead = true;
     }
     this.particles = this.particles.filter(p => !p.dead);
+  }
+
+  // ── spawnCoin ─────────────────────────────────────────────────────────────
+  spawnCoin(x, y) {
+    this.coinParticles.push({
+      x, y,
+      targetX: this.armyX + Phaser.Math.Between(-25, 25),
+      targetY: ARMY_Y - 20,
+      life: 0.55, maxLife: 0.55,
+      dead: false,
+    });
+  }
+
+  // ── updateCoinParticles ───────────────────────────────────────────────────
+  updateCoinParticles(dt) {
+    for (const coin of this.coinParticles) {
+      if (coin.dead) continue;
+      coin.life -= dt;
+      const t = Phaser.Math.Clamp(1 - coin.life / coin.maxLife, 0, 1);
+      coin.x = Phaser.Math.Linear(coin.x, coin.targetX, t * 0.12);
+      coin.y = Phaser.Math.Linear(coin.y, coin.targetY, t * 0.12);
+      if (coin.life <= 0) coin.dead = true;
+    }
+    this.coinParticles = this.coinParticles.filter(c => !c.dead);
+  }
+
+  // ── updateMuzzleFlashes ───────────────────────────────────────────────────
+  updateMuzzleFlashes(dt) {
+    for (const f of this.muzzleFlashes) {
+      f.life -= dt;
+    }
+    this.muzzleFlashes = this.muzzleFlashes.filter(f => f.life > 0);
   }
 
   // ── updateComboTimer ──────────────────────────────────────────────────────
@@ -989,15 +1056,16 @@ class GameScene extends Phaser.Scene {
   // ── startBossIntro ────────────────────────────────────────────────────────
   startBossIntro() {
     this.phase = 'bossIntro';
-    this.scrollSpeed = 0;
+    // Road keeps scrolling during boss intro — no scrollSpeed = 0!
     this.bossIntroTimer = 0;
 
     const ld = this.levelDef;
-    this.bossHp    = ld.bossHp;
-    this.bossMaxHp = ld.bossHp;
+    this.bossHp    = Math.ceil(ld.bossHp * this.difficultyMult);
+    this.bossMaxHp = this.bossHp;
     this.bossEnraged = false;
 
-    // Slow motion flash
+    // Boss roar + slow motion flash
+    if (window.audioManager) window.audioManager.bossRoar();
     this.time.timeScale = 0.3;
     this.time.delayedCall(300, () => { this.time.timeScale = 1; });
 
@@ -1008,7 +1076,7 @@ class GameScene extends Phaser.Scene {
       fontSize: '11px', fontStyle: 'bold', fill: '#ffffff', stroke: '#000', strokeThickness: 2,
     }).setOrigin(0.5).setDepth(24);
 
-    // Intro title
+    // Intro title slides in from left
     const titleCard = this.add.text(VP_X, GH * 0.5, `⚔️ ${ld.bossName.toUpperCase()}!`, {
       fontSize: '26px', fontStyle: 'bold',
       fill: '#ff4444', stroke: '#000', strokeThickness: 5, align: 'center',
@@ -1029,6 +1097,21 @@ class GameScene extends Phaser.Scene {
 
   // ── updateBossIntro ───────────────────────────────────────────────────────
   updateBossIntro(dt) {
+    // Road keeps scrolling during boss intro
+    this.scrollY += this.scrollSpeed * dt;
+    this.armyX = Phaser.Math.Linear(this.armyX, this.armyTargetX, 0.16);
+    this.legTimer += dt;
+    if (this.legTimer >= 0.3) { this.legTimer = 0; this.legPhase = 1 - this.legPhase; }
+    const sdDt = this.scrollSpeed * 0.7 * dt;
+    for (const obj of this.sceneryObjects) {
+      obj.screenY += sdDt;
+      if (obj.screenY > GH + 120) {
+        obj.screenY = VP_Y - Phaser.Math.Between(0, 60);
+        obj.size = 0.45 + Math.random() * 0.4;
+        obj.xOff = Phaser.Math.Between(15, 45);
+      }
+    }
+
     this.bossIntroTimer += dt;
     if (this.bossIntroTimer >= 2.2) {
       this.phase = 'boss';
@@ -1038,6 +1121,18 @@ class GameScene extends Phaser.Scene {
 
   // ── updateBoss ────────────────────────────────────────────────────────────
   updateBoss(dt) {
+    // Road keeps scrolling during boss fight — army never stops!
+    this.scrollY += this.scrollSpeed * dt;
+    const sdDt = this.scrollSpeed * 0.7 * dt;
+    for (const obj of this.sceneryObjects) {
+      obj.screenY += sdDt;
+      if (obj.screenY > GH + 120) {
+        obj.screenY = VP_Y - Phaser.Math.Between(0, 60);
+        obj.size = 0.45 + Math.random() * 0.4;
+        obj.xOff = Phaser.Math.Between(15, 45);
+      }
+    }
+
     // Leg/walk timer
     this.legTimer += dt;
     if (this.legTimer >= 0.4) { this.legTimer = 0; this.legPhase = 1 - this.legPhase; }
@@ -1143,8 +1238,9 @@ class GameScene extends Phaser.Scene {
     this.phase = 'result';
     this.cameras.main.shake(600, 0.025);
     this.destroyBossUI();
+    this.bossProjectiles = [];
 
-    // Expanding circles animation
+    // Big explosion ring burst
     for (let i = 0; i < 5; i++) {
       this.time.delayedCall(i * 120, () => {
         this.spawnExplosion(
@@ -1158,11 +1254,67 @@ class GameScene extends Phaser.Scene {
 
     this.time.delayedCall(1500, () => {
       const nextLevel = this.currentLevel + 1;
-      this.scene.stop('UIScene');
       if (nextLevel > LEVEL_DEFS.length) {
-        this.scene.start('WinScene', { level: this.currentLevel, allDone: true });
+        if (!this.hasSeenAllLevels) {
+          // First time clearing all 5 levels — show win screen
+          this.hasSeenAllLevels = true;
+          this.scene.stop('UIScene');
+          this.scene.start('WinScene', { level: this.currentLevel, allDone: true });
+        } else {
+          // Endless loop — increase difficulty and loop back
+          this.transitionToNextLevel(1, this.difficultyMult + 0.4);
+        }
       } else {
-        this.scene.start('WinScene', { level: this.currentLevel, nextLevel });
+        // Inline transition to next level — no scene switch
+        this.transitionToNextLevel(nextLevel, this.difficultyMult);
+      }
+    });
+  }
+
+  // ── transitionToNextLevel ─────────────────────────────────────────────────
+  // Seamlessly continues to the next level without stopping the road.
+  transitionToNextLevel(nextLevel, newDiffMult) {
+    this.phase = 'levelTransition';
+    this.currentLevel = nextLevel;
+    this.difficultyMult = newDiffMult || 1;
+
+    const lvlIdx = Math.min(this.currentLevel - 1, LEVEL_DEFS.length - 1);
+    this.levelDef = LEVEL_DEFS[lvlIdx];
+
+    // Clear old level state
+    this.gateObjects       = [];
+    this.enemyWaveTriggers = [];
+    this.upgradeGateTrigger = null;
+    this.bossTriggerDone   = false;
+    this.activeEnemies     = [];
+    this.bullets           = [];
+
+    // Destroy old gate texts
+    if (this.gateTextContainer) {
+      this.gateTextContainer.removeAll(true);
+    }
+
+    // Remember where this new level starts (for progress bar)
+    // 600px ahead ensures gates/enemies spawn far enough that the
+    // title card transition completes before any interaction is required.
+    this.levelStartScrollY = this.scrollY + 600;
+
+    // Rebuild level content starting ahead of current position
+    this.buildLevelContent(this.levelStartScrollY);
+
+    // Refresh parallax scenery for new biome
+    this.buildScenery();
+
+    // Show "Level X — Theme" title card sliding in while road scrolls
+    this.showLevelTitle();
+
+    // Notify UI of new level
+    this.time.delayedCall(100, () => this.notifyUI());
+
+    // After brief card display, resume normal running
+    this.time.delayedCall(2200, () => {
+      if (this.phase === 'levelTransition') {
+        this.phase = 'running';
       }
     });
   }
@@ -1184,7 +1336,7 @@ class GameScene extends Phaser.Scene {
 
   // ── endGame ───────────────────────────────────────────────────────────────
   endGame(won) {
-    if (this.phase === 'result') return;
+    if (this.phase === 'result' || this.phase === 'levelTransition') return;
     this.phase = 'result';
     this.destroyBossUI();
     if (!won && window.audioManager) window.audioManager.lose();
@@ -1225,6 +1377,8 @@ class GameScene extends Phaser.Scene {
     if (this.phase === 'boss' || this.phase === 'bossIntro') this.drawBossCharacter();
     // Boss projectiles are rendered inside drawBullets()
     this.drawParticles();
+    this.drawCoins();
+    this.drawMuzzleFlashes();
     this.drawScreenFlash();
   }
 
@@ -1512,6 +1666,31 @@ class GameScene extends Phaser.Scene {
       gfx.fillStyle(p.color, alpha);
       const size = p.size * alpha;
       gfx.fillCircle(p.x, p.y, size);
+    }
+  }
+
+  // ── drawCoins ─────────────────────────────────────────────────────────────
+  drawCoins() {
+    const gfx = this.effectGfx; // shares layer with particles (already cleared above)
+    for (const coin of this.coinParticles) {
+      if (coin.dead) continue;
+      const alpha = coin.life / coin.maxLife;
+      gfx.fillStyle(0xffd700, alpha);
+      gfx.fillCircle(coin.x, coin.y, 4 * alpha + 1);
+      gfx.fillStyle(0xffee88, alpha * 0.7);
+      gfx.fillCircle(coin.x - 1, coin.y - 1, 2 * alpha);
+    }
+  }
+
+  // ── drawMuzzleFlashes ─────────────────────────────────────────────────────
+  drawMuzzleFlashes() {
+    const gfx = this.effectGfx;
+    for (const f of this.muzzleFlashes) {
+      const alpha = f.life / f.maxLife;
+      gfx.fillStyle(0xffffff, alpha);
+      gfx.fillCircle(f.x, f.y, 5 * alpha);
+      gfx.fillStyle(0xffff44, alpha * 0.8);
+      gfx.fillCircle(f.x, f.y, 3 * alpha);
     }
   }
 
