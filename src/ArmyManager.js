@@ -245,6 +245,16 @@ class ArmyManager {
   static ROW_STAGGER = 0.35;      // Horizontal offset for odd rows
   static DEPTH_COMPRESSION = 0.9; // Tighter depth spacing
   
+  // Steering / physics constants
+  static SEP_RADIUS = 0.75;   // Minimum desired distance between soldiers (units)
+  static SEP_STRENGTH = 6.0;  // Separation push force magnitude
+  static ROAD_HALF = 3.8;     // Half-width of the playable road (units)
+  static DEATH_DURATION = 0.5; // Seconds before a dead soldier is removed
+  static DEATH_ANIM_END = 0.4; // Seconds at which the fall animation completes
+  
+  // Max soldiers firing per volley (caps bullet pool usage)
+  static MAX_VOLLEY_POSITIONS = 8;
+  
   // Available formation width (can be narrowed by obstacles)
   formationWidth = 7.0;
   
@@ -329,12 +339,25 @@ class ArmyManager {
     
     let activeIdx = 0;
     
+    // Pass 1: Update targets, movement, and animation state
     for (let i = 0; i < this.MAX; i++) {
       const soldier = this._soldiers[i];
       
       if (!soldier.active) {
         // Hide this soldier
         this._hideInstance(i);
+        continue;
+      }
+      
+      // Death animation — keep position fixed, just advance timer
+      if (soldier.deathTimer >= 0) {
+        soldier.deathTimer += dt;
+        if (soldier.deathTimer > ArmyManager.DEATH_DURATION) {
+          // Fully dead - deactivate
+          soldier.active = false;
+          this._hideInstance(i);
+        }
+        activeIdx++;
         continue;
       }
       
@@ -363,26 +386,66 @@ class ArmyManager {
       // Walk animation phase
       soldier.phase += dt * 5;
       
-      // Death animation
-      if (soldier.deathTimer >= 0) {
-        soldier.deathTimer += dt;
-        if (soldier.deathTimer > 1.2) {
-          // Fully dead - deactivate
-          soldier.active = false;
-          this._hideInstance(i);
-          continue;
-        }
-      }
-      
-      // Update visual transforms
-      this._updateSoldierParts(i, soldier);
       activeIdx++;
+    }
+    
+    // Pass 2: Apply separation forces so soldiers don't overlap (steering behavior)
+    this._applySeparation(dt);
+    
+    // Pass 3: Update visual transforms for all still-active soldiers
+    for (let i = 0; i < this.MAX; i++) {
+      const soldier = this._soldiers[i];
+      if (soldier.active) {
+        this._updateSoldierParts(i, soldier);
+      }
     }
     
     this._markNeedsUpdate();
     
     if (upgrades) {
       this.updateCompanions(dt, armyX, upgrades);
+    }
+  }
+  
+  /**
+   * Apply pairwise separation forces and road-boundary clamping.
+   * Prevents soldiers from overlapping each other and clipping off road.
+   * O(n²) over active alive soldiers — acceptable for n ≤ MAX (200).
+   */
+  _applySeparation(dt) {
+    // Pairwise separation
+    for (let i = 0; i < this.MAX; i++) {
+      const s1 = this._soldiers[i];
+      if (!s1.active || s1.deathTimer >= 0) continue;
+      
+      for (let j = i + 1; j < this.MAX; j++) {
+        const s2 = this._soldiers[j];
+        if (!s2.active || s2.deathTimer >= 0) continue;
+        
+        const dx = s1.x - s2.x;
+        const dz = s1.z - s2.z;
+        const distSq = dx * dx + dz * dz;
+        const sep = ArmyManager.SEP_RADIUS;
+        
+        if (distSq < sep * sep && distSq > 0.0001) {
+          const dist = Math.sqrt(distSq);
+          const overlap = sep - dist;
+          const push = overlap * ArmyManager.SEP_STRENGTH * dt;
+          const nx = dx / dist;
+          const nz = dz / dist;
+          s1.x += nx * push;
+          s1.z += nz * push;
+          s2.x -= nx * push;
+          s2.z -= nz * push;
+        }
+      }
+    }
+    
+    // Clamp every alive soldier to road bounds
+    for (let i = 0; i < this.MAX; i++) {
+      const s = this._soldiers[i];
+      if (!s.active || s.deathTimer >= 0) continue;
+      s.x = Math.max(-ArmyManager.ROAD_HALF, Math.min(ArmyManager.ROAD_HALF, s.x));
     }
   }
   
@@ -404,7 +467,7 @@ class ArmyManager {
     let deathLean = 0;
     let deathDrop = 0;
     if (soldier.deathTimer >= 0) {
-      const t = Math.min(soldier.deathTimer / 0.8, 1);
+      const t = Math.min(soldier.deathTimer / ArmyManager.DEATH_ANIM_END, 1);
       deathLean = t * (Math.PI / 2 + 0.2); // Fall forward
       deathDrop = t * 0.6; // Drop to ground
     }

@@ -21,7 +21,7 @@ class CameraController {
     this.baseHeight = 14;
     this.baseDistance = 20;
     this.lookAtY = 0.5;
-    this.lookAtZ = -6;
+    this.lookAtZ = -18; // Look further ahead so army sits in lower 30-40% of screen
     
     // Initialize camera position
     this._updateCameraPosition();
