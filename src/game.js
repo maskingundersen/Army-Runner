@@ -743,7 +743,9 @@ class ArmyRunnerGame {
     if (flashEl) {
       if (alpha > 0.01) {
         flashEl.style.opacity = alpha;
-        flashEl.style.backgroundColor = '#' + this.effects.screenFlashColor.toString(16).padStart(6, '0');
+        // Convert color to proper 6-digit hex string
+        const colorHex = Math.max(0, Math.min(0xffffff, Math.floor(this.effects.screenFlashColor)));
+        flashEl.style.backgroundColor = '#' + colorHex.toString(16).padStart(6, '0');
       } else {
         flashEl.style.opacity = '0';
       }

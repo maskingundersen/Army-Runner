@@ -21,6 +21,15 @@ class EffectsManager {
     this.particleMesh.frustumCulled = false;
     this.scene.add(this.particleMesh);
     
+    // Initialize instanceColor for per-particle coloring
+    const colors = new Float32Array(this.MAX_PARTICLES * 3);
+    for (let i = 0; i < this.MAX_PARTICLES; i++) {
+      colors[i * 3] = 1;     // R
+      colors[i * 3 + 1] = 1; // G
+      colors[i * 3 + 2] = 1; // B
+    }
+    this.particleMesh.instanceColor = new THREE.InstancedBufferAttribute(colors, 3);
+    
     // Initialize all particles to hidden (scale 0)
     const hideMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
     for (let i = 0; i < this.MAX_PARTICLES; i++) {

@@ -397,7 +397,9 @@ class EnemyManager {
       const dist = Math.sqrt(dx * dx + dz * dz);
       
       if (dist < radius) {
-        const dmg = Math.ceil(3 * (1 - dist / radius));
+        // Base explosion damage (defined in enemy def or default to 3)
+        const baseExplosionDamage = enemy.def.explosionDamage || 3;
+        const dmg = Math.ceil(baseExplosionDamage * (1 - dist / radius));
         this.damageEnemy(other, dmg);
       }
     }

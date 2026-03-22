@@ -198,7 +198,8 @@ class ProjectileSystem {
         bullet.life = 3;
         bullet.damage = stats.damage || 1;
         bullet.homing = stats.hasHoming;
-        bullet.targetEnemy = stats.hasHoming ? target : null;
+        // Only assign target if homing and target is alive
+        bullet.targetEnemy = (stats.hasHoming && target && !target.dead) ? target : null;
         
         this._bullets.push(idx);
       }

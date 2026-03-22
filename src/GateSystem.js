@@ -151,16 +151,24 @@ class GateSystem {
     canvas.height = 128;
     const ctx = canvas.getContext('2d');
     
-    // Background
+    // Background - use roundRect if available, fallback to fillRect
     ctx.fillStyle = isGood ? 'rgba(0, 170, 68, 0.9)' : 'rgba(170, 34, 0, 0.9)';
-    ctx.roundRect(4, 4, canvas.width - 8, canvas.height - 8, 16);
-    ctx.fill();
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(4, 4, canvas.width - 8, canvas.height - 8, 16);
+      ctx.fill();
+    } else {
+      ctx.fillRect(4, 4, canvas.width - 8, canvas.height - 8);
+    }
     
     // Border
     ctx.strokeStyle = isGood ? '#44ff88' : '#ff4444';
     ctx.lineWidth = 4;
-    ctx.roundRect(4, 4, canvas.width - 8, canvas.height - 8, 16);
-    ctx.stroke();
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(4, 4, canvas.width - 8, canvas.height - 8, 16);
+      ctx.stroke();
+    } else {
+      ctx.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+    }
     
     // Text
     ctx.fillStyle = '#ffffff';

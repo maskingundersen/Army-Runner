@@ -107,11 +107,14 @@ class ArmyManager {
    * @param {number} count - Desired soldier count
    * @param {number} armyX - Army center X position
    */
+  // Formation aspect ratio - makes formation wider than deep
+  static FORMATION_ASPECT_RATIO = 1.3;
+  
   setCount(count, armyX) {
     count = Math.min(count, this.MAX);
     
-    // Calculate formation
-    const cols = Math.ceil(Math.sqrt(count * 1.3));
+    // Calculate formation (aspect ratio makes formation wider than deep)
+    const cols = Math.ceil(Math.sqrt(count * ArmyManager.FORMATION_ASPECT_RATIO));
     const spacing = 1.2;
     
     // Activate/deactivate soldiers
@@ -177,7 +180,7 @@ class ArmyManager {
   update(dt, armyX, time) {
     // Recalculate formation targets
     const count = this._activeCount;
-    const cols = Math.ceil(Math.sqrt(count * 1.3));
+    const cols = Math.ceil(Math.sqrt(count * ArmyManager.FORMATION_ASPECT_RATIO));
     const spacing = 1.2;
     
     let activeIdx = 0;
