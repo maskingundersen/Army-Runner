@@ -437,7 +437,7 @@ class EnemyManager {
     enemy.hpBar.material.map.needsUpdate = true;
     
     // Hide bar at full HP to reduce visual clutter
-    enemy.hpBar.visible = ratio < 1.0;
+    enemy.hpBar.visible = ratio < 0.999;
   }
   
   /**

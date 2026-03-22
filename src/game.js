@@ -876,7 +876,7 @@ class ArmyRunnerGame {
     this.gateSys.cleanup(this.cameraZ);
     this._cleanupPathObstacles();
     
-    // 10. Trigger next segment when distance reached (runs even during combat)
+    // 10. Trigger next segment when distance reached (only when not in active combat)
     if (-this.cameraZ > this.nextSegmentDist && !this.inCombat) {
       this._triggerNextSegment();
     }

@@ -20,12 +20,12 @@ class GateSystem {
   createGate(worldZ, leftData, rightData) {
     const group = new THREE.Group();
     
-    // Gate dimensions
-    const gateWidth = 3.2;
+    // Gate dimensions — sized for 20-unit-wide road
+    const gateWidth = 8.0;
     const gateHeight = 4.0;
     const pillarWidth = 0.4;
     const barHeight = 0.5;
-    const gateSpacing = 1.0; // Gap between gates
+    const gateSpacing = 1.5; // Gap between gates
     
     // Left gate
     const leftGateGroup = this._createSingleGate(
@@ -80,7 +80,7 @@ class GateSystem {
   _createSingleGate(color, labelText, isGood) {
     const group = new THREE.Group();
     
-    const gateWidth = 3.0;
+    const gateWidth = 7.5;
     const gateHeight = 4.0;
     const pillarWidth = 0.35;
     const barHeight = 0.4;
@@ -125,7 +125,7 @@ class GateSystem {
     // Text label using canvas texture sprite
     const textSprite = this._createTextSprite(labelText, isGood);
     textSprite.position.set(0, gateHeight / 2, 0.2);
-    textSprite.scale.set(2.5, 1.2, 1);
+    textSprite.scale.set(3.5, 1.5, 1);
     group.add(textSprite);
     
     // Store references for animation
