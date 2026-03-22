@@ -87,6 +87,28 @@
       font-size: 14px;
     }
     
+    .hud-best {
+      background: rgba(40, 40, 60, 0.9);
+      border-color: #aaccff;
+      color: #aaccff;
+      font-size: 13px;
+    }
+    
+    .boot-best {
+      color: #ffd700;
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.6);
+    }
+    
+    .lose-best {
+      color: #ffd700;
+      font-size: 16px;
+      margin-bottom: 20px;
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.6);
+    }
+    
     /* Screen Flash Overlay */
     #screen-flash {
       position: fixed;
@@ -271,14 +293,11 @@
         <span class="icon">🪖</span>
         <span class="value" id="hud-soldier-count">20</span>
       </div>
-      <div class="hud-box">
-        <span class="icon">🪙</span>
-        <span class="value" id="hud-coins">0</span>
-      </div>
+      <div class="hud-box hud-milestone" id="hud-milestone" style="display:none;"></div>
     </div>
     <div class="hud-right">
-      <div class="hud-box hud-level" id="hud-level">LEVEL 1</div>
-      <div class="hud-box hud-milestone" id="hud-milestone" style="display:none;"></div>
+      <div class="hud-box hud-level" id="hud-level">1/9: Intro</div>
+      <div class="hud-box hud-best" id="hud-best" style="display:none;"></div>
     </div>
   </div>
   
@@ -289,7 +308,8 @@
   <div id="screen-boot" class="game-screen active">
     <div class="boot-title">🎖️</div>
     <div class="boot-title-text">ARMY RUNNER 3D</div>
-    <div class="boot-tagline">Lead your army through enemy territory. Collect soldiers, choose wisely at gates, and defeat the boss!</div>
+    <div class="boot-tagline">Lead your army through enemy territory. Choose your path wisely — SAFE or RISK — and defeat the bosses!</div>
+    <div id="boot-best" class="boot-best" style="display:none;"></div>
     <button class="game-btn" id="boot-play-btn">▶  TAP TO PLAY</button>
   </div>
   
@@ -306,7 +326,8 @@
   <div id="screen-lose" class="game-screen">
     <div class="lose-icon">💀</div>
     <div class="lose-title">GAME OVER</div>
-    <div class="lose-level" id="lose-level">Level 1</div>
+    <div class="lose-level" id="lose-level">Segment 1</div>
+    <div class="lose-best" id="lose-best" style="display:none;"></div>
     <button class="game-btn danger" id="lose-retry-btn">🔄  RETRY</button>
     <button class="game-btn secondary" id="lose-menu-btn">🏠  MAIN MENU</button>
   </div>

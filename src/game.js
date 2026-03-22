@@ -1,5 +1,20 @@
 // src/game.js — Three.js 3D Army Runner game (9-segment endless loop)
 
+// Base game constants
+const BASE_SCROLL_SPEED = 14;
+const MAX_SCROLL_SPEED = 20;
+const SCROLL_SPEED_PER_CYCLE = 0.8;
+const ENEMY_COUNT_SCALE_PER_CYCLE = 0.3;
+const OBSTACLE_CLEANUP_THRESHOLD = 50;
+
+// Milestone rankings (ascending order of difficulty)
+const MILESTONE_ORDER = [
+  'Reached Ogre',
+  'Defeated Ogre',
+  'Reached Fire Dragon',
+  'Defeated Fire Dragon',
+];
+
 // 9 segment definitions with fixed SAFE/RISK rewards
 const SEGMENT_DEFS = [
   {
@@ -13,6 +28,7 @@ const SEGMENT_DEFS = [
     ],
     boss: null,
     duration: 50,
+    riskNarrow: false,   // Intro: risk is only slightly tighter
   },
   {
     id: 2,
@@ -25,6 +41,7 @@ const SEGMENT_DEFS = [
     ],
     boss: null,
     duration: 50,
+    riskNarrow: true,    // Narrow lane on risk side
   },
   {
     id: 3,
@@ -37,6 +54,7 @@ const SEGMENT_DEFS = [
     ],
     boss: null,
     duration: 60,
+    riskNarrow: true,    // Obstacles forcing compression
   },
   {
     id: 4,
@@ -49,21 +67,25 @@ const SEGMENT_DEFS = [
     ],
     boss: null,
     duration: 60,
+    riskNarrow: true,    // Tight corridor
   },
   {
     id: 5,
     name: 'Mini Boss',
-    safeReward: { type: 'soldiers', count: 12, label: '+12' },
+    safeReward: { type: 'soldiers', count: 12, label: '+12 \u{1F6E1}\uFE0F' },
     riskReward: { type: 'upgrade', id: 'x2Bullets', label: '\u26A1 Double Shot' },
     enemies: [],
     boss: 'ogre',
     duration: 60,
+    riskNarrow: false,
   },
   {
     id: 6,
     name: 'Build Defining',
     safeReward: { type: 'soldiers', count: 10, label: '+10' },
-    riskReward: { type: 'upgrade', id: 'sideCannons', label: '\u{1F6F8} Drone Companion' },
+    riskReward: { type: 'upgrade', id: 'sideCannons', label: '\u{1F6F8} Drone' },
+    // Risk gives both drone companion AND piercing bullets
+    riskBonus: { id: 'piercing' },
     enemies: [
       { count: 6, enemyType: 'zombie', hp: 5 },
       { count: 4, enemyType: 'fast', hp: 2 },
@@ -71,6 +93,7 @@ const SEGMENT_DEFS = [
     ],
     boss: null,
     duration: 80,
+    riskNarrow: true,    // High density, tight movement
   },
   {
     id: 7,
@@ -84,6 +107,7 @@ const SEGMENT_DEFS = [
     ],
     boss: null,
     duration: 80,
+    riskNarrow: true,    // Multiple obstacles, fast enemies
   },
   {
     id: 8,
@@ -97,6 +121,7 @@ const SEGMENT_DEFS = [
     ],
     boss: null,
     duration: 80,
+    riskNarrow: true,    // Very tight corridors, heavy enemies
   },
   {
     id: 9,
@@ -106,6 +131,7 @@ const SEGMENT_DEFS = [
     enemies: [],
     boss: 'fireDragon',
     duration: 60,
+    riskNarrow: false,
   },
 ];
 
@@ -170,7 +196,7 @@ class ArmyRunnerGame {
     this.soldierCount = 20;
     this.upgrades = {};
     this.cameraZ = 0;
-    this.scrollSpeed = 14;
+    this.scrollSpeed = BASE_SCROLL_SPEED;
     this.armyX = 0;
     this.armyTargetX = 0;
     this.score = 0;
@@ -181,12 +207,16 @@ class ArmyRunnerGame {
     this.currentSegment = 0;        // 0-8 index into SEGMENT_DEFS
     this.segmentCycle = 0;          // Which loop iteration (0=first, 1=second, ...)
     this.difficultyMult = 1.0;      // HP multiplier, +0.4 per cycle
-    this.milestone = '';            // Best milestone reached
+    this.milestone = '';            // Best milestone reached this run
+    this.bestMilestone = this._loadBestMilestone(); // Best milestone ever
     this.currentBoss = null;        // Boss type currently being fought
     this.internalSegments = [];     // Flat sequence of gate/enemy/boss sub-steps
     this.internalSegIdx = 0;        // Current position in internalSegments
     this.inCombat = false;
     this.nextSegmentDist = 50;
+    
+    // Path obstacle tracking
+    this._pathObstacles = [];
     
     // Input state
     this.isDragging = false;
@@ -415,8 +445,14 @@ class ArmyRunnerGame {
   
   _setupUI() {
     this.hudSoldierCount = document.getElementById('hud-soldier-count');
-    this.hudCoins = document.getElementById('hud-coins');
     this.hudLevel = document.getElementById('hud-level');
+    
+    // Show best milestone on boot screen
+    const bootBest = document.getElementById('boot-best');
+    if (bootBest && this.bestMilestone) {
+      bootBest.textContent = '⭐ Best Run: ' + this.bestMilestone;
+      bootBest.style.display = '';
+    }
     
     // Boot screen play button
     document.getElementById('boot-play-btn').addEventListener('click', () => {
@@ -433,6 +469,7 @@ class ArmyRunnerGame {
       document.getElementById('screen-win').classList.remove('active');
       document.getElementById('screen-boot').classList.add('active');
       document.getElementById('hud').style.opacity = '0';
+      this._updateBootBest();
       this.state = 'boot';
     });
     
@@ -446,8 +483,17 @@ class ArmyRunnerGame {
       document.getElementById('screen-lose').classList.remove('active');
       document.getElementById('screen-boot').classList.add('active');
       document.getElementById('hud').style.opacity = '0';
+      this._updateBootBest();
       this.state = 'boot';
     });
+  }
+  
+  _updateBootBest() {
+    const bootBest = document.getElementById('boot-best');
+    if (bootBest && this.bestMilestone) {
+      bootBest.textContent = '⭐ Best Run: ' + this.bestMilestone;
+      bootBest.style.display = '';
+    }
   }
   
   _formatCycleLabel() {
@@ -456,7 +502,6 @@ class ArmyRunnerGame {
   
   _updateHUD() {
     if (this.hudSoldierCount) this.hudSoldierCount.textContent = this.soldierCount;
-    if (this.hudCoins) this.hudCoins.textContent = this.coins;
     if (this.hudLevel) {
       const segDef = SEGMENT_DEFS[this.currentSegment] || SEGMENT_DEFS[0];
       this.hudLevel.textContent = `${segDef.id}/9: ${segDef.name}${this._formatCycleLabel()}`;
@@ -468,6 +513,16 @@ class ArmyRunnerGame {
         milestoneEl.style.display = '';
       } else {
         milestoneEl.style.display = 'none';
+      }
+    }
+    // Best run display
+    const bestEl = document.getElementById('hud-best');
+    if (bestEl) {
+      if (this.bestMilestone) {
+        bestEl.textContent = '⭐ Best: ' + this.bestMilestone;
+        bestEl.style.display = '';
+      } else {
+        bestEl.style.display = 'none';
       }
     }
   }
@@ -499,6 +554,7 @@ class ArmyRunnerGame {
     this.projSys.clear();
     this.gateSys.clear();
     this.effects.clear();
+    this._clearPathObstacles();
     
     // Initialize army
     this.armyMgr.setCount(this.soldierCount, this.armyX);
@@ -545,6 +601,10 @@ class ArmyRunnerGame {
     // Increase difficulty: enemy HP is multiplied by difficultyMult in spawnWave/spawnBoss
     this.difficultyMult += 0.4;
     this.milestone = 'Cycle ' + (this.segmentCycle + 1);
+    this._saveBestMilestone();
+    
+    // Increase scroll speed slightly each cycle for more pressure
+    this.scrollSpeed = Math.min(MAX_SCROLL_SPEED, BASE_SCROLL_SPEED + this.segmentCycle * SCROLL_SPEED_PER_CYCLE);
     
     // Visual feedback
     this.effects.screenFlash(0x44aaff, 0.8);
@@ -572,6 +632,115 @@ class ArmyRunnerGame {
       this._cycleMsg.style.transition = 'opacity 1.5s ease-out';
       this._cycleMsg.style.opacity = '0';
     }, 500);
+  }
+  
+  // ── Path obstacles (walls/barriers between SAFE and RISK paths) ──
+  
+  _spawnPathObstacles(worldZ, riskNarrow) {
+    // Center divider wall: forces player to commit to left (SAFE) or right (RISK)
+    const wallHeight = 3.0;
+    const wallLength = 18;
+    const wallGeo = new THREE.BoxGeometry(0.6, wallHeight, wallLength);
+    const wallMat = new THREE.MeshLambertMaterial({ color: 0x555555 });
+    
+    const wall = new THREE.Mesh(wallGeo, wallMat);
+    // Store local offset from base worldZ; actual position set during _updatePathObstacles
+    wall.castShadow = true;
+    wall.receiveShadow = true;
+    this.scene.add(wall);
+    this._pathObstacles.push({ mesh: wall, worldZ: worldZ, localY: wallHeight / 2, localZ: wallLength / 2 + 4, localX: 0 });
+    
+    // Rocky barrier pieces along divider (visual variety)
+    const rockGeo = new THREE.BoxGeometry(0.8, 1.2, 1.5);
+    const rockMat = new THREE.MeshLambertMaterial({ color: 0x666666 });
+    for (let i = 0; i < 4; i++) {
+      const rock = new THREE.Mesh(rockGeo, rockMat);
+      const lz = 5 + i * 4.5 + (Math.random() - 0.5) * 1.5;
+      const lx = (Math.random() - 0.5) * 0.4;
+      rock.rotation.y = Math.random() * 0.5;
+      rock.castShadow = true;
+      this.scene.add(rock);
+      this._pathObstacles.push({ mesh: rock, worldZ: worldZ, localY: 0.6, localZ: lz, localX: lx });
+    }
+    
+    // If risk path is narrow, add barriers on the right side
+    if (riskNarrow) {
+      const barrierGeo = new THREE.BoxGeometry(0.5, 2.0, 2.0);
+      const barrierMat = new THREE.MeshLambertMaterial({ color: 0x884422 });
+      for (let i = 0; i < 3; i++) {
+        const barrier = new THREE.Mesh(barrierGeo, barrierMat);
+        const lz = 6 + i * 5;
+        const lx = 3.2 + Math.random() * 0.5;
+        barrier.castShadow = true;
+        this.scene.add(barrier);
+        this._pathObstacles.push({ mesh: barrier, worldZ: worldZ, localY: 1.0, localZ: lz, localX: lx });
+      }
+    }
+  }
+  
+  _updatePathObstacles() {
+    for (const obs of this._pathObstacles) {
+      // Position = worldZ offset by camera scroll, plus local Z offset
+      obs.mesh.position.set(obs.localX, obs.localY, obs.worldZ + obs.localZ - this.cameraZ);
+    }
+  }
+  
+  _clearPathObstacles() {
+    for (const obs of this._pathObstacles) {
+      this.scene.remove(obs.mesh);
+      if (obs.mesh.geometry) obs.mesh.geometry.dispose();
+      if (obs.mesh.material) obs.mesh.material.dispose();
+    }
+    this._pathObstacles.length = 0;
+  }
+  
+  _cleanupPathObstacles() {
+    for (let i = this._pathObstacles.length - 1; i >= 0; i--) {
+      const obs = this._pathObstacles[i];
+      // Remove obstacles that are far behind camera  
+      if (obs.mesh.position.z > OBSTACLE_CLEANUP_THRESHOLD) {
+        this.scene.remove(obs.mesh);
+        if (obs.mesh.geometry) obs.mesh.geometry.dispose();
+        if (obs.mesh.material) obs.mesh.material.dispose();
+        this._pathObstacles.splice(i, 1);
+      }
+    }
+  }
+  
+  // ── Milestone persistence ──
+  
+  _loadBestMilestone() {
+    try {
+      return localStorage.getItem('armyrunner_best') || '';
+    } catch (_) { return ''; }
+  }
+  
+  _saveBestMilestone() {
+    // Compare milestone rankings
+    const currentIdx = MILESTONE_ORDER.indexOf(this.milestone);
+    const bestIdx = MILESTONE_ORDER.indexOf(this.bestMilestone);
+    
+    // Cycle milestones are always better than pre-defined ones
+    const isCycleMilestone = this.milestone.startsWith('Cycle');
+    const isBestCycle = this.bestMilestone.startsWith('Cycle');
+    
+    let newBest = false;
+    if (isCycleMilestone && !isBestCycle) {
+      newBest = true;
+    } else if (isCycleMilestone && isBestCycle) {
+      const curCycle = parseInt(this.milestone.replace('Cycle ', '')) || 0;
+      const bestCycle = parseInt(this.bestMilestone.replace('Cycle ', '')) || 0;
+      newBest = curCycle > bestCycle;
+    } else if (!isCycleMilestone && !isBestCycle) {
+      newBest = currentIdx > bestIdx;
+    }
+    
+    if (newBest || !this.bestMilestone) {
+      this.bestMilestone = this.milestone;
+      try {
+        localStorage.setItem('armyrunner_best', this.milestone);
+      } catch (_) {}
+    }
   }
   
   _loop() {
@@ -610,6 +779,7 @@ class ArmyRunnerGame {
     // 4. Update road scrolling
     this._updateDashes();
     this._updateTrees();
+    this._updatePathObstacles();
     
     // 5. Ground/road are fixed in Three.js space (camera never moves in Z)
     
@@ -666,8 +836,9 @@ class ArmyRunnerGame {
       this._onGateHit(gateHit);
     }
     
-    // 9. Clean up old gates
+    // 9. Clean up old gates and obstacles
     this.gateSys.cleanup(this.cameraZ);
+    this._cleanupPathObstacles();
     
     // 10. Trigger next segment when distance reached
     if (!this.inCombat && -this.cameraZ > this.nextSegmentDist) {
@@ -739,10 +910,19 @@ class ArmyRunnerGame {
     }
     
     this.gateSys.createGate(baseZ, leftConfig, rightConfig);
+    
+    // Spawn path obstacles (walls/barriers) before the gate
+    this._spawnPathObstacles(baseZ, !!def.riskNarrow);
   }
   
   _spawnEnemies(def) {
-    this.enemyMgr.spawnWave(def.enemies, -60, this.armyX, this.difficultyMult);
+    // Scale enemy count by cycle (more enemies in later cycles)
+    const countMult = 1 + this.segmentCycle * ENEMY_COUNT_SCALE_PER_CYCLE;
+    const scaledEnemies = def.enemies.map(e => ({
+      ...e,
+      count: Math.ceil(e.count * countMult)
+    }));
+    this.enemyMgr.spawnWave(scaledEnemies, -60, this.armyX, this.difficultyMult);
   }
   
   _spawnBoss(def) {
@@ -781,6 +961,13 @@ class ArmyRunnerGame {
     if (reward && reward.type === 'upgrade') {
       // Weapon/ability upgrade
       this.upgrades[reward.id] = (this.upgrades[reward.id] || 0) + 1;
+      
+      // Check for bonus reward (e.g. segment 6 gives both drone + piercing)
+      const segDef = SEGMENT_DEFS[this.currentSegment];
+      if (segDef && segDef.riskBonus && side === 'right') {
+        const bonus = segDef.riskBonus;
+        this.upgrades[bonus.id] = (this.upgrades[bonus.id] || 0) + 1;
+      }
     } else {
       // Soldier modifier (apply via mod function for compatibility)
       this.soldierCount = Math.max(1, chosen.mod.apply(this.soldierCount));
@@ -805,6 +992,7 @@ class ArmyRunnerGame {
     // In the endless loop, win is not normally triggered.
     // Kept as fallback; shows milestone summary.
     this.state = 'win';
+    this._saveBestMilestone();
     if (window.audioManager) window.audioManager.win();
     
     const screen = document.getElementById('screen-win');
@@ -818,12 +1006,22 @@ class ArmyRunnerGame {
     this.state = 'lose';
     if (window.audioManager) window.audioManager.lose();
     
+    // Save best milestone
+    this._saveBestMilestone();
+    
     const screen = document.getElementById('screen-lose');
     screen.classList.add('active');
     
     const segDef = SEGMENT_DEFS[this.currentSegment] || SEGMENT_DEFS[0];
     document.getElementById('lose-level').textContent =
       `${this.milestone || ('Segment ' + segDef.id)}${this._formatCycleLabel()}`;
+    
+    // Show best run on lose screen
+    const bestEl = document.getElementById('lose-best');
+    if (bestEl && this.bestMilestone) {
+      bestEl.textContent = '⭐ Best Run: ' + this.bestMilestone;
+      bestEl.style.display = '';
+    }
   }
   
   _updateScreenFlash() {
