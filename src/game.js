@@ -714,7 +714,7 @@ class ArmyRunnerGame {
         const d = this._getSegDef(idx);
         return d && d.boss;
       });
-      if (!hasBoss) segOrder[segOrder.length - 1] = 4; // Force ogre boss
+      if (!hasBoss) segOrder[segOrder.length - 1] = 4; // Force ogre boss (SEGMENT_DEFS index 4)
     }
     
     for (const segIdx of segOrder) {
@@ -863,7 +863,7 @@ class ArmyRunnerGame {
       if (obs.localX !== 0) continue; // Only center divider walls
       const visualZ = obs.mesh.position.z;
       if (visualZ > -5 && visualZ < 25) {
-        const wallHalfW = 0.6;
+        const wallHalfW = 0.7; // wall half width + buffer
         if (this.armyX < -wallHalfW) {
           this.armyTargetX = Math.min(this.armyTargetX, -wallHalfW);
           this.armyX = Math.min(this.armyX, -wallHalfW);
@@ -1201,7 +1201,7 @@ class ArmyRunnerGame {
         this._turretAttackTimer = 0;
         const turretDamage = 3;
         for (let t = 0; t < stats.autoTurretCount && t < aliveEnemies.length; t++) {
-          const target = aliveEnemies[Math.floor(Math.random() * aliveEnemies.length)];
+          const target = aliveEnemies[t]; // Target different enemies like dragons
           this.enemyMgr.damageEnemy(target, turretDamage);
           this.effects.explode(target.worldX, 1, target.worldZ, 0xaabb44, 5, 2);
         }
@@ -1294,8 +1294,8 @@ class ArmyRunnerGame {
   _spawnEnemies(def) {
     // Scale enemy count by cycle (more enemies in later cycles)
     const countMult = 1 + this.segmentCycle * ENEMY_COUNT_SCALE_PER_CYCLE;
-    // Within-segment HP scaling (#2)
-    const segmentProgress = this.currentSegment / Math.max(SEGMENT_DEFS.length, 1);
+    // Within-segment HP scaling (#2) — use internalSegIdx for consistent progression
+    const segmentProgress = Math.min(1, this.internalSegIdx / Math.max(this.internalSegments.length, 1));
     const hpScale = 1 + segmentProgress * 0.5;
     const scaledEnemies = def.enemies.map(e => ({
       ...e,

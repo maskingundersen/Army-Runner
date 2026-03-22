@@ -573,15 +573,14 @@ class EnemyManager {
       }
       
       // Walk toward army (positive Z direction)
-      enemy.worldZ += def.walkSpeed * dt;
-      enemy.group.position.z = enemy.worldZ;
-      
-      // Charger: speed up when close to army
+      // Charger: use charge speed when close to army
+      let moveSpeed = def.walkSpeed;
       if (def.charges && enemy.worldZ > -(def.chargeDistance || 8)) {
         enemy.charging = true;
-        enemy.worldZ += (def.chargeSpeed - def.walkSpeed) * dt;
-        enemy.group.position.z = enemy.worldZ;
+        moveSpeed = def.chargeSpeed;
       }
+      enemy.worldZ += moveSpeed * dt;
+      enemy.group.position.z = enemy.worldZ;
       
       // Jumping: periodically jump
       if (def.jumps) {
@@ -665,8 +664,8 @@ class EnemyManager {
       const hitD = (def.size.body[2] / 2 + 0.4) * scale;
       
       if (dx < hitW && dz < hitD && by > 0 && by < 2.5 * scale) {
-        // Jumping enemies: bullets miss during jump
-        if (def.jumps && enemy.jumpY > 1.0 && by < enemy.jumpY) {
+        // Jumping enemies: bullets miss during jump (check bullet Y vs enemy total Y position)
+        if (def.jumps && enemy.jumpY > 1.0 && by < (enemy.jumpY + 2.5 * scale)) {
           continue;
         }
         return enemy;
