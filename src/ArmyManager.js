@@ -116,8 +116,7 @@ class ArmyManager {
     if (type === this._currentWeaponType) return;
     if (!this._weaponGeos[type]) return;
     this._currentWeaponType = type;
-    // Swap geometry on gun instanced mesh
-    this.gunInst.geometry.dispose();
+    // Swap geometry on gun instanced mesh (don't dispose — geometries are reused)
     this.gunInst.geometry = this._weaponGeos[type];
     this._markNeedsUpdate();
   }

@@ -1317,7 +1317,12 @@ class ArmyRunnerGame {
     this.projSys.update(dt, this.armyX, 0, this.soldierCount, 
       this.enemyMgr.enemies, this.upgrades, stats, null, this.armyMgr);
     
-    // 8. Update gates and check collisions
+    // 8b. Check barrel bullet hits (also outside combat so barrels can be shot anytime)
+    if (this.enemyMgr.enemies.length === 0) {
+      this._checkBarrelBulletHitsFromProjectiles();
+    }
+    
+    // 8c. Update gates and check collisions
     this.gateSys.update(this.cameraZ);
     const gateHit = this.gateSys.checkCollision(this.armyX);
     if (gateHit) {
