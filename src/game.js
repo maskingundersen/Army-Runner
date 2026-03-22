@@ -198,7 +198,7 @@ class ArmyRunnerGame {
     
     // Game state
     this.state = 'boot';
-    this.soldierCount = 20;
+    this.soldierCount = 1;
     this.upgrades = {};
     this.cameraZ = 0;
     this.scrollSpeed = BASE_SCROLL_SPEED;
@@ -292,8 +292,8 @@ class ArmyRunnerGame {
     this.groundMesh.receiveShadow = true;
     this.scene.add(this.groundMesh);
     
-    // Road strip (darker, centered)
-    const roadGeo = new THREE.PlaneGeometry(8, 400);
+    // Road strip (wider for formation gameplay)
+    const roadGeo = new THREE.PlaneGeometry(20, 400);
     const roadMat = new THREE.MeshLambertMaterial({ color: 0x282836 });
     this.roadMesh = new THREE.Mesh(roadGeo, roadMat);
     this.roadMesh.rotation.x = -Math.PI / 2;
@@ -314,8 +314,8 @@ class ArmyRunnerGame {
     const edgeMat = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
     const leftEdge = new THREE.Mesh(edgeGeo, edgeMat);
     const rightEdge = new THREE.Mesh(edgeGeo, edgeMat.clone());
-    leftEdge.position.set(-3.9, 0.01, -120);
-    rightEdge.position.set(3.9, 0.01, -120);
+    leftEdge.position.set(-9.8, 0.01, -120);
+    rightEdge.position.set(9.8, 0.01, -120);
     this.scene.add(leftEdge, rightEdge);
     this.leftEdge = leftEdge;
     this.rightEdge = rightEdge;
@@ -360,7 +360,7 @@ class ArmyRunnerGame {
     
     for (let i = 0; i < numTrees; i++) {
       const side = i % 2 === 0 ? -1 : 1;
-      const baseX = side * (6 + Math.random() * 10);
+      const baseX = side * (12 + Math.random() * 10);
       const baseZ = (i * 4) - 80 + (Math.random() - 0.5) * 2;
       const scale = 0.8 + Math.random() * 0.6;
       
@@ -437,7 +437,7 @@ class ArmyRunnerGame {
       if (!this.isDragging) return;
       
       const dx = (e.clientX - this.dragStartX) * 0.018;
-      this.armyTargetX = Math.max(-3.5, Math.min(3.5, this.armyTargetX + dx));
+      this.armyTargetX = Math.max(-8.5, Math.min(8.5, this.armyTargetX + dx));
       this.dragStartX = e.clientX;
     });
     
@@ -539,7 +539,7 @@ class ArmyRunnerGame {
   }
   
   startGame() {
-    this.soldierCount = 20 + (this.shopMeta.startSoldiers || 0) * 5;
+    this.soldierCount = 1;
     this.upgrades = {};
     this.cameraZ = 0;
     this.armyX = 0;
@@ -781,10 +781,8 @@ class ArmyRunnerGame {
   }
   
   _update(dt) {
-    // 1. Scroll world (cameraZ decreases = move forward)
-    if (!this.inCombat) {
-      this.cameraZ -= this.scrollSpeed * dt;
-    }
+    // 1. Scroll world ALWAYS (cameraZ decreases = move forward) — never stop
+    this.cameraZ -= this.scrollSpeed * dt;
     
     // 2. Steer army
     this.armyX += (this.armyTargetX - this.armyX) * Math.min(1, dt * 8);
@@ -798,13 +796,16 @@ class ArmyRunnerGame {
     this._updateTrees();
     this._updatePathObstacles();
     
+    // 4b. Obstacle collision — soldiers must not clip through walls/barriers
+    this.armyMgr.applyObstacleCollision(this._pathObstacles);
+    
     // 5. Ground/road are fixed in Three.js space (camera never moves in Z)
     
     // 6. Compute stats (needed for combat and projectile updates)
     const stats = this._getStats();
     
-    // 7. Combat update
-    if (this.inCombat) {
+    // 7. Enemy update — ALWAYS update enemies while they exist (continuous movement)
+    if (this.enemyMgr.enemies.length > 0) {
       const { soldierLosses, killedEnemies } = this.enemyMgr.update(dt, this.armyX);
       
       // Handle soldier losses
@@ -830,7 +831,7 @@ class ArmyRunnerGame {
       this._updateAbilities(dt, stats);
       
       // Check if combat wave is cleared
-      if (this.enemyMgr.count === 0) {
+      if (this.inCombat && this.enemyMgr.count === 0) {
         this.inCombat = false;
         this.combatLight.intensity = 0;
         
@@ -875,8 +876,8 @@ class ArmyRunnerGame {
     this.gateSys.cleanup(this.cameraZ);
     this._cleanupPathObstacles();
     
-    // 10. Trigger next segment when distance reached
-    if (!this.inCombat && -this.cameraZ > this.nextSegmentDist) {
+    // 10. Trigger next segment when distance reached (runs even during combat)
+    if (-this.cameraZ > this.nextSegmentDist && !this.inCombat) {
       this._triggerNextSegment();
     }
     

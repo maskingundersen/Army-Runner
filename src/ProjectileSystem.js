@@ -1,8 +1,7 @@
 // src/ProjectileSystem.js — Manages bullets using InstancedMesh
 
-// Maximum number of soldier positions that fire per volley.
-// Caps bullet pool usage while distributing fire across the formation.
-const MAX_VOLLEY_POSITIONS = 8;
+// Every soldier fires independently — no volley cap.
+// The bullet pool (500) is the only hard limit.
 
 class ProjectileSystem {
   constructor(threeScene, effectsMgr) {
@@ -87,8 +86,8 @@ class ProjectileSystem {
     
     if (this._fireTimer >= stats.fireInterval && soldierCount > 0) {
       this._fireTimer = 0;
-      // Collect individual soldier muzzle positions (capped to keep bullet pool manageable)
-      const muzzlePositions = armyMgr ? armyMgr.getMuzzlePositions(MAX_VOLLEY_POSITIONS) : [];
+      // Collect ALL soldier muzzle positions — each soldier fires independently
+      const muzzlePositions = armyMgr ? armyMgr.getMuzzlePositions(soldierCount) : [];
       this._fireBullets(muzzlePositions, armyX, enemies, stats);
     }
     
@@ -152,14 +151,13 @@ class ProjectileSystem {
     const aliveEnemies = enemies.filter(e => !e.dead);
     if (aliveEnemies.length === 0) return;
     
-    const shotsPerFire = Math.min(stats.bulletCount, MAX_VOLLEY_POSITIONS);
     const spreadAngles = stats.spreadAngles || [0];
     const tripleAngles = stats.tripleAngles || [0];
     const speed = 35 * (stats.bulletSpeedMult || 1);
     
-    // Use real soldier positions; fall back to evenly-spaced armyX offsets when
-    // muzzle data is not available (e.g. first frame before army is ready).
-    const firePositions = Math.min(shotsPerFire, 6);
+    // Each soldier fires from its own position — no cap.
+    // Fall back to a single center position when muzzle data is unavailable.
+    const firePositions = Math.max(muzzlePositions.length, 1);
     const posSpacing = 0.8;
     
     for (let p = 0; p < firePositions; p++) {
