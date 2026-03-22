@@ -34,13 +34,19 @@ class UIScene extends Phaser.Scene {
       fontSize: '11px', fill: '#aaaacc',
     }).setOrigin(0.5);
 
-    // Score (right side)
-    this.scoreText = this.add.text(W - 60, 35, '0', {
-      fontSize: '14px', fontStyle: 'bold', fill: '#ffd700', stroke: '#000', strokeThickness: 2,
+    // Score (right side top)
+    this.scoreText = this.add.text(W - 60, 28, '0', {
+      fontSize: '13px', fontStyle: 'bold', fill: '#ffd700', stroke: '#000', strokeThickness: 2,
     }).setOrigin(0.5);
-    this.add.text(W - 60, 55, 'SCORE', {
+    this.add.text(W - 60, 40, 'SCORE', {
       fontSize: '9px', fill: '#aaaacc',
     }).setOrigin(0.5);
+
+    // Coin counter (right side bottom)
+    this.add.text(W - 72, 57, '🪙', { fontSize: '12px' }).setOrigin(0.5);
+    this.coinText = this.add.text(W - 52, 57, '0', {
+      fontSize: '12px', fontStyle: 'bold', fill: '#ffd700',
+    }).setOrigin(0, 0.5);
 
     // Pause button
     const pauseHit = this.add.rectangle(W - 16, 16, 28, 28, 0x000000, 0)
@@ -53,12 +59,13 @@ class UIScene extends Phaser.Scene {
     this.pauseOverlay = null;
   }
 
-  updateHUD(count, level, flashType, score) {
+  updateHUD(count, level, flashType, score, coins) {
     if (!this.countText) return;
 
     this.countText.setText(count.toString());
     if (this.levelText) this.levelText.setText(`LVL ${level}`);
     if (this.scoreText && score !== undefined) this.scoreText.setText(score.toString());
+    if (this.coinText  && coins  !== undefined) this.coinText.setText(coins.toString());
 
     // Pop animation
     this.tweens.killTweensOf(this.countText);
