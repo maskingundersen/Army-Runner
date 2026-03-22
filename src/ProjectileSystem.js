@@ -1,5 +1,9 @@
 // src/ProjectileSystem.js — Manages bullets using InstancedMesh
 
+// Maximum number of soldier positions that fire per volley.
+// Caps bullet pool usage while distributing fire across the formation.
+const MAX_VOLLEY_POSITIONS = 8;
+
 class ProjectileSystem {
   constructor(threeScene, effectsMgr) {
     this.scene = threeScene;
@@ -75,14 +79,17 @@ class ProjectileSystem {
    * @param {Object} upgrades - Current upgrades
    * @param {Object} stats - Computed stats from UpgradeSystem
    * @param {Object|null} bossPos - Boss position if applicable
+   * @param {Object|null} armyMgr - ArmyManager for per-soldier muzzle positions
    */
-  update(dt, armyX, armyZ, soldierCount, enemies, upgrades, stats, bossPos) {
+  update(dt, armyX, armyZ, soldierCount, enemies, upgrades, stats, bossPos, armyMgr) {
     // Fire interval
     this._fireTimer += dt;
     
     if (this._fireTimer >= stats.fireInterval && soldierCount > 0) {
       this._fireTimer = 0;
-      this._fireBullets(armyX, enemies, stats);
+      // Collect individual soldier muzzle positions (capped to keep bullet pool manageable)
+      const muzzlePositions = armyMgr ? armyMgr.getMuzzlePositions(MAX_VOLLEY_POSITIONS) : [];
+      this._fireBullets(muzzlePositions, armyX, enemies, stats);
     }
     
     // Update active bullets
@@ -137,35 +144,41 @@ class ProjectileSystem {
   }
   
   /**
-   * Fire bullets from army
+   * Fire bullets from individual soldier muzzle positions in a fixed forward direction.
+   * Each soldier fires from their own world position; spread angles are fixed offsets
+   * from the forward axis (NOT aimed at enemies).
    */
-  _fireBullets(armyX, enemies, stats) {
-    // Find targets
+  _fireBullets(muzzlePositions, armyX, enemies, stats) {
     const aliveEnemies = enemies.filter(e => !e.dead);
     if (aliveEnemies.length === 0) return;
     
-    // Sort by distance (closest first: highest worldZ = closest to army at Z=0)
-    aliveEnemies.sort((a, b) => b.worldZ - a.worldZ);
-    
-    // Get number of shots based on stats
-    const shotsPerFire = Math.min(stats.bulletCount, 8);
+    const shotsPerFire = Math.min(stats.bulletCount, MAX_VOLLEY_POSITIONS);
     const spreadAngles = stats.spreadAngles || [0];
     const tripleAngles = stats.tripleAngles || [0];
     const speed = 35 * (stats.bulletSpeedMult || 1);
     
-    // Fire from multiple positions
+    // Use real soldier positions; fall back to evenly-spaced armyX offsets when
+    // muzzle data is not available (e.g. first frame before army is ready).
     const firePositions = Math.min(shotsPerFire, 6);
     const posSpacing = 0.8;
     
     for (let p = 0; p < firePositions; p++) {
-      const posX = armyX + (p - (firePositions - 1) / 2) * posSpacing * 0.5;
-      const posY = 0.9;
-      const posZ = -0.3;
+      // Individual soldier position (preferred) or synthetic fallback
+      let posX, posY, posZ;
+      if (p < muzzlePositions.length) {
+        posX = muzzlePositions[p].x;
+        posY = muzzlePositions[p].y;
+        posZ = muzzlePositions[p].z;
+      } else {
+        posX = armyX + (p - (firePositions - 1) / 2) * posSpacing * 0.5;
+        posY = 0.9;
+        posZ = -0.3;
+      }
       
       // Muzzle flash
       this.effects.muzzleFlash(posX, posY, posZ);
       
-      // Fire for each spread angle and triple shot angle
+      // Fire for each spread angle and triple shot angle — all in fixed forward direction
       for (const angle of spreadAngles) {
         for (const tripleAngle of tripleAngles) {
           const idx = this._bulletPool.pop();
@@ -177,34 +190,25 @@ class ProjectileSystem {
           bullet.y = posY;
           bullet.z = posZ;
           
-          // Target nearest enemy
-          const target = aliveEnemies[p % aliveEnemies.length];
-          const dx = target.worldX - posX;
-          const dz = target.worldZ - posZ;
-          const dist = Math.sqrt(dx * dx + dz * dz);
-          
-          // Base velocity toward target
-          let vx = (dx / dist) * speed;
-          let vz = (dz / dist) * speed;
-          
-          // Apply spread angle (horizontal) + triple shot angle
+          // Fixed forward direction: bullets travel in -Z (world forward) with spread offset.
+          // combinedAngle rotates the bullet left/right around the Y axis from straight ahead.
           const combinedAngle = angle + tripleAngle;
-          if (combinedAngle !== 0) {
-            const cos = Math.cos(combinedAngle);
-            const sin = Math.sin(combinedAngle);
-            const newVx = vx * cos - vz * sin;
-            const newVz = vx * sin + vz * cos;
-            vx = newVx;
-            vz = newVz;
+          bullet.vx = Math.sin(combinedAngle) * speed;
+          bullet.vy = 0;
+          bullet.vz = -Math.cos(combinedAngle) * speed; // Negative Z = forward
+          
+          // Homing upgrade: steer toward nearest enemy after spawning
+          if (stats.hasHoming && aliveEnemies.length > 0) {
+            aliveEnemies.sort((a, b) => b.worldZ - a.worldZ);
+            bullet.homing = true;
+            bullet.targetEnemy = aliveEnemies[p % aliveEnemies.length];
+          } else {
+            bullet.homing = false;
+            bullet.targetEnemy = null;
           }
           
-          bullet.vx = vx;
-          bullet.vy = 0;
-          bullet.vz = vz;
           bullet.life = 3;
           bullet.damage = stats.damage || 1;
-          bullet.homing = stats.hasHoming;
-          bullet.targetEnemy = (stats.hasHoming && target && !target.dead) ? target : null;
           bullet.pierceHits = 0;
           bullet.piercedEnemies.clear();
           

@@ -862,7 +862,7 @@ class ArmyRunnerGame {
     
     // 8. Update projectiles
     this.projSys.update(dt, this.armyX, 0, this.soldierCount, 
-      this.enemyMgr.enemies, this.upgrades, stats, null);
+      this.enemyMgr.enemies, this.upgrades, stats, null, this.armyMgr);
     
     // 8. Update gates and check collisions
     this.gateSys.update(this.cameraZ);

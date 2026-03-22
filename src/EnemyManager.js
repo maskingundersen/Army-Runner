@@ -286,17 +286,17 @@ class EnemyManager {
       if (enemy.dead) {
         enemy.deathTimer += dt;
         
-        // Fall animation
-        const fallT = Math.min(enemy.deathTimer / 0.5, 1);
+        // Fall animation (completes by 0.3s)
+        const fallT = Math.min(enemy.deathTimer / 0.3, 1);
         enemy.group.rotation.x = fallT * Math.PI / 2;
         enemy.group.position.y = -fallT * 0.5;
         
-        // Fade out (scale down)
-        const fadeT = Math.max(0, (enemy.deathTimer - 0.3) / 0.5);
+        // Fade out (starts immediately, completes by 0.5s)
+        const fadeT = Math.max(0, enemy.deathTimer / 0.5);
         const scale = def.scale * (1 - fadeT);
         enemy.group.scale.set(scale, scale, scale);
         
-        if (enemy.deathTimer > 0.8) {
+        if (enemy.deathTimer > 0.5) {
           // Remove enemy
           this._releaseEnemy(enemy);
           this.enemies.splice(i, 1);
