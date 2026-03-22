@@ -452,6 +452,15 @@ class ArmyRunnerGame {
       const segDef = SEGMENT_DEFS[this.currentSegment] || SEGMENT_DEFS[0];
       this.hudLevel.textContent = `${segDef.id}/9: ${segDef.name}${this._formatCycleLabel()}`;
     }
+    const milestoneEl = document.getElementById('hud-milestone');
+    if (milestoneEl) {
+      if (this.milestone) {
+        milestoneEl.textContent = '🏆 ' + this.milestone;
+        milestoneEl.style.display = '';
+      } else {
+        milestoneEl.style.display = 'none';
+      }
+    }
   }
   
   startGame() {
@@ -586,7 +595,7 @@ class ArmyRunnerGame {
     this.armyX += (this.armyTargetX - this.armyX) * Math.min(1, dt * 8);
     
     // 3. Update army formation
-    this.armyMgr.update(dt, this.armyX, this.clock.elapsedTime);
+    this.armyMgr.update(dt, this.armyX, this.clock.elapsedTime, this.upgrades);
     this.camCtrl.follow(this.armyX, this.soldierCount);
     
     // 4. Update road scrolling
@@ -595,7 +604,10 @@ class ArmyRunnerGame {
     
     // 5. Ground/road are fixed in Three.js space (camera never moves in Z)
     
-    // 6. Combat update
+    // 6. Compute stats (needed for combat and projectile updates)
+    const stats = this._getStats();
+    
+    // 7. Combat update
     if (this.inCombat) {
       const { soldierLosses, killedEnemies } = this.enemyMgr.update(dt, this.armyX);
       
@@ -616,7 +628,7 @@ class ArmyRunnerGame {
       }
       
       // Bullet collision checks
-      this.projSys.checkHits(this.enemyMgr);
+      this.projSys.checkHits(this.enemyMgr, stats);
       
       // Check if combat wave is cleared
       if (this.enemyMgr.count === 0) {
@@ -634,8 +646,7 @@ class ArmyRunnerGame {
       }
     }
     
-    // 7. Update projectiles
-    const stats = this._getStats();
+    // 8. Update projectiles
     this.projSys.update(dt, this.armyX, 0, this.soldierCount, 
       this.enemyMgr.enemies, this.upgrades, stats, null);
     
