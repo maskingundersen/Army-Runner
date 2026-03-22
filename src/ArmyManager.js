@@ -128,33 +128,66 @@ class ArmyManager {
     this.scene.add(droneGroup);
     this._drone = droneGroup;
     
-    // Dragon - larger flying creature
-    const dragonGroup = new THREE.Group();
-    const dragonBody = new THREE.Mesh(
-      new THREE.BoxGeometry(0.6, 0.4, 1.2),
-      new THREE.MeshLambertMaterial({ color: 0xcc3300 })
-    );
-    dragonBody.position.y = 5;
-    dragonGroup.add(dragonBody);
-    const wingGeo = new THREE.BoxGeometry(1.5, 0.05, 0.8);
-    const wingMat = new THREE.MeshLambertMaterial({ color: 0xff4400 });
-    const lWing = new THREE.Mesh(wingGeo, wingMat);
-    lWing.position.set(-0.9, 5, 0);
-    lWing.rotation.z = 0.2;
-    dragonGroup.add(lWing);
-    const rWing = new THREE.Mesh(wingGeo, wingMat);
-    rWing.position.set(0.9, 5, 0);
-    rWing.rotation.z = -0.2;
-    dragonGroup.add(rWing);
-    const dragonHead = new THREE.Mesh(
-      new THREE.BoxGeometry(0.3, 0.3, 0.4),
-      new THREE.MeshLambertMaterial({ color: 0xcc3300 })
-    );
-    dragonHead.position.set(0, 5.2, -0.7);
-    dragonGroup.add(dragonHead);
-    dragonGroup.visible = false;
-    this.scene.add(dragonGroup);
-    this._dragon = dragonGroup;
+    // Dragon - larger flying creature (stackable up to 3)
+    this._dragons = [];
+    for (let d = 0; d < 3; d++) {
+      const dragonGroup = new THREE.Group();
+      const dragonBody = new THREE.Mesh(
+        new THREE.BoxGeometry(0.6, 0.4, 1.2),
+        new THREE.MeshLambertMaterial({ color: 0xcc3300 })
+      );
+      dragonBody.position.y = 5;
+      dragonGroup.add(dragonBody);
+      const wingGeo = new THREE.BoxGeometry(1.5, 0.05, 0.8);
+      const wingMat = new THREE.MeshLambertMaterial({ color: 0xff4400 });
+      const lWing = new THREE.Mesh(wingGeo, wingMat);
+      lWing.position.set(-0.9, 5, 0);
+      lWing.rotation.z = 0.2;
+      dragonGroup.add(lWing);
+      const rWing = new THREE.Mesh(wingGeo, wingMat);
+      rWing.position.set(0.9, 5, 0);
+      rWing.rotation.z = -0.2;
+      dragonGroup.add(rWing);
+      const dragonHead = new THREE.Mesh(
+        new THREE.BoxGeometry(0.3, 0.3, 0.4),
+        new THREE.MeshLambertMaterial({ color: 0xcc3300 })
+      );
+      dragonHead.position.set(0, 5.2, -0.7);
+      dragonGroup.add(dragonHead);
+      dragonGroup.visible = false;
+      this.scene.add(dragonGroup);
+      this._dragons.push(dragonGroup);
+    }
+    
+    // Auto-turret - small rotating gun platform
+    this._turrets = [];
+    for (let t = 0; t < 2; t++) {
+      const turretGroup = new THREE.Group();
+      // Base
+      const turretBase = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.25, 0.3, 0.3, 8),
+        new THREE.MeshLambertMaterial({ color: 0x556655 })
+      );
+      turretBase.position.y = 0.15;
+      turretGroup.add(turretBase);
+      // Gun barrel
+      const turretBarrel = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, 0.08, 0.5),
+        new THREE.MeshLambertMaterial({ color: 0x333333 })
+      );
+      turretBarrel.position.set(0, 0.35, -0.2);
+      turretGroup.add(turretBarrel);
+      // Top dome
+      const turretDome = new THREE.Mesh(
+        new THREE.SphereGeometry(0.18, 8, 6),
+        new THREE.MeshLambertMaterial({ color: 0x778877 })
+      );
+      turretDome.position.y = 0.4;
+      turretGroup.add(turretDome);
+      turretGroup.visible = false;
+      this.scene.add(turretGroup);
+      this._turrets.push(turretGroup);
+    }
     
     this._companionPhase = 0;
   }
@@ -172,16 +205,33 @@ class ArmyManager {
       this._drone.children[0].position.y = 3.5 + Math.sin(this._companionPhase * 3) * 0.15;
     }
     
-    // Dragon
-    const hasDragon = (upgrades.homing || 0) > 0;
-    this._dragon.visible = hasDragon;
-    if (hasDragon) {
-      const dx = Math.cos(this._companionPhase) * 3;
-      const dz = Math.sin(this._companionPhase) * 3 - 2;
-      this._dragon.position.set(armyX + dx, 0, dz);
-      const flapAngle = Math.sin(this._companionPhase * 4) * 0.3;
-      this._dragon.children[1].rotation.z = 0.2 + flapAngle;
-      this._dragon.children[2].rotation.z = -0.2 - flapAngle;
+    // Dragons (stackable, up to 3)
+    const dragonCount = Math.min(upgrades.dragon || 0, MAX_DRAGON_COUNT);
+    for (let d = 0; d < this._dragons.length; d++) {
+      const hasDragon = d < dragonCount;
+      this._dragons[d].visible = hasDragon;
+      if (hasDragon) {
+        const offset = (d * Math.PI * 2) / Math.max(dragonCount, 1);
+        const dx = Math.cos(this._companionPhase + offset) * (3 + d * 0.8);
+        const dz = Math.sin(this._companionPhase + offset) * (3 + d * 0.8) - 2;
+        this._dragons[d].position.set(armyX + dx, 0, dz);
+        const flapAngle = Math.sin(this._companionPhase * 4 + offset) * 0.3;
+        this._dragons[d].children[1].rotation.z = 0.2 + flapAngle;
+        this._dragons[d].children[2].rotation.z = -0.2 - flapAngle;
+      }
+    }
+    
+    // Auto-turrets
+    const turretCount = Math.min(upgrades.autoTurret || 0, 2);
+    for (let t = 0; t < this._turrets.length; t++) {
+      const hasTurret = t < turretCount;
+      this._turrets[t].visible = hasTurret;
+      if (hasTurret) {
+        const side = t === 0 ? -1.5 : 1.5;
+        this._turrets[t].position.set(armyX + side, 0, 0.5);
+        // Rotate turret barrel to point forward
+        this._turrets[t].rotation.y = Math.sin(this._companionPhase * 3 + t) * 0.3;
+      }
     }
   }
   

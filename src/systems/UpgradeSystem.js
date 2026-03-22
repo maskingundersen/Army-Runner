@@ -6,9 +6,12 @@
 // type: 'stat'    → modifies a stat (fire rate, damage, etc.)
 
 const SOLDIER_GOOD_MODS = [
+  { label: '+3',   apply: (n) => n + 3  },
+  { label: '+5',   apply: (n) => n + 5  },
   { label: '+10',  apply: (n) => n + 10 },
   { label: '+15',  apply: (n) => n + 15 },
   { label: '+25',  apply: (n) => n + 25 },
+  { label: '×1.5', apply: (n) => Math.floor(n * 1.5) },
   { label: '×2',   apply: (n) => n * 2  },
   { label: '×3',   apply: (n) => n * 3  },
 ];
@@ -21,17 +24,31 @@ const SOLDIER_BAD_MODS = [
 
 // Gold weapon/ability gates — shown in gold arch
 const WEAPON_GATES = [
+  // Fire Modifiers
   { id: 'spreadShot',   label: 'Spread Shot',       color: '#ffd700', icon: '🌀' },
-  { id: 'explosive',    label: 'Explosive Rounds',  color: '#ff8c00', icon: '💥' },
-  { id: 'homing',       label: 'Homing Bullets',    color: '#44ffcc', icon: '🎯' },
-  { id: 'ricochet',     label: 'Ricochet',          color: '#aaddff', icon: '↩️' },
-  { id: 'x2Bullets',   label: '×2 Bullets',         color: '#ffd700', icon: '🔫' },
-  { id: 'betterGuns',  label: '+Fire Rate',          color: '#88ff44', icon: '⚡' },
-  { id: 'damage25',    label: '+25% Damage',         color: '#ff6644', icon: '💢' },
-  { id: 'sideCannons', label: 'Side Cannons',        color: '#ffaa44', icon: '🗡️'  },
-  { id: 'armor',       label: '+Armor',              color: '#44aaff', icon: '🛡️' },
-  { id: 'medic',       label: 'Medic Regen',         color: '#44ff88', icon: '❤️' },
-  { id: 'piercing',   label: 'Piercing Bullets',    color: '#88ff44', icon: '➡️' },
+  { id: 'x2Bullets',    label: 'Double Shot',        color: '#ffd700', icon: '🔫' },
+  { id: 'tripleShot',   label: 'Triple Shot',        color: '#ffcc00', icon: '🔱' },
+  { id: 'sideCannons',  label: 'Side Cannons',       color: '#ffaa44', icon: '🗡️' },
+  // Weapon Core Upgrades
+  { id: 'betterGuns',   label: '+Fire Rate',         color: '#88ff44', icon: '⚡' },
+  { id: 'damage25',     label: '+25% Damage',        color: '#ff6644', icon: '💢' },
+  { id: 'bulletSpeed',  label: '+Bullet Speed',      color: '#66ccff', icon: '💨' },
+  // Advanced Bullet Types
+  { id: 'explosive',    label: 'Explosive Rounds',   color: '#ff8c00', icon: '💥' },
+  { id: 'piercing',     label: 'Piercing Bullets',   color: '#88ff44', icon: '➡️' },
+  { id: 'ricochet',     label: 'Ricochet',           color: '#aaddff', icon: '↩️' },
+  // Active Abilities (cooldown-based)
+  { id: 'grenade',      label: 'Grenade Throw',      color: '#ff4400', icon: '💣' },
+  { id: 'airstrike',    label: 'Airstrike',          color: '#cc2200', icon: '✈️' },
+  { id: 'shockwave',    label: 'Shockwave',          color: '#8844ff', icon: '🌊' },
+  // Support Systems
+  { id: 'homing',       label: 'Homing Bullets',     color: '#44ffcc', icon: '🎯' },
+  { id: 'autoTurret',   label: 'Auto-turret',        color: '#aabb44', icon: '🤖' },
+  // Defensive
+  { id: 'armor',        label: '+Armor',             color: '#44aaff', icon: '🛡️' },
+  { id: 'medic',        label: 'Medic Regen',        color: '#44ff88', icon: '❤️' },
+  // Endgame
+  { id: 'dragon',       label: 'Dragon Companion',   color: '#ff4400', icon: '🐉' },
 ];
 
 // Between-run shop upgrades (persistent, bought with coins)
@@ -70,6 +87,9 @@ const SHOP_UPGRADES = [
   },
 ];
 
+// Maximum dragon companions allowed
+const MAX_DRAGON_COUNT = 3;
+
 // ── UpgradeSystem class ───────────────────────────────────────────────────────
 
 class UpgradeSystem {
@@ -82,6 +102,7 @@ class UpgradeSystem {
   static get SHOP_UPGRADES() { return SHOP_UPGRADES; }
   static get SOLDIER_GOOD_MODS() { return SOLDIER_GOOD_MODS; }
   static get SOLDIER_BAD_MODS()  { return SOLDIER_BAD_MODS;  }
+  static get MAX_DRAGON_COUNT()  { return MAX_DRAGON_COUNT;   }
 
   /**
    * Apply a weapon gate upgrade to the state object.
@@ -113,12 +134,20 @@ class UpgradeSystem {
         // Double shots per fire tick (up to 4× with 2 stacks)
         break;
 
+      case 'tripleShot':
+        // Fires 3 bullets per position in a triangle pattern
+        break;
+
       case 'betterGuns':
         // Fire interval decreases
         break;
 
       case 'damage25':
         // +25% base damage per stack
+        break;
+
+      case 'bulletSpeed':
+        // +30% bullet speed per stack
         break;
 
       case 'sideCannons':
@@ -135,6 +164,26 @@ class UpgradeSystem {
 
       case 'piercing':
         // Bullets pass through multiple enemies
+        break;
+
+      case 'grenade':
+        // Cooldown-based grenade throw ability
+        break;
+
+      case 'airstrike':
+        // Cooldown-based airstrike ability
+        break;
+
+      case 'shockwave':
+        // Cooldown-based shockwave ability
+        break;
+
+      case 'autoTurret':
+        // Auto-turret companion follows army and shoots
+        break;
+
+      case 'dragon':
+        // Dragon companion (stackable, flies and attacks)
         break;
     }
   }
@@ -155,11 +204,18 @@ class UpgradeSystem {
     const gunStacks    = upgrades.betterGuns || 0;
     const fireInterval = Math.max(0.12, baseInterval / (1 + gunStacks * 0.5));
 
+    // Bullet speed multiplier
+    const bulletSpeedStacks = upgrades.bulletSpeed || 0;
+    const bulletSpeedMult = 1 + bulletSpeedStacks * 0.3;
+
     // Bullet count per shot
     const spreadStacks = upgrades.spreadShot || 0;
     const x2Stacks     = upgrades.x2Bullets  || 0;
+    const tripleStacks = upgrades.tripleShot || 0;
     const baseBullets  = 1 + spreadStacks;  // 1 → up to 6 with stacks
-    const bulletCount  = baseBullets * (x2Stacks > 0 ? 2 : 1);
+    let bulletCount    = baseBullets * (x2Stacks > 0 ? 2 : 1);
+    // Triple shot: fire 3 bullets per position in a triangle pattern
+    if (tripleStacks > 0) bulletCount *= 3;
 
     // Spread angles (in radians) for spread shot
     const spreadAngles = [];
@@ -174,11 +230,24 @@ class UpgradeSystem {
       spreadAngles.push(0); // straight shot
     }
 
+    // Triple shot adds vertical spread angles
+    const tripleAngles = [];
+    if (tripleStacks > 0) {
+      tripleAngles.push(-0.15, 0, 0.15);
+    } else {
+      tripleAngles.push(0);
+    }
+
+    // Dragon companion count (stackable)
+    const dragonCount = Math.min(upgrades.dragon || 0, MAX_DRAGON_COUNT);
+
     return {
       damage,
       fireInterval,
       bulletCount,
+      bulletSpeedMult,
       spreadAngles,
+      tripleAngles,
       hasHoming:    (upgrades.homing    || 0) > 0,
       hasExplosive: (upgrades.explosive || 0) > 0,
       explosiveRadius: 4.0 + (upgrades.explosive || 0) * 1.5,
@@ -191,6 +260,22 @@ class UpgradeSystem {
       hasMedic:     (upgrades.medic || 0) > 0,
       hasPiercing:  (upgrades.piercing || 0) > 0,
       pierceCount:  Math.min((upgrades.piercing || 0) + 1, 5),
+      hasTripleShot: tripleStacks > 0,
+      // Active abilities
+      hasGrenade:   (upgrades.grenade  || 0) > 0,
+      grenadeDamage: 8 + (upgrades.grenade || 0) * 4,
+      grenadeRadius: 5.0 + (upgrades.grenade || 0) * 1.0,
+      hasAirstrike: (upgrades.airstrike || 0) > 0,
+      airstrikeDamage: 15 + (upgrades.airstrike || 0) * 5,
+      hasShockwave: (upgrades.shockwave || 0) > 0,
+      shockwaveDamage: 5 + (upgrades.shockwave || 0) * 3,
+      shockwaveRadius: 8.0 + (upgrades.shockwave || 0) * 2.0,
+      // Support systems
+      hasAutoTurret: (upgrades.autoTurret || 0) > 0,
+      autoTurretCount: Math.min(upgrades.autoTurret || 0, 2),
+      // Endgame
+      hasDragon: dragonCount > 0,
+      dragonCount,
     };
   }
 

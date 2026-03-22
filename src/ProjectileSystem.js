@@ -86,7 +86,8 @@ class ProjectileSystem {
     }
     
     // Update active bullets
-    const bulletSpeed = 35; // units per second
+    const baseBulletSpeed = 35; // units per second
+    const bulletSpeed = baseBulletSpeed * (stats.bulletSpeedMult || 1);
     
     for (let i = this._bullets.length - 1; i >= 0; i--) {
       const idx = this._bullets[i];
@@ -149,6 +150,8 @@ class ProjectileSystem {
     // Get number of shots based on stats
     const shotsPerFire = Math.min(stats.bulletCount, 8);
     const spreadAngles = stats.spreadAngles || [0];
+    const tripleAngles = stats.tripleAngles || [0];
+    const speed = 35 * (stats.bulletSpeedMult || 1);
     
     // Fire from multiple positions
     const firePositions = Math.min(shotsPerFire, 6);
@@ -162,50 +165,51 @@ class ProjectileSystem {
       // Muzzle flash
       this.effects.muzzleFlash(posX, posY, posZ);
       
-      // Fire for each spread angle
+      // Fire for each spread angle and triple shot angle
       for (const angle of spreadAngles) {
-        const idx = this._bulletPool.pop();
-        if (idx === undefined) break;
-        
-        const bullet = this._bulletData[idx];
-        bullet.active = true;
-        bullet.x = posX;
-        bullet.y = posY;
-        bullet.z = posZ;
-        
-        // Target nearest enemy
-        const target = aliveEnemies[p % aliveEnemies.length];
-        const dx = target.worldX - posX;
-        const dz = target.worldZ - posZ;
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        
-        // Base velocity toward target
-        const speed = 35;
-        let vx = (dx / dist) * speed;
-        let vz = (dz / dist) * speed;
-        
-        // Apply spread angle
-        if (angle !== 0) {
-          const cos = Math.cos(angle);
-          const sin = Math.sin(angle);
-          const newVx = vx * cos - vz * sin;
-          const newVz = vx * sin + vz * cos;
-          vx = newVx;
-          vz = newVz;
+        for (const tripleAngle of tripleAngles) {
+          const idx = this._bulletPool.pop();
+          if (idx === undefined) break;
+          
+          const bullet = this._bulletData[idx];
+          bullet.active = true;
+          bullet.x = posX;
+          bullet.y = posY;
+          bullet.z = posZ;
+          
+          // Target nearest enemy
+          const target = aliveEnemies[p % aliveEnemies.length];
+          const dx = target.worldX - posX;
+          const dz = target.worldZ - posZ;
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          
+          // Base velocity toward target
+          let vx = (dx / dist) * speed;
+          let vz = (dz / dist) * speed;
+          
+          // Apply spread angle (horizontal) + triple shot angle
+          const combinedAngle = angle + tripleAngle;
+          if (combinedAngle !== 0) {
+            const cos = Math.cos(combinedAngle);
+            const sin = Math.sin(combinedAngle);
+            const newVx = vx * cos - vz * sin;
+            const newVz = vx * sin + vz * cos;
+            vx = newVx;
+            vz = newVz;
+          }
+          
+          bullet.vx = vx;
+          bullet.vy = 0;
+          bullet.vz = vz;
+          bullet.life = 3;
+          bullet.damage = stats.damage || 1;
+          bullet.homing = stats.hasHoming;
+          bullet.targetEnemy = (stats.hasHoming && target && !target.dead) ? target : null;
+          bullet.pierceHits = 0;
+          bullet.piercedEnemies.clear();
+          
+          this._bullets.push(idx);
         }
-        
-        bullet.vx = vx;
-        bullet.vy = 0;
-        bullet.vz = vz;
-        bullet.life = 3;
-        bullet.damage = stats.damage || 1;
-        bullet.homing = stats.hasHoming;
-        // Only assign target if homing and target is alive
-        bullet.targetEnemy = (stats.hasHoming && target && !target.dead) ? target : null;
-        bullet.pierceHits = 0;
-        bullet.piercedEnemies.clear();
-        
-        this._bullets.push(idx);
       }
     }
     

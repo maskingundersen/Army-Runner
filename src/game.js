@@ -11,11 +11,18 @@ const OBSTACLE_CLEANUP_THRESHOLD = 50;
 const MILESTONE_ORDER = [
   'Reached Ogre',
   'Defeated Ogre',
+  'Reached Giant',
+  'Defeated Giant',
   'Reached Fire Dragon',
   'Defeated Fire Dragon',
 ];
 
 // 9 segment definitions with fixed SAFE/RISK rewards
+// ~100+ unique reward opportunities across cycles via stacking upgrades
+// Builds: "Bullet Storm" (fire rate + double/triple + spread),
+//         "Heavy Impact" (explosive + damage + bullet speed),
+//         "Swarm Army"   (soldier count + medic + armor),
+//         "Support Commander" (drone + turret + dragon + homing)
 const SEGMENT_DEFS = [
   {
     id: 1,
@@ -28,52 +35,53 @@ const SEGMENT_DEFS = [
     ],
     boss: null,
     duration: 50,
-    riskNarrow: false,   // Intro: risk is only slightly tighter
+    riskNarrow: false,
   },
   {
     id: 2,
     name: 'First Decision',
     safeReward: { type: 'soldiers', count: 5, label: '+5' },
-    riskReward: { type: 'upgrade', id: 'betterGuns', label: '\u{1F525} Fire Rate' },
+    riskReward: { type: 'upgrade', id: 'betterGuns', label: '\u26A1 Fire Rate' },
     enemies: [
       { count: 4, enemyType: 'zombie', hp: 3 },
       { count: 2, enemyType: 'fast', hp: 1 },
     ],
     boss: null,
     duration: 50,
-    riskNarrow: true,    // Narrow lane on risk side
+    riskNarrow: true,
   },
   {
     id: 3,
     name: 'Pressure Intro',
     safeReward: { type: 'soldiers', count: 8, label: '+8' },
-    riskReward: { type: 'upgrade', id: 'spreadShot', label: '\u{1F52B} Spread Shot' },
+    riskReward: { type: 'upgrade', id: 'spreadShot', label: '\u{1F300} Spread Shot' },
     enemies: [
-      { count: 5, enemyType: 'zombie', hp: 4 },
-      { count: 3, enemyType: 'fast', hp: 2 },
+      { count: 5, enemyType: 'zombie', hp: 4, xOffset: 0 },
+      { count: 3, enemyType: 'fast', hp: 2, xOffset: -3 },
     ],
     boss: null,
     duration: 60,
-    riskNarrow: true,    // Obstacles forcing compression
+    riskNarrow: true,
   },
   {
     id: 4,
     name: 'Skill Check',
     safeReward: { type: 'soldiers', count: 10, label: '+10' },
-    riskReward: { type: 'upgrade', id: 'explosive', label: '\u{1F4A3} Grenade' },
+    riskReward: { type: 'upgrade', id: 'grenade', label: '\u{1F4A3} Grenade Throw' },
     enemies: [
       { count: 4, enemyType: 'zombie', hp: 5 },
       { count: 3, enemyType: 'exploding', hp: 2 },
+      { count: 2, enemyType: 'fast', hp: 2, xOffset: 3 },
     ],
     boss: null,
     duration: 60,
-    riskNarrow: true,    // Tight corridor
+    riskNarrow: true,
   },
   {
     id: 5,
     name: 'Mini Boss',
     safeReward: { type: 'soldiers', count: 12, label: '+12 \u{1F6E1}\uFE0F' },
-    riskReward: { type: 'upgrade', id: 'x2Bullets', label: '\u26A1 Double Shot' },
+    riskReward: { type: 'upgrade', id: 'x2Bullets', label: '\u{1F52B} Double Shot' },
     enemies: [],
     boss: 'ogre',
     duration: 60,
@@ -82,52 +90,49 @@ const SEGMENT_DEFS = [
   {
     id: 6,
     name: 'Build Defining',
-    safeReward: { type: 'soldiers', count: 10, label: '+10' },
+    safeReward: { type: 'soldiers', count: 0, label: '\u00D71.5', mod: { apply: (n) => Math.floor(n * 1.5) } },
     riskReward: { type: 'upgrade', id: 'sideCannons', label: '\u{1F6F8} Drone' },
-    // Risk gives both drone companion AND piercing bullets
     riskBonus: { id: 'piercing' },
     enemies: [
-      { count: 6, enemyType: 'zombie', hp: 5 },
-      { count: 4, enemyType: 'fast', hp: 2 },
-      { count: 2, enemyType: 'tank', hp: 10 },
+      { count: 6, enemyType: 'zombie', hp: 5, xOffset: 0 },
+      { count: 4, enemyType: 'fast', hp: 2, xOffset: -3 },
+      { count: 2, enemyType: 'tank', hp: 10, xOffset: 2 },
     ],
     boss: null,
     duration: 80,
-    riskNarrow: true,    // High density, tight movement
+    riskNarrow: true,
   },
   {
     id: 7,
-    name: 'High Pressure',
+    name: 'Heavy Assault',
     safeReward: { type: 'soldiers', count: 15, label: '+15' },
     riskReward: { type: 'upgrade', id: 'explosive', label: '\u{1F4A5} Explosive Rounds' },
+    riskBonus: { id: 'bulletSpeed' },
     enemies: [
-      { count: 8, enemyType: 'fast', hp: 3 },
-      { count: 4, enemyType: 'exploding', hp: 3 },
+      { count: 8, enemyType: 'fast', hp: 3, xOffset: -2 },
+      { count: 4, enemyType: 'exploding', hp: 3, xOffset: 2 },
       { count: 2, enemyType: 'tank', hp: 12 },
     ],
     boss: null,
     duration: 80,
-    riskNarrow: true,    // Multiple obstacles, fast enemies
+    riskNarrow: true,
   },
   {
     id: 8,
-    name: 'Elite Path',
-    safeReward: { type: 'soldiers', count: 8, label: '+8' },
-    riskReward: { type: 'upgrade', id: 'homing', label: '\u{1F409} Dragon Companion' },
-    enemies: [
-      { count: 6, enemyType: 'tank', hp: 15 },
-      { count: 6, enemyType: 'zombie', hp: 6 },
-      { count: 3, enemyType: 'exploding', hp: 4 },
-    ],
-    boss: null,
-    duration: 80,
-    riskNarrow: true,    // Very tight corridors, heavy enemies
+    name: 'Titan Gate',
+    safeReward: { type: 'soldiers', count: 10, label: '+10' },
+    riskReward: { type: 'upgrade', id: 'autoTurret', label: '\u{1F916} Auto-turret' },
+    enemies: [],
+    boss: 'giant',
+    duration: 70,
+    riskNarrow: false,
   },
   {
     id: 9,
-    name: 'Major Boss',
+    name: 'Dragon\'s Lair',
     safeReward: { type: 'soldiers', count: 15, label: '+15' },
-    riskReward: { type: 'upgrade', id: 'damage25', label: '\u2694\uFE0F Power Up' },
+    riskReward: { type: 'upgrade', id: 'dragon', label: '\u{1F409} Dragon Companion' },
+    riskBonus: { id: 'damage25' },
     enemies: [],
     boss: 'fireDragon',
     duration: 60,
@@ -145,7 +150,7 @@ const ENV_PALETTES = [
 ];
 
 // Base boss HP — mirrors ENEMY_DEFS_3D in EnemyManager.js, scaled by difficultyMult each cycle
-const BOSS_HP = { ogre: 80, fireDragon: 200 };
+const BOSS_HP = { ogre: 80, giant: 150, fireDragon: 200 };
 
 // Shared identity modifier for upgrade gates (no soldier count change)
 const IDENTITY_MOD = { apply: (n) => n };
@@ -214,6 +219,12 @@ class ArmyRunnerGame {
     this.internalSegIdx = 0;        // Current position in internalSegments
     this.inCombat = false;
     this.nextSegmentDist = 50;
+    
+    // Active ability cooldown timers
+    this._grenadeCooldown = 0;
+    this._airstrikeCooldown = 0;
+    this._shockwaveCooldown = 0;
+    this._medicTimer = 0;
     
     // Path obstacle tracking
     this._pathObstacles = [];
@@ -541,6 +552,12 @@ class ArmyRunnerGame {
     this.currentBoss = null;
     this.inCombat = false;
     
+    // Reset active ability cooldowns
+    this._grenadeCooldown = 0;
+    this._airstrikeCooldown = 0;
+    this._shockwaveCooldown = 0;
+    this._medicTimer = 0;
+    
     // Build internal segment sequence
     this._buildInternalSegments();
     this.internalSegIdx = 0;
@@ -809,6 +826,9 @@ class ArmyRunnerGame {
       // Bullet collision checks
       this.projSys.checkHits(this.enemyMgr, stats);
       
+      // Active abilities during combat
+      this._updateAbilities(dt, stats);
+      
       // Check if combat wave is cleared
       if (this.enemyMgr.count === 0) {
         this.inCombat = false;
@@ -817,11 +837,26 @@ class ArmyRunnerGame {
         // Track boss defeat milestones
         if (this.currentBoss) {
           if (this.currentBoss === 'ogre') this.milestone = 'Defeated Ogre';
+          else if (this.currentBoss === 'giant') this.milestone = 'Defeated Giant';
           else if (this.currentBoss === 'fireDragon') this.milestone = 'Defeated Fire Dragon';
           this.currentBoss = null;
         }
         
         this._triggerNextSegment();
+      }
+    }
+    
+    // 7b. Medic regen (works outside combat too)
+    if (stats.hasMedic) {
+      this._medicTimer += dt;
+      if (this._medicTimer >= 5.0) {
+        this._medicTimer = 0;
+        if (this.soldierCount < 200) {
+          this.soldierCount = Math.min(200, this.soldierCount + 1);
+          this.armyMgr.setCount(this.soldierCount, this.armyX);
+          this.effects.gateEffect(this.armyX, 0.5, 0, 0x44ff88);
+          this._updateHUD();
+        }
       }
     }
     
@@ -855,6 +890,78 @@ class ArmyRunnerGame {
     return us.getStats(this.upgrades, this.shopMeta);
   }
   
+  // ── Active ability system (grenade, airstrike, shockwave) ──
+  
+  _updateAbilities(dt, stats) {
+    const enemies = this.enemyMgr.enemies;
+    const aliveEnemies = enemies.filter(e => !e.dead);
+    if (aliveEnemies.length === 0) return;
+    
+    // Grenade: AOE damage on cooldown
+    if (stats.hasGrenade) {
+      this._grenadeCooldown -= dt;
+      if (this._grenadeCooldown <= 0) {
+        this._grenadeCooldown = 4.0; // 4 second cooldown
+        // Target middle enemy in the wave (approximate center of mass)
+        const target = aliveEnemies[Math.floor(aliveEnemies.length / 2)];
+        if (target) {
+          this.effects.explode(target.worldX, 2, target.worldZ, 0xff4400, 20, 6);
+          this.effects.screenFlash(0xff4400, 0.3);
+          this.camCtrl.shake(0.6);
+          for (const e of aliveEnemies) {
+            const dx = e.worldX - target.worldX;
+            const dz = e.worldZ - target.worldZ;
+            if (dx * dx + dz * dz < stats.grenadeRadius * stats.grenadeRadius) {
+              this.enemyMgr.damageEnemy(e, stats.grenadeDamage);
+            }
+          }
+          if (window.audioManager) window.audioManager.shoot();
+        }
+      }
+    }
+    
+    // Airstrike: massive damage line across the field
+    if (stats.hasAirstrike) {
+      this._airstrikeCooldown -= dt;
+      if (this._airstrikeCooldown <= 0) {
+        this._airstrikeCooldown = 8.0; // 8 second cooldown
+        // Damage all enemies in a wide horizontal stripe
+        this.effects.screenFlash(0xcc2200, 0.4);
+        this.camCtrl.shake(1.0);
+        for (const e of aliveEnemies) {
+          this.enemyMgr.damageEnemy(e, stats.airstrikeDamage);
+          this.effects.explode(e.worldX, 2, e.worldZ, 0xff6600, 5, 3);
+        }
+        if (window.audioManager) window.audioManager.bossRoar();
+      }
+    }
+    
+    // Shockwave: knockback-style AOE centered on army
+    if (stats.hasShockwave) {
+      this._shockwaveCooldown -= dt;
+      if (this._shockwaveCooldown <= 0) {
+        this._shockwaveCooldown = 6.0; // 6 second cooldown
+        this.effects.gateEffect(this.armyX, 0.5, 0, 0x8844ff);
+        this.effects.screenFlash(0x8844ff, 0.3);
+        this.camCtrl.shake(0.8);
+        for (const e of aliveEnemies) {
+          const dx = e.worldX - this.armyX;
+          const dz = e.worldZ;
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          if (dist < stats.shockwaveRadius) {
+            this.enemyMgr.damageEnemy(e, stats.shockwaveDamage);
+            // Push enemies back
+            if (dist > 0.5) {
+              e.worldZ -= (stats.shockwaveRadius - dist) * 0.5;
+              e.group.position.z = e.worldZ;
+            }
+          }
+        }
+        if (window.audioManager) window.audioManager.shoot();
+      }
+    }
+  }
+  
   _triggerNextSegment() {
     if (this.internalSegIdx >= this.internalSegments.length) {
       this._startNewCycle();
@@ -885,7 +992,7 @@ class ArmyRunnerGame {
     const safe = def.safeReward;
     const leftConfig = {
       label: safe.label,
-      mod: { apply: (n) => n + safe.count },
+      mod: safe.mod || { apply: (n) => n + safe.count },
       good: true,
       reward: safe,
     };
@@ -920,7 +1027,8 @@ class ArmyRunnerGame {
     const countMult = 1 + this.segmentCycle * ENEMY_COUNT_SCALE_PER_CYCLE;
     const scaledEnemies = def.enemies.map(e => ({
       ...e,
-      count: Math.ceil(e.count * countMult)
+      count: Math.ceil(e.count * countMult),
+      xOffset: e.xOffset || 0,
     }));
     this.enemyMgr.spawnWave(scaledEnemies, -60, this.armyX, this.difficultyMult);
   }
@@ -934,6 +1042,7 @@ class ArmyRunnerGame {
     
     this.currentBoss = bossType;
     if (bossType === 'ogre') this.milestone = 'Reached Ogre';
+    else if (bossType === 'giant') this.milestone = 'Reached Giant';
     else if (bossType === 'fireDragon') this.milestone = 'Reached Fire Dragon';
     
     this.enemyMgr.spawnWave(

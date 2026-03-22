@@ -66,6 +66,17 @@ const ENEMY_DEFS_3D = {
     explodes: true,
     explodeRadius: 4.0,
   },
+  giant: {
+    walkSpeed: 1.2,
+    hp: 150,
+    maxHp: 150,
+    scale: 2.4,
+    color: 0x556655,     // dark stone green
+    hitColor: 0xffffff,
+    coinValue: 25,
+    size: { body: [1.5, 2.2, 0.8], head: [1.0, 1.0, 1.0] },
+    isBoss: true,
+  },
 };
 
 class EnemyManager {
@@ -90,12 +101,14 @@ class EnemyManager {
     let totalIdx = 0;
     
     for (const wave of waveDefs) {
-      const { count, enemyType, hp } = wave;
+      const { count, enemyType, hp, xOffset } = wave;
       const def = ENEMY_DEFS_3D[enemyType] || ENEMY_DEFS_3D.zombie;
       
       // Grid layout
       const cols = Math.min(count, 5);
       const spacing = 1.8 * def.scale;
+      // Flanking offset: shifts enemy group left/right
+      const flankOffset = xOffset || 0;
       
       for (let i = 0; i < count; i++) {
         const enemy = this._getEnemy(enemyType);
@@ -111,7 +124,7 @@ class EnemyManager {
         const rx = (Math.random() - 0.5) * 0.5;
         const rz = (Math.random() - 0.5) * 0.5;
         
-        enemy.worldX = armyX + xOff + rx;
+        enemy.worldX = armyX + xOff + flankOffset + rx;
         enemy.worldZ = spawnZ - zOff + rz - totalIdx * 2;
         enemy.group.position.set(enemy.worldX, 0, enemy.worldZ);
         
