@@ -113,7 +113,7 @@ class ShootingSystem {
           const dy  = best.y - b.y;
           const len = Math.sqrt(dx * dx + dy * dy) || 1;
           const spd = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
-          const turnRate = 6 * dt; // radians/s
+          const turnRate = 6 * dt; // steering factor per frame (0..1 scale)
           b.vx = Phaser.Math.Linear(b.vx, (dx / len) * spd, turnRate);
           b.vy = Phaser.Math.Linear(b.vy, (dy / len) * spd, turnRate);
         }

@@ -566,7 +566,7 @@ class GameScene extends Phaser.Scene {
     this._bossHPLabel = this.add.text(VP_X, 42, this.levelDef.bossName.toUpperCase(), {
       fontSize: '11px', fontStyle: 'bold', fill: '#ffffff', stroke: '#000', strokeThickness: 2,
     }).setOrigin(0.5).setDepth(24);
-    const titleCard = this.add.text(VP_X, GH * 0.5, String.fromCodePoint(0x2694) + '\uFE0F ' + this.levelDef.bossName.toUpperCase() + '!', {
+    const titleCard = this.add.text(VP_X, GH * 0.5, '⚔️ ' + this.levelDef.bossName.toUpperCase() + '!', {
       fontSize: '26px', fontStyle: 'bold',
       fill: '#ff4444', stroke: '#000', strokeThickness: 5, align: 'center',
     }).setOrigin(0.5).setDepth(60).setX(-GW);
@@ -638,7 +638,7 @@ class GameScene extends Phaser.Scene {
     if (this.damageCooldown > 0) this.damageCooldown -= dt;
     if (enragedNow) {
       this.cameras.main.shake(400, 0.02);
-      const et = this.add.text(VP_X, GH * 0.44, '\uD83D\uDE21 ENRAGED!', {
+      const et = this.add.text(VP_X, GH * 0.44, '😡 ENRAGED!', {
         fontSize: '26px', fontStyle: 'bold', fill: '#ff2200', stroke: '#000', strokeThickness: 4,
       }).setOrigin(0.5).setDepth(60);
       this.tweens.add({ targets: et, alpha: 0, y: GH * 0.35, duration: 1200, onComplete: () => et.destroy() });

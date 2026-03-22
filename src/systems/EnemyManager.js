@@ -86,7 +86,7 @@ class EnemyManager {
 
     let all = [];
     for (const wd of waveDefs) {
-      const def = ENEMY_DEFS[wd.enemyType || wd.type] || ENEMY_DEFS.normal;
+      const def = ENEMY_DEFS[wd.enemyType] || ENEMY_DEFS.normal;
       for (let i = 0; i < wd.count; i++) {
         const scaledHp = Math.ceil((wd.hp || def.baseHp) * difficultyMult);
         all.push({

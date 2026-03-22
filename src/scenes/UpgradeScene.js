@@ -43,7 +43,7 @@ class UpgradeScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Coins earned this run
-    this.add.text(W / 2, H * 0.135, `+${this.runCoins} 🪙  coins earned`, {
+    this.add.text(W / 2, H * 0.135, `+${this.runCoins} 🪙 coins earned`, {
       fontSize: '16px', fill: '#ffd700',
     }).setOrigin(0.5);
 
