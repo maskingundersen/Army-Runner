@@ -90,6 +90,15 @@ const SHOP_UPGRADES = [
 // Maximum dragon companions allowed
 const MAX_DRAGON_COUNT = 3;
 
+// Weapon types — collected via barrels on the road
+const WEAPON_TYPES = {
+  handgun:  { name: 'Handgun',        fireInterval: 0.6, damage: 1,  bulletSpeed: 1.0, spread: 0,    bullets: 1, color: 0xaaaaaa, label: '🔫 Handgun' },
+  assault:  { name: 'Assault Rifle',   fireInterval: 0.3, damage: 1,  bulletSpeed: 1.2, spread: 0.05, bullets: 1, color: 0x2a5a2a, label: '🔫 Assault' },
+  shotgun:  { name: 'Shotgun',         fireInterval: 0.9, damage: 2,  bulletSpeed: 0.8, spread: 0.4,  bullets: 5, color: 0x8a5a2a, label: '💥 Shotgun' },
+  minigun:  { name: 'Minigun',         fireInterval: 0.1, damage: 1,  bulletSpeed: 1.0, spread: 0.15, bullets: 1, color: 0x3a3a3a, label: '🔧 Minigun' },
+  rocket:   { name: 'Rocket',          fireInterval: 1.5, damage: 8,  bulletSpeed: 0.6, spread: 0,    bullets: 1, color: 0x5a2a2a, label: '🚀 Rocket', explosive: true },
+};
+
 // ── UpgradeSystem class ───────────────────────────────────────────────────────
 
 class UpgradeSystem {
@@ -103,6 +112,7 @@ class UpgradeSystem {
   static get SOLDIER_GOOD_MODS() { return SOLDIER_GOOD_MODS; }
   static get SOLDIER_BAD_MODS()  { return SOLDIER_BAD_MODS;  }
   static get MAX_DRAGON_COUNT()  { return MAX_DRAGON_COUNT;   }
+  static get WEAPON_TYPES()      { return WEAPON_TYPES;       }
 
   /**
    * Apply a weapon gate upgrade to the state object.
@@ -193,20 +203,20 @@ class UpgradeSystem {
    * Returns { damage, fireInterval, bulletCount, spreadAngles, hasHoming, hasExplosive,
    *           hasRicochet, hasSideCannons, armorHits, hasArmor, hasMedic }
    */
-  getStats(upgrades, shopMeta) {
+  getStats(upgrades, shopMeta, weaponType) {
     shopMeta = shopMeta || {};
 
     const dmgBonus    = (upgrades.damage25  || 0) * 0.25;
     const baseDmg     = 1 + (shopMeta.baseDamage || 0);
-    const damage      = Math.ceil(baseDmg * (1 + dmgBonus));
+    let damage        = Math.ceil(baseDmg * (1 + dmgBonus));
 
-    const baseInterval = Math.max(0.15, 0.8 - (shopMeta.baseFireRate || 0) * 0.1);
+    const baseInterval = Math.max(0.15, 0.7 - (shopMeta.baseFireRate || 0) * 0.1);
     const gunStacks    = upgrades.betterGuns || 0;
-    const fireInterval = Math.max(0.12, baseInterval / (1 + gunStacks * 0.5));
+    let fireInterval   = Math.max(0.12, baseInterval / (1 + gunStacks * 0.5));
 
     // Bullet speed multiplier
     const bulletSpeedStacks = upgrades.bulletSpeed || 0;
-    const bulletSpeedMult = 1 + bulletSpeedStacks * 0.3;
+    let bulletSpeedMult = 1 + bulletSpeedStacks * 0.3;
 
     // Bullet count per shot
     const spreadStacks = upgrades.spreadShot || 0;
@@ -241,6 +251,31 @@ class UpgradeSystem {
     // Dragon companion count (stackable)
     const dragonCount = Math.min(upgrades.dragon || 0, MAX_DRAGON_COUNT);
 
+    // Compute explosive from upgrades first
+    let hasExplosive = (upgrades.explosive || 0) > 0;
+    let explosiveRadius = 4.0 + (upgrades.explosive || 0) * 1.5;
+
+    // Apply weapon type overrides
+    if (weaponType && WEAPON_TYPES[weaponType]) {
+      const wt = WEAPON_TYPES[weaponType];
+      damage = Math.ceil(damage * wt.damage);
+      fireInterval = Math.max(0.05, wt.fireInterval);
+      bulletSpeedMult *= wt.bulletSpeed;
+      if (wt.explosive) {
+        hasExplosive = true;
+        explosiveRadius = Math.max(explosiveRadius, 5.0);
+      }
+      // Apply weapon spread only if no spread shot upgrade
+      if (wt.bullets > 1 && spreadStacks === 0) {
+        spreadAngles.length = 0;
+        bulletCount = wt.bullets;
+        for (let bi = 0; bi < wt.bullets; bi++) {
+          const t = wt.bullets === 1 ? 0 : (bi / (wt.bullets - 1) - 0.5) * 2;
+          spreadAngles.push(t * wt.spread);
+        }
+      }
+    }
+
     return {
       damage,
       fireInterval,
@@ -249,8 +284,8 @@ class UpgradeSystem {
       spreadAngles,
       tripleAngles,
       hasHoming:    (upgrades.homing    || 0) > 0,
-      hasExplosive: (upgrades.explosive || 0) > 0,
-      explosiveRadius: 4.0 + (upgrades.explosive || 0) * 1.5,
+      hasExplosive,
+      explosiveRadius,
       hasRicochet:  (upgrades.ricochet  || 0) > 0,
       ricochetCount: upgrades.ricochet  || 0,
       hasSideCannons: (upgrades.sideCannons || 0) > 0,

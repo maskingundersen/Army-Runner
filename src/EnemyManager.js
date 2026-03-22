@@ -77,6 +77,53 @@ const ENEMY_DEFS_3D = {
     size: { body: [1.5, 2.2, 0.8], head: [1.0, 1.0, 1.0] },
     isBoss: true,
   },
+  shield: {
+    walkSpeed: 2.5,
+    hp: 8,
+    maxHp: 8,
+    scale: 1.2,
+    color: 0x4466aa,
+    hitColor: 0xffffff,
+    coinValue: 3,
+    size: { body: [0.7, 1.0, 0.4], head: [0.45, 0.45, 0.45] },
+    hasShield: true,
+    shieldHp: 5,
+  },
+  jumping: {
+    walkSpeed: 4.0,
+    hp: 2,
+    maxHp: 2,
+    scale: 0.9,
+    color: 0x44aa44,
+    hitColor: 0xffffff,
+    coinValue: 2,
+    size: { body: [0.5, 0.7, 0.3], head: [0.35, 0.35, 0.35] },
+    jumps: true,
+  },
+  ranged: {
+    walkSpeed: 1.5,
+    hp: 4,
+    maxHp: 4,
+    scale: 1.0,
+    color: 0xaa4444,
+    hitColor: 0xffffff,
+    coinValue: 3,
+    size: { body: [0.55, 0.85, 0.3], head: [0.4, 0.4, 0.4] },
+    isRanged: true,
+  },
+  charger: {
+    walkSpeed: 2.0,
+    hp: 5,
+    maxHp: 5,
+    scale: 1.1,
+    color: 0xcc8800,
+    hitColor: 0xffffff,
+    coinValue: 2,
+    size: { body: [0.65, 0.9, 0.35], head: [0.42, 0.42, 0.42] },
+    charges: true,
+    chargeSpeed: 12.0,
+    chargeDistance: 8.0,
+  },
 };
 
 class EnemyManager {
@@ -167,6 +214,11 @@ class EnemyManager {
     enemy.deathTimer = -1;
     enemy.worldX = 0;
     enemy.worldZ = 0;
+    // New enemy type state
+    enemy.shieldHp = def.shieldHp || 0;
+    enemy.jumpTimer = 0;
+    enemy.jumpY = 0;
+    enemy.charging = false;
     
     enemy.group.visible = true;
     enemy.group.rotation.set(0, 0, 0);
@@ -279,7 +331,11 @@ class EnemyManager {
       dead: false,
       deathTimer: -1,
       worldX: 0,
-      worldZ: 0
+      worldZ: 0,
+      shieldHp: def.shieldHp || 0,
+      jumpTimer: 0,
+      jumpY: 0,
+      charging: false
     };
   }
   
@@ -376,6 +432,45 @@ class EnemyManager {
         rWing.position.set(def.size.body[0] * 0.6, body.position.y + def.size.body[1] * 0.3, 0);
         rWing.rotation.z = -0.3;
         group.add(rWing);
+        break;
+      }
+      case 'shield': {
+        // Blue flat shield plane in front of body
+        const shieldGeo = new THREE.BoxGeometry(def.size.body[0] * 1.4, def.size.body[1] * 1.1, 0.08);
+        const shieldMat = new THREE.MeshLambertMaterial({ color: 0x5588cc, transparent: true, opacity: 0.8 });
+        const shieldMesh = new THREE.Mesh(shieldGeo, shieldMat);
+        shieldMesh.position.set(0, body.position.y, def.size.body[2] / 2 + 0.15);
+        group.add(shieldMesh);
+        break;
+      }
+      case 'jumping': {
+        // Green longer legs (taller leg geometry) and crest
+        const jumpCrestGeo = new THREE.ConeGeometry(0.1, 0.25, 4);
+        const jumpCrestMat = new THREE.MeshLambertMaterial({ color: 0x22cc22 });
+        const jumpCrest = new THREE.Mesh(jumpCrestGeo, jumpCrestMat);
+        jumpCrest.position.set(0, head.position.y + def.size.head[1] / 2 + 0.12, 0);
+        group.add(jumpCrest);
+        break;
+      }
+      case 'ranged': {
+        // Red arm pointing forward
+        const bowGeo = new THREE.BoxGeometry(0.06, 0.06, 0.6);
+        const bowMat = new THREE.MeshLambertMaterial({ color: 0xff2222 });
+        const bow = new THREE.Mesh(bowGeo, bowMat);
+        bow.position.set(def.size.body[0] / 2 + 0.15, body.position.y, -0.3);
+        group.add(bow);
+        break;
+      }
+      case 'charger': {
+        // Orange shoulder pads (larger)
+        const padGeo = new THREE.BoxGeometry(0.3, 0.25, 0.3);
+        const padMat = new THREE.MeshLambertMaterial({ color: 0xff9900 });
+        const lPad = new THREE.Mesh(padGeo, padMat);
+        lPad.position.set(-def.size.body[0] / 2 - 0.18, body.position.y + def.size.body[1] * 0.35, 0);
+        group.add(lPad);
+        const rPad = new THREE.Mesh(padGeo, padMat.clone());
+        rPad.position.set(def.size.body[0] / 2 + 0.18, body.position.y + def.size.body[1] * 0.35, 0);
+        group.add(rPad);
         break;
       }
     }
@@ -480,6 +575,28 @@ class EnemyManager {
       enemy.worldZ += def.walkSpeed * dt;
       enemy.group.position.z = enemy.worldZ;
       
+      // Charger: speed up when close to army
+      if (def.charges && enemy.worldZ > -(def.chargeDistance || 8)) {
+        enemy.charging = true;
+        enemy.worldZ += (def.chargeSpeed - def.walkSpeed) * dt;
+        enemy.group.position.z = enemy.worldZ;
+      }
+      
+      // Jumping: periodically jump
+      if (def.jumps) {
+        enemy.jumpTimer += dt;
+        if (enemy.jumpTimer >= 3.0) {
+          enemy.jumpTimer = 0;
+        }
+        // Jump during first 0.5s of cycle
+        if (enemy.jumpTimer < 0.5) {
+          enemy.jumpY = Math.sin((enemy.jumpTimer / 0.5) * Math.PI) * 2.0;
+        } else {
+          enemy.jumpY = 0;
+        }
+        enemy.group.position.y = enemy.jumpY;
+      }
+      
       // Walk animation
       enemy.walkPhase += dt * 6;
       const armSwing = Math.sin(enemy.walkPhase) * 0.6;
@@ -547,6 +664,10 @@ class EnemyManager {
       const hitD = (def.size.body[2] / 2 + 0.4) * scale;
       
       if (dx < hitW && dz < hitD && by > 0 && by < 2.5 * scale) {
+        // Jumping enemies: bullets miss during jump
+        if (def.jumps && enemy.jumpY > 1.0 && by < enemy.jumpY) {
+          continue;
+        }
         return enemy;
       }
     }
@@ -561,6 +682,26 @@ class EnemyManager {
    */
   damageEnemy(enemy, damage) {
     if (enemy.dead) return { died: false, exploded: false };
+    
+    // Shield absorbs damage first
+    if (enemy.def.hasShield && enemy.shieldHp > 0) {
+      enemy.shieldHp -= damage;
+      enemy.hitFlash = 1.0;
+      if (enemy.shieldHp <= 0) {
+        enemy.shieldHp = 0;
+        // Remove shield visual (first child matching shield material)
+        for (let c = enemy.group.children.length - 1; c >= 0; c--) {
+          const child = enemy.group.children[c];
+          if (child.material && child.material.opacity === 0.8) {
+            enemy.group.remove(child);
+            break;
+          }
+        }
+      }
+      this._updateHPBar(enemy);
+      if (window.audioManager) window.audioManager.enemyHit();
+      return { died: false, exploded: false };
+    }
     
     enemy.hp -= damage;
     enemy.hitFlash = 1.0;

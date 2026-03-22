@@ -1,11 +1,15 @@
 // src/game.js — Three.js 3D Army Runner game (9-segment endless loop)
 
 // Base game constants
-const BASE_SCROLL_SPEED = 14;
+const BASE_SCROLL_SPEED = 15;
 const MAX_SCROLL_SPEED = 20;
 const SCROLL_SPEED_PER_CYCLE = 0.8;
 const ENEMY_COUNT_SCALE_PER_CYCLE = 0.3;
 const OBSTACLE_CLEANUP_THRESHOLD = 50;
+
+// Army size control
+const ARMY_SOFT_CAP = 50;
+const ARMY_HARD_CAP = 100;
 
 // Milestone rankings (ascending order of difficulty)
 const MILESTONE_ORDER = [
@@ -30,8 +34,9 @@ const SEGMENT_DEFS = [
     safeReward: { type: 'soldiers', count: 3, label: '+3' },
     riskReward: { type: 'soldiers', count: 10, label: '+10' },
     enemies: [
-      { count: 3, enemyType: 'zombie', hp: 3 },
-      { count: 1, enemyType: 'fast', hp: 1 },
+      { count: 6, enemyType: 'zombie', hp: 3 },
+      { count: 3, enemyType: 'fast', hp: 1 },
+      { count: 2, enemyType: 'zombie', hp: 3, xOffset: -4 },
     ],
     boss: null,
     duration: 50,
@@ -43,8 +48,9 @@ const SEGMENT_DEFS = [
     safeReward: { type: 'soldiers', count: 5, label: '+5' },
     riskReward: { type: 'upgrade', id: 'betterGuns', label: '\u26A1 Fire Rate' },
     enemies: [
-      { count: 4, enemyType: 'zombie', hp: 3 },
-      { count: 2, enemyType: 'fast', hp: 1 },
+      { count: 8, enemyType: 'zombie', hp: 3 },
+      { count: 4, enemyType: 'fast', hp: 1 },
+      { count: 3, enemyType: 'zombie', hp: 3, xOffset: 4 },
     ],
     boss: null,
     duration: 50,
@@ -53,11 +59,12 @@ const SEGMENT_DEFS = [
   {
     id: 3,
     name: 'Pressure Intro',
-    safeReward: { type: 'soldiers', count: 8, label: '+8' },
+    safeReward: { type: 'soldiers', count: -5, label: '-5 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 5) } },
     riskReward: { type: 'upgrade', id: 'spreadShot', label: '\u{1F300} Spread Shot' },
     enemies: [
-      { count: 5, enemyType: 'zombie', hp: 4, xOffset: 0 },
-      { count: 3, enemyType: 'fast', hp: 2, xOffset: -3 },
+      { count: 10, enemyType: 'zombie', hp: 4, xOffset: 0 },
+      { count: 6, enemyType: 'fast', hp: 2, xOffset: -3 },
+      { count: 3, enemyType: 'exploding', hp: 2 },
     ],
     boss: null,
     duration: 60,
@@ -66,12 +73,13 @@ const SEGMENT_DEFS = [
   {
     id: 4,
     name: 'Skill Check',
-    safeReward: { type: 'soldiers', count: 10, label: '+10' },
+    safeReward: { type: 'soldiers', count: -8, label: '-8 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 8) } },
     riskReward: { type: 'upgrade', id: 'grenade', label: '\u{1F4A3} Grenade Throw' },
     enemies: [
-      { count: 4, enemyType: 'zombie', hp: 5 },
-      { count: 3, enemyType: 'exploding', hp: 2 },
-      { count: 2, enemyType: 'fast', hp: 2, xOffset: 3 },
+      { count: 8, enemyType: 'zombie', hp: 5 },
+      { count: 6, enemyType: 'exploding', hp: 2 },
+      { count: 4, enemyType: 'fast', hp: 2, xOffset: 3 },
+      { count: 2, enemyType: 'tank', hp: 10 },
     ],
     boss: null,
     duration: 60,
@@ -94,9 +102,11 @@ const SEGMENT_DEFS = [
     riskReward: { type: 'upgrade', id: 'sideCannons', label: '\u{1F6F8} Drone' },
     riskBonus: { id: 'piercing' },
     enemies: [
-      { count: 6, enemyType: 'zombie', hp: 5, xOffset: 0 },
-      { count: 4, enemyType: 'fast', hp: 2, xOffset: -3 },
-      { count: 2, enemyType: 'tank', hp: 10, xOffset: 2 },
+      { count: 12, enemyType: 'zombie', hp: 5, xOffset: 0 },
+      { count: 8, enemyType: 'fast', hp: 2, xOffset: -3 },
+      { count: 4, enemyType: 'tank', hp: 10, xOffset: 2 },
+      { count: 3, enemyType: 'exploding', hp: 3 },
+      { count: 2, enemyType: 'shield', hp: 8 },
     ],
     boss: null,
     duration: 80,
@@ -105,13 +115,15 @@ const SEGMENT_DEFS = [
   {
     id: 7,
     name: 'Heavy Assault',
-    safeReward: { type: 'soldiers', count: 15, label: '+15' },
+    safeReward: { type: 'soldiers', count: 0, label: '÷2 ☠️', bad: true, mod: { apply: (n) => Math.max(1, Math.floor(n / 2)) } },
     riskReward: { type: 'upgrade', id: 'explosive', label: '\u{1F4A5} Explosive Rounds' },
     riskBonus: { id: 'bulletSpeed' },
     enemies: [
-      { count: 8, enemyType: 'fast', hp: 3, xOffset: -2 },
-      { count: 4, enemyType: 'exploding', hp: 3, xOffset: 2 },
-      { count: 2, enemyType: 'tank', hp: 12 },
+      { count: 16, enemyType: 'fast', hp: 3, xOffset: -2 },
+      { count: 8, enemyType: 'exploding', hp: 3, xOffset: 2 },
+      { count: 4, enemyType: 'tank', hp: 12 },
+      { count: 3, enemyType: 'charger', hp: 5, xOffset: -3 },
+      { count: 3, enemyType: 'zombie', hp: 5, xOffset: 5 },
     ],
     boss: null,
     duration: 80,
@@ -150,10 +162,88 @@ const ENV_PALETTES = [
 ];
 
 // Base boss HP — mirrors ENEMY_DEFS_3D in EnemyManager.js, scaled by difficultyMult each cycle
-const BOSS_HP = { ogre: 80, giant: 150, fireDragon: 200 };
+const BOSS_HP = { ogre: 120, giant: 250, fireDragon: 350 };
 
 // Shared identity modifier for upgrade gates (no soldier count change)
 const IDENTITY_MOD = { apply: (n) => n };
+
+// Map layout variations — different segment orderings for variety (#5)
+const MAP_LAYOUTS = [
+  { name: 'Standard',  segmentOrder: [0, 1, 2, 3, 4, 5, 6, 7, 8] },
+  { name: 'Rush',      segmentOrder: [0, 2, 4, 3, 6, 5, 7, 1, 8] },
+  { name: 'Gauntlet',  segmentOrder: [0, 1, 4, 2, 7, 3, 5, 6, 8] },
+  { name: 'Endurance', segmentOrder: [0, 1, 2, 5, 3, 6, 4, 7, 8] },
+  { name: 'Chaos',     segmentOrder: [2, 0, 3, 1, 6, 4, 5, 8, 7] },
+];
+
+// Extra segments for variety in cycle 2+ (#8)
+const EXTRA_SEGMENTS = [
+  {
+    id: 10, name: 'Narrow Corridor',
+    safeReward: { type: 'soldiers', count: 5, label: '+5' },
+    riskReward: { type: 'upgrade', id: 'bulletSpeed', label: '💨 Bullet Speed' },
+    enemies: [
+      { count: 12, enemyType: 'fast', hp: 2, xOffset: 0 },
+      { count: 4, enemyType: 'tank', hp: 12 },
+    ],
+    boss: null, duration: 60, riskNarrow: true,
+  },
+  {
+    id: 11, name: 'Heavy Swarm',
+    safeReward: { type: 'soldiers', count: -3, label: '-3 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 3) } },
+    riskReward: { type: 'upgrade', id: 'airstrike', label: '✈️ Airstrike' },
+    enemies: [
+      { count: 20, enemyType: 'zombie', hp: 3, xOffset: 0 },
+      { count: 8, enemyType: 'fast', hp: 2, xOffset: -4 },
+      { count: 8, enemyType: 'fast', hp: 2, xOffset: 4 },
+    ],
+    boss: null, duration: 70, riskNarrow: false,
+  },
+  {
+    id: 12, name: 'Elite Ambush',
+    safeReward: { type: 'soldiers', count: 8, label: '+8' },
+    riskReward: { type: 'upgrade', id: 'homing', label: '🎯 Homing' },
+    enemies: [
+      { count: 6, enemyType: 'tank', hp: 15, xOffset: -3 },
+      { count: 6, enemyType: 'tank', hp: 15, xOffset: 3 },
+      { count: 4, enemyType: 'exploding', hp: 3 },
+    ],
+    boss: null, duration: 80, riskNarrow: true,
+  },
+  {
+    id: 13, name: 'Mixed Assault',
+    safeReward: { type: 'soldiers', count: 0, label: '÷2 ☠️', bad: true, mod: { apply: (n) => Math.max(1, Math.floor(n / 2)) } },
+    riskReward: { type: 'upgrade', id: 'shockwave', label: '🌊 Shockwave' },
+    enemies: [
+      { count: 10, enemyType: 'zombie', hp: 5 },
+      { count: 6, enemyType: 'fast', hp: 3, xOffset: -4 },
+      { count: 4, enemyType: 'exploding', hp: 3, xOffset: 3 },
+      { count: 3, enemyType: 'tank', hp: 12 },
+    ],
+    boss: null, duration: 80, riskNarrow: false,
+  },
+  {
+    id: 14, name: 'Obstacle Maze',
+    safeReward: { type: 'soldiers', count: 10, label: '+10' },
+    riskReward: { type: 'upgrade', id: 'piercing', label: '➡️ Piercing' },
+    enemies: [
+      { count: 15, enemyType: 'zombie', hp: 4, xOffset: 0 },
+      { count: 5, enemyType: 'exploding', hp: 3, xOffset: 2 },
+    ],
+    boss: null, duration: 60, riskNarrow: true,
+  },
+  {
+    id: 15, name: 'Boss Rush',
+    safeReward: { type: 'soldiers', count: 15, label: '+15' },
+    riskReward: { type: 'upgrade', id: 'damage25', label: '💢 +25% Dmg' },
+    enemies: [
+      { count: 4, enemyType: 'tank', hp: 20, xOffset: 0 },
+      { count: 8, enemyType: 'zombie', hp: 6 },
+      { count: 6, enemyType: 'fast', hp: 3, xOffset: -3 },
+    ],
+    boss: null, duration: 80, riskNarrow: false,
+  },
+];
 
 class ArmyRunnerGame {
   constructor() {
@@ -514,7 +604,7 @@ class ArmyRunnerGame {
   _updateHUD() {
     if (this.hudSoldierCount) this.hudSoldierCount.textContent = this.soldierCount;
     if (this.hudLevel) {
-      const segDef = SEGMENT_DEFS[this.currentSegment] || SEGMENT_DEFS[0];
+      const segDef = this._getSegDef(this.currentSegment) || SEGMENT_DEFS[0];
       this.hudLevel.textContent = `${segDef.id}/9: ${segDef.name}${this._formatCycleLabel()}`;
     }
     const milestoneEl = document.getElementById('hud-milestone');
@@ -539,7 +629,7 @@ class ArmyRunnerGame {
   }
   
   startGame() {
-    this.soldierCount = 1;
+    this.soldierCount = 3;
     this.upgrades = {};
     this.cameraZ = 0;
     this.armyX = 0;
@@ -552,11 +642,23 @@ class ArmyRunnerGame {
     this.currentBoss = null;
     this.inCombat = false;
     
+    // Weapon system (#4)
+    this.currentWeapon = 'handgun';
+    this._barrels = [];
+    
+    // Map layout (#5)
+    this.mapLayout = Math.floor(Math.random() * MAP_LAYOUTS.length);
+    
     // Reset active ability cooldowns
     this._grenadeCooldown = 0;
     this._airstrikeCooldown = 0;
     this._shockwaveCooldown = 0;
     this._medicTimer = 0;
+    
+    // Companion attack timers (#7)
+    this._dragonAttackTimer = 0;
+    this._turretAttackTimer = 0;
+    this._droneAttackTimer = 0;
     
     // Build internal segment sequence
     this._buildInternalSegments();
@@ -572,6 +674,7 @@ class ArmyRunnerGame {
     this.gateSys.clear();
     this.effects.clear();
     this._clearPathObstacles();
+    this._clearBarrels();
     
     // Initialize army
     this.armyMgr.setCount(this.soldierCount, this.armyX);
@@ -589,18 +692,47 @@ class ArmyRunnerGame {
   
   _buildInternalSegments() {
     this.internalSegments = [];
-    for (let i = 0; i < SEGMENT_DEFS.length; i++) {
-      const def = SEGMENT_DEFS[i];
+    
+    let segOrder;
+    if (this.segmentCycle === 0) {
+      // First cycle: use the selected map layout
+      const layout = MAP_LAYOUTS[this.mapLayout || 0] || MAP_LAYOUTS[0];
+      segOrder = layout.segmentOrder;
+    } else {
+      // Later cycles: mix base + extra segments, shuffled
+      const allSegs = [];
+      for (let i = 0; i < SEGMENT_DEFS.length; i++) allSegs.push(i);
+      for (let i = 0; i < EXTRA_SEGMENTS.length; i++) allSegs.push(SEGMENT_DEFS.length + i);
+      // Fisher-Yates shuffle
+      for (let i = allSegs.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = allSegs[i]; allSegs[i] = allSegs[j]; allSegs[j] = tmp;
+      }
+      // Take 9 segments, ensure at least one boss
+      segOrder = allSegs.slice(0, 9);
+      const hasBoss = segOrder.some(idx => {
+        const d = this._getSegDef(idx);
+        return d && d.boss;
+      });
+      if (!hasBoss) segOrder[segOrder.length - 1] = 4; // Force ogre boss
+    }
+    
+    for (const segIdx of segOrder) {
+      const def = this._getSegDef(segIdx);
+      if (!def) continue;
       if (def.boss) {
-        // Boss segments: fight first, then recovery gate choice
-        this.internalSegments.push({ type: 'boss', defIdx: i });
-        this.internalSegments.push({ type: 'gates', defIdx: i });
+        this.internalSegments.push({ type: 'boss', defIdx: segIdx });
+        this.internalSegments.push({ type: 'gates', defIdx: segIdx });
       } else {
-        // Normal segments: gate choice first, then enemy combat
-        this.internalSegments.push({ type: 'gates', defIdx: i });
-        this.internalSegments.push({ type: 'enemies', defIdx: i });
+        this.internalSegments.push({ type: 'gates', defIdx: segIdx });
+        this.internalSegments.push({ type: 'enemies', defIdx: segIdx });
       }
     }
+  }
+  
+  _getSegDef(idx) {
+    if (idx < SEGMENT_DEFS.length) return SEGMENT_DEFS[idx];
+    return EXTRA_SEGMENTS[idx - SEGMENT_DEFS.length] || SEGMENT_DEFS[0];
   }
   
   _applyEnvPalette() {
@@ -724,6 +856,83 @@ class ArmyRunnerGame {
     }
   }
   
+  // ── Hard collision lock (#1) ──
+  
+  _clampArmyToPath() {
+    for (const obs of this._pathObstacles) {
+      if (obs.localX !== 0) continue; // Only center divider walls
+      const visualZ = obs.mesh.position.z;
+      if (visualZ > -5 && visualZ < 25) {
+        const wallHalfW = 0.6;
+        if (this.armyX < -wallHalfW) {
+          this.armyTargetX = Math.min(this.armyTargetX, -wallHalfW);
+          this.armyX = Math.min(this.armyX, -wallHalfW);
+        } else if (this.armyX > wallHalfW) {
+          this.armyTargetX = Math.max(this.armyTargetX, wallHalfW);
+          this.armyX = Math.max(this.armyX, wallHalfW);
+        }
+        break;
+      }
+    }
+  }
+  
+  // ── Barrel weapon system (#4) ──
+  
+  _spawnBarrel(worldZ, weaponType) {
+    const wt = WEAPON_TYPES[weaponType];
+    if (!wt) return;
+    const geo = new THREE.CylinderGeometry(0.5, 0.5, 1.0, 12);
+    const mat = new THREE.MeshLambertMaterial({ color: wt.color });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.y = 0.5;
+    mesh.castShadow = true;
+    // Random X on the road
+    const xPos = (Math.random() - 0.5) * 12;
+    mesh.position.x = xPos;
+    this.scene.add(mesh);
+    this._barrels.push({ mesh, worldZ, weaponType, xPos });
+  }
+  
+  _updateBarrels() {
+    for (let i = this._barrels.length - 1; i >= 0; i--) {
+      const barrel = this._barrels[i];
+      barrel.mesh.position.z = barrel.worldZ - this.cameraZ;
+      
+      // Check collision with army
+      if (barrel.mesh.position.z > -1 && barrel.mesh.position.z < 2) {
+        const dx = Math.abs(this.armyX - barrel.xPos);
+        if (dx < 3) {
+          this.currentWeapon = barrel.weaponType;
+          const wt = WEAPON_TYPES[barrel.weaponType];
+          this._showCycleMessage(wt.label);
+          this.effects.gateEffect(barrel.xPos, 1, barrel.mesh.position.z, wt.color);
+          this.scene.remove(barrel.mesh);
+          if (barrel.mesh.geometry) barrel.mesh.geometry.dispose();
+          if (barrel.mesh.material) barrel.mesh.material.dispose();
+          this._barrels.splice(i, 1);
+          continue;
+        }
+      }
+      
+      // Cleanup barrels behind camera
+      if (barrel.mesh.position.z > 30) {
+        this.scene.remove(barrel.mesh);
+        if (barrel.mesh.geometry) barrel.mesh.geometry.dispose();
+        if (barrel.mesh.material) barrel.mesh.material.dispose();
+        this._barrels.splice(i, 1);
+      }
+    }
+  }
+  
+  _clearBarrels() {
+    for (const barrel of this._barrels) {
+      this.scene.remove(barrel.mesh);
+      if (barrel.mesh.geometry) barrel.mesh.geometry.dispose();
+      if (barrel.mesh.material) barrel.mesh.material.dispose();
+    }
+    this._barrels.length = 0;
+  }
+  
   // ── Milestone persistence ──
   
   _loadBestMilestone() {
@@ -787,6 +996,9 @@ class ArmyRunnerGame {
     // 2. Steer army
     this.armyX += (this.armyTargetX - this.armyX) * Math.min(1, dt * 8);
     
+    // 2b. Hard collision lock — prevent crossing center wall (#1)
+    this._clampArmyToPath();
+    
     // 3. Update army formation
     this.armyMgr.update(dt, this.armyX, this.clock.elapsedTime, this.upgrades);
     this.camCtrl.follow(this.armyX, this.soldierCount);
@@ -799,6 +1011,9 @@ class ArmyRunnerGame {
     // 4b. Obstacle collision — soldiers must not clip through walls/barriers
     this.armyMgr.applyObstacleCollision(this._pathObstacles);
     
+    // 4c. Update weapon barrels (#4)
+    this._updateBarrels();
+    
     // 5. Ground/road are fixed in Three.js space (camera never moves in Z)
     
     // 6. Compute stats (needed for combat and projectile updates)
@@ -808,10 +1023,12 @@ class ArmyRunnerGame {
     if (this.enemyMgr.enemies.length > 0) {
       const { soldierLosses, killedEnemies } = this.enemyMgr.update(dt, this.armyX);
       
-      // Handle soldier losses
+      // Handle soldier losses — larger armies take more damage (#6)
       if (soldierLosses > 0) {
-        this.soldierCount = Math.max(0, this.soldierCount - soldierLosses);
-        for (let i = 0; i < soldierLosses; i++) {
+        const armySizeMultiplier = this.soldierCount > ARMY_SOFT_CAP ? 2 : 1;
+        const effectiveLosses = soldierLosses * armySizeMultiplier;
+        this.soldierCount = Math.max(0, this.soldierCount - effectiveLosses);
+        for (let i = 0; i < effectiveLosses; i++) {
           this.armyMgr.killSoldier();
         }
         this.armyMgr.setCount(this.soldierCount, this.armyX);
@@ -847,13 +1064,13 @@ class ArmyRunnerGame {
       }
     }
     
-    // 7b. Medic regen (works outside combat too)
+    // 7b. Medic regen (works outside combat too, only below soft cap) (#6, #10)
     if (stats.hasMedic) {
       this._medicTimer += dt;
-      if (this._medicTimer >= 5.0) {
+      if (this._medicTimer >= 8.0) {
         this._medicTimer = 0;
-        if (this.soldierCount < 200) {
-          this.soldierCount = Math.min(200, this.soldierCount + 1);
+        if (this.soldierCount < ARMY_SOFT_CAP) {
+          this.soldierCount = Math.min(ARMY_SOFT_CAP, this.soldierCount + 1);
           this.armyMgr.setCount(this.soldierCount, this.armyX);
           this.effects.gateEffect(this.armyX, 0.5, 0, 0x44ff88);
           this._updateHUD();
@@ -886,9 +1103,8 @@ class ArmyRunnerGame {
   }
   
   _getStats() {
-    // Compute stats from upgrades using UpgradeSystem
     const us = new UpgradeSystem(null);
-    return us.getStats(this.upgrades, this.shopMeta);
+    return us.getStats(this.upgrades, this.shopMeta, this.currentWeapon);
   }
   
   // ── Active ability system (grenade, airstrike, shockwave) ──
@@ -961,6 +1177,50 @@ class ArmyRunnerGame {
         if (window.audioManager) window.audioManager.shoot();
       }
     }
+    
+    // ── Companion damage (#7) ──
+    
+    // Dragon companion attack
+    if (stats.hasDragon) {
+      this._dragonAttackTimer += dt;
+      if (this._dragonAttackTimer >= 2.0) {
+        this._dragonAttackTimer = 0;
+        const dragonDamage = 5 * stats.dragonCount;
+        for (let d = 0; d < stats.dragonCount && d < aliveEnemies.length; d++) {
+          const target = aliveEnemies[d];
+          this.enemyMgr.damageEnemy(target, dragonDamage);
+          this.effects.explode(target.worldX, 2, target.worldZ, 0xff4400, 10, 4);
+        }
+      }
+    }
+    
+    // Auto-turret attack
+    if (stats.hasAutoTurret) {
+      this._turretAttackTimer += dt;
+      if (this._turretAttackTimer >= 1.0) {
+        this._turretAttackTimer = 0;
+        const turretDamage = 3;
+        for (let t = 0; t < stats.autoTurretCount && t < aliveEnemies.length; t++) {
+          const target = aliveEnemies[Math.floor(Math.random() * aliveEnemies.length)];
+          this.enemyMgr.damageEnemy(target, turretDamage);
+          this.effects.explode(target.worldX, 1, target.worldZ, 0xaabb44, 5, 2);
+        }
+      }
+    }
+    
+    // Drone attack (sideCannons)
+    if (stats.hasSideCannons) {
+      this._droneAttackTimer += dt;
+      if (this._droneAttackTimer >= 1.5) {
+        this._droneAttackTimer = 0;
+        const droneDamage = 2;
+        if (aliveEnemies.length > 0) {
+          const fastestEnemy = aliveEnemies.reduce((a, b) => b.worldZ > a.worldZ ? b : a);
+          this.enemyMgr.damageEnemy(fastestEnemy, droneDamage);
+          this.effects.explode(fastestEnemy.worldX, 2, fastestEnemy.worldZ, 0x888899, 5, 2);
+        }
+      }
+    }
   }
   
   _triggerNextSegment() {
@@ -970,7 +1230,7 @@ class ArmyRunnerGame {
     }
     
     const seg = this.internalSegments[this.internalSegIdx++];
-    const def = SEGMENT_DEFS[seg.defIdx];
+    const def = this._getSegDef(seg.defIdx);
     this.currentSegment = seg.defIdx;
     const spawnZ = this.cameraZ - 60;
     
@@ -989,12 +1249,13 @@ class ArmyRunnerGame {
   }
   
   _spawnSegmentGates(def, baseZ) {
-    // Left = SAFE gate (green, soldier modifier)
+    // Left = SAFE gate (negative rewards use bad flag) (#3)
     const safe = def.safeReward;
+    const isNegativeSafe = !!(safe.bad || (safe.label && safe.label.includes('☠️')));
     const leftConfig = {
       label: safe.label,
       mod: safe.mod || { apply: (n) => n + safe.count },
-      good: true,
+      good: !isNegativeSafe,
       reward: safe,
     };
     
@@ -1021,14 +1282,25 @@ class ArmyRunnerGame {
     
     // Spawn path obstacles (walls/barriers) before the gate
     this._spawnPathObstacles(baseZ, !!def.riskNarrow);
+    
+    // Spawn weapon barrels in the approach zone (#4)
+    const weaponKeys = Object.keys(WEAPON_TYPES).filter(k => k !== 'handgun');
+    if (Math.random() < 0.4) {
+      const randomWeapon = weaponKeys[Math.floor(Math.random() * weaponKeys.length)];
+      this._spawnBarrel(baseZ + 15, randomWeapon);
+    }
   }
   
   _spawnEnemies(def) {
     // Scale enemy count by cycle (more enemies in later cycles)
     const countMult = 1 + this.segmentCycle * ENEMY_COUNT_SCALE_PER_CYCLE;
+    // Within-segment HP scaling (#2)
+    const segmentProgress = this.currentSegment / Math.max(SEGMENT_DEFS.length, 1);
+    const hpScale = 1 + segmentProgress * 0.5;
     const scaledEnemies = def.enemies.map(e => ({
       ...e,
       count: Math.ceil(e.count * countMult),
+      hp: Math.ceil((e.hp || 1) * hpScale),
       xOffset: e.xOffset || 0,
     }));
     this.enemyMgr.spawnWave(scaledEnemies, -60, this.armyX, this.difficultyMult);
@@ -1073,14 +1345,20 @@ class ArmyRunnerGame {
       this.upgrades[reward.id] = (this.upgrades[reward.id] || 0) + 1;
       
       // Check for bonus reward (e.g. segment 6 gives both drone + piercing)
-      const segDef = SEGMENT_DEFS[this.currentSegment];
+      const segDef = this._getSegDef(this.currentSegment);
       if (segDef && segDef.riskBonus && side === 'right') {
         const bonus = segDef.riskBonus;
         this.upgrades[bonus.id] = (this.upgrades[bonus.id] || 0) + 1;
       }
     } else {
-      // Soldier modifier (apply via mod function for compatibility)
-      this.soldierCount = Math.max(1, chosen.mod.apply(this.soldierCount));
+      // Soldier modifier with army size control (#6)
+      let newCount = Math.max(1, chosen.mod.apply(this.soldierCount));
+      if (newCount > ARMY_SOFT_CAP) {
+        const excess = newCount - ARMY_SOFT_CAP;
+        newCount = ARMY_SOFT_CAP + Math.floor(excess * 0.5);
+      }
+      newCount = Math.min(newCount, ARMY_HARD_CAP);
+      this.soldierCount = newCount;
     }
     
     // Visual effects
@@ -1122,7 +1400,7 @@ class ArmyRunnerGame {
     const screen = document.getElementById('screen-lose');
     screen.classList.add('active');
     
-    const segDef = SEGMENT_DEFS[this.currentSegment] || SEGMENT_DEFS[0];
+    const segDef = this._getSegDef(this.currentSegment) || SEGMENT_DEFS[0];
     document.getElementById('lose-level').textContent =
       `${this.milestone || ('Segment ' + segDef.id)}${this._formatCycleLabel()}`;
     
