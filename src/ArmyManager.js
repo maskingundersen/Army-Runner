@@ -206,7 +206,7 @@ class ArmyManager {
     }
     
     // Dragons (stackable, up to 3)
-    const dragonCount = Math.min(upgrades.dragon || 0, 3);
+    const dragonCount = Math.min(upgrades.dragon || 0, MAX_DRAGON_COUNT);
     for (let d = 0; d < this._dragons.length; d++) {
       const hasDragon = d < dragonCount;
       this._dragons[d].visible = hasDragon;

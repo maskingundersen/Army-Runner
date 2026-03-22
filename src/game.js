@@ -67,7 +67,7 @@ const SEGMENT_DEFS = [
     id: 4,
     name: 'Skill Check',
     safeReward: { type: 'soldiers', count: 10, label: '+10' },
-    riskReward: { type: 'upgrade', id: 'grenade', label: '\u{1F4A3} Grenade' },
+    riskReward: { type: 'upgrade', id: 'grenade', label: '\u{1F4A3} Grenade Throw' },
     enemies: [
       { count: 4, enemyType: 'zombie', hp: 5 },
       { count: 3, enemyType: 'exploding', hp: 2 },
@@ -902,7 +902,7 @@ class ArmyRunnerGame {
       this._grenadeCooldown -= dt;
       if (this._grenadeCooldown <= 0) {
         this._grenadeCooldown = 4.0; // 4 second cooldown
-        // Target densest cluster of enemies
+        // Target middle enemy in the wave (approximate center of mass)
         const target = aliveEnemies[Math.floor(aliveEnemies.length / 2)];
         if (target) {
           this.effects.explode(target.worldX, 2, target.worldZ, 0xff4400, 20, 6);

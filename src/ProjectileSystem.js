@@ -165,9 +165,9 @@ class ProjectileSystem {
       // Muzzle flash
       this.effects.muzzleFlash(posX, posY, posZ);
       
-      // Fire for each spread angle and triple angle
+      // Fire for each spread angle and triple shot angle
       for (const angle of spreadAngles) {
-        for (const triAngle of tripleAngles) {
+        for (const tripleAngle of tripleAngles) {
           const idx = this._bulletPool.pop();
           if (idx === undefined) break;
           
@@ -187,8 +187,8 @@ class ProjectileSystem {
           let vx = (dx / dist) * speed;
           let vz = (dz / dist) * speed;
           
-          // Apply spread angle (horizontal spread)
-          const combinedAngle = angle + triAngle;
+          // Apply spread angle (horizontal) + triple shot angle
+          const combinedAngle = angle + tripleAngle;
           if (combinedAngle !== 0) {
             const cos = Math.cos(combinedAngle);
             const sin = Math.sin(combinedAngle);

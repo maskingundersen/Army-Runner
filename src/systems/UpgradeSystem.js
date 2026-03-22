@@ -87,6 +87,9 @@ const SHOP_UPGRADES = [
   },
 ];
 
+// Maximum dragon companions allowed
+const MAX_DRAGON_COUNT = 3;
+
 // ── UpgradeSystem class ───────────────────────────────────────────────────────
 
 class UpgradeSystem {
@@ -99,6 +102,7 @@ class UpgradeSystem {
   static get SHOP_UPGRADES() { return SHOP_UPGRADES; }
   static get SOLDIER_GOOD_MODS() { return SOLDIER_GOOD_MODS; }
   static get SOLDIER_BAD_MODS()  { return SOLDIER_BAD_MODS;  }
+  static get MAX_DRAGON_COUNT()  { return MAX_DRAGON_COUNT;   }
 
   /**
    * Apply a weapon gate upgrade to the state object.
@@ -235,7 +239,7 @@ class UpgradeSystem {
     }
 
     // Dragon companion count (stackable)
-    const dragonCount = Math.min(upgrades.dragon || 0, 3);
+    const dragonCount = Math.min(upgrades.dragon || 0, MAX_DRAGON_COUNT);
 
     return {
       damage,
