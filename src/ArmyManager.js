@@ -190,15 +190,21 @@ class ArmyManager {
    * @param {number} count - Desired soldier count
    * @param {number} armyX - Army center X position
    */
-  // Formation aspect ratio - makes formation wider than deep
-  static FORMATION_ASPECT_RATIO = 1.3;
+  // Flow formation: wider spread, organic positioning
+  static BASE_SPREAD = 1.1;  // Base spacing between soldiers
+  
+  // Available formation width (can be narrowed by obstacles)
+  formationWidth = 7.0;
   
   setCount(count, armyX) {
     count = Math.min(count, this.MAX);
     
-    // Calculate formation (aspect ratio makes formation wider than deep)
-    const cols = Math.ceil(Math.sqrt(count * ArmyManager.FORMATION_ASPECT_RATIO));
-    const spacing = 1.2;
+    // Flow formation: wider front, organic depth
+    const width = this.formationWidth;
+    const spacing = ArmyManager.BASE_SPREAD;
+    // Max soldiers per row based on available width
+    const maxCols = Math.max(2, Math.floor(width / spacing));
+    const cols = Math.min(maxCols, Math.ceil(Math.sqrt(count * 1.5)));
     
     // Activate/deactivate soldiers
     for (let i = 0; i < this.MAX; i++) {
@@ -207,12 +213,13 @@ class ArmyManager {
       soldier.active = i < count;
       
       if (soldier.active) {
-        // Calculate target position in formation
+        // Flow formation: stagger rows, vary spacing
         const row = Math.floor(i / cols);
         const col = i % cols;
         const rowWidth = Math.min(cols, count - row * cols);
-        const xOff = (col - (rowWidth - 1) / 2) * spacing;
-        const zOff = row * spacing;
+        const rowStagger = (row % 2) * 0.35; // Offset odd rows
+        const xOff = (col - (rowWidth - 1) / 2) * spacing + rowStagger;
+        const zOff = row * spacing * 0.9; // Tighter depth
         
         soldier.targetX = armyX + xOff + soldier.offsetX;
         soldier.targetZ = -zOff + soldier.offsetZ;
@@ -263,8 +270,10 @@ class ArmyManager {
   update(dt, armyX, time, upgrades) {
     // Recalculate formation targets
     const count = this._activeCount;
-    const cols = Math.ceil(Math.sqrt(count * ArmyManager.FORMATION_ASPECT_RATIO));
-    const spacing = 1.2;
+    const width = this.formationWidth;
+    const spacing = ArmyManager.BASE_SPREAD;
+    const maxCols = Math.max(2, Math.floor(width / spacing));
+    const cols = Math.min(maxCols, Math.ceil(Math.sqrt(count * 1.5)));
     
     let activeIdx = 0;
     
@@ -277,12 +286,13 @@ class ArmyManager {
         continue;
       }
       
-      // Update target position
+      // Update target position (flow formation with staggered rows)
       const row = Math.floor(activeIdx / cols);
       const col = activeIdx % cols;
       const rowWidth = Math.min(cols, count - row * cols);
-      const xOff = (col - (rowWidth - 1) / 2) * spacing;
-      const zOff = row * spacing;
+      const rowStagger = (row % 2) * 0.35;
+      const xOff = (col - (rowWidth - 1) / 2) * spacing + rowStagger;
+      const zOff = row * spacing * 0.9;
       
       soldier.targetX = armyX + xOff + soldier.offsetX;
       soldier.targetZ = -zOff + soldier.offsetZ;
