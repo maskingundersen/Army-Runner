@@ -1,0 +1,433 @@
+// src/EnemyManager.js — Manages enemies with different types
+
+const ENEMY_DEFS_3D = {
+  zombie: {
+    walkSpeed: 3.5,
+    hp: 3,
+    maxHp: 3,
+    scale: 1.0,
+    color: 0x5a8a3a,     // sickly green
+    hitColor: 0xffffff,
+    coinValue: 1,
+    size: { body: [0.55, 0.85, 0.3], head: [0.4, 0.4, 0.4] },
+  },
+  fast: {
+    walkSpeed: 7.0,
+    hp: 1,
+    maxHp: 1,
+    scale: 0.8,
+    color: 0x8a3a8a,     // purple
+    hitColor: 0xffffff,
+    coinValue: 1,
+    size: { body: [0.45, 0.7, 0.25], head: [0.32, 0.32, 0.32] },
+  },
+  tank: {
+    walkSpeed: 2.0,
+    hp: 10,
+    maxHp: 10,
+    scale: 1.4,
+    color: 0x8a4a2a,     // brown/rust
+    hitColor: 0xffffff,
+    coinValue: 3,
+    size: { body: [0.9, 1.2, 0.5], head: [0.55, 0.5, 0.5] },
+  },
+  exploding: {
+    walkSpeed: 5.0,
+    hp: 2,
+    maxHp: 2,
+    scale: 0.9,
+    color: 0xff6600,     // orange
+    hitColor: 0xffffff,
+    coinValue: 2,
+    size: { body: [0.6, 0.6, 0.6], head: [0.5, 0.5, 0.5] },
+    explodes: true,
+    explodeRadius: 4.0,
+  },
+};
+
+class EnemyManager {
+  constructor(threeScene, effectsMgr) {
+    this.scene = threeScene;
+    this.effects = effectsMgr;
+    this.enemies = [];     // Active enemy objects
+    this._pool = [];       // Inactive THREE.Group objects for reuse
+    
+    // Temp objects
+    this._tempV3 = new THREE.Vector3();
+  }
+  
+  /**
+   * Spawn a wave of enemies
+   * @param {Array} waveDefs - Array of {count, enemyType, hp}
+   * @param {number} spawnZ - World Z position to spawn at
+   * @param {number} armyX - Army center X for spacing
+   * @param {number} difficultyMult - HP multiplier
+   */
+  spawnWave(waveDefs, spawnZ, armyX, difficultyMult) {
+    let totalIdx = 0;
+    
+    for (const wave of waveDefs) {
+      const { count, enemyType, hp } = wave;
+      const def = ENEMY_DEFS_3D[enemyType] || ENEMY_DEFS_3D.zombie;
+      
+      // Grid layout
+      const cols = Math.min(count, 5);
+      const spacing = 1.8 * def.scale;
+      
+      for (let i = 0; i < count; i++) {
+        const enemy = this._getEnemy(enemyType);
+        
+        // Position in grid
+        const row = Math.floor(i / cols);
+        const col = i % cols;
+        const rowWidth = Math.min(cols, count - row * cols);
+        const xOff = (col - (rowWidth - 1) / 2) * spacing;
+        const zOff = row * spacing * 1.2;
+        
+        // Randomize position slightly
+        const rx = (Math.random() - 0.5) * 0.5;
+        const rz = (Math.random() - 0.5) * 0.5;
+        
+        enemy.worldX = armyX + xOff + rx;
+        enemy.worldZ = spawnZ - zOff + rz - totalIdx * 2;
+        enemy.group.position.set(enemy.worldX, 0, enemy.worldZ);
+        
+        // Set HP with difficulty multiplier
+        enemy.hp = Math.ceil((hp || def.hp) * difficultyMult);
+        enemy.maxHp = enemy.hp;
+        
+        this.enemies.push(enemy);
+        totalIdx++;
+      }
+    }
+  }
+  
+  /**
+   * Get an enemy from pool or create new
+   */
+  _getEnemy(type) {
+    const def = ENEMY_DEFS_3D[type] || ENEMY_DEFS_3D.zombie;
+    
+    // Check pool for matching type
+    let enemy = null;
+    for (let i = 0; i < this._pool.length; i++) {
+      if (this._pool[i].type === type) {
+        enemy = this._pool.splice(i, 1)[0];
+        break;
+      }
+    }
+    
+    if (!enemy) {
+      // Create new enemy group
+      enemy = this._createEnemy(type, def);
+    }
+    
+    // Reset state
+    enemy.hp = def.hp;
+    enemy.maxHp = def.maxHp;
+    enemy.walkPhase = Math.random() * Math.PI * 2;
+    enemy.hitFlash = 0;
+    enemy.dead = false;
+    enemy.deathTimer = -1;
+    enemy.worldX = 0;
+    enemy.worldZ = 0;
+    
+    enemy.group.visible = true;
+    enemy.group.rotation.set(0, 0, 0);
+    enemy.group.scale.set(def.scale, def.scale, def.scale);
+    
+    // Reset materials to base color
+    enemy.bodyMesh.material.color.setHex(def.color);
+    enemy.headMesh.material.color.setHex(def.color);
+    
+    this.scene.add(enemy.group);
+    
+    return enemy;
+  }
+  
+  /**
+   * Create a new enemy THREE.Group
+   */
+  _createEnemy(type, def) {
+    const group = new THREE.Group();
+    
+    // Body
+    const bodyGeo = new THREE.BoxGeometry(...def.size.body);
+    const bodyMat = new THREE.MeshLambertMaterial({ color: def.color });
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.y = def.size.body[1] / 2 + 0.3;
+    body.castShadow = true;
+    group.add(body);
+    
+    // Head
+    const headGeo = new THREE.BoxGeometry(...def.size.head);
+    const headMat = new THREE.MeshLambertMaterial({ color: def.color });
+    const head = new THREE.Mesh(headGeo, headMat);
+    head.position.y = body.position.y + def.size.body[1] / 2 + def.size.head[1] / 2;
+    head.castShadow = true;
+    group.add(head);
+    
+    // Arms
+    const armW = def.size.body[0] * 0.3;
+    const armH = def.size.body[1] * 0.6;
+    const armGeo = new THREE.BoxGeometry(armW, armH, armW);
+    const armMat = new THREE.MeshLambertMaterial({ color: def.color });
+    
+    const lArm = new THREE.Mesh(armGeo, armMat);
+    lArm.position.set(-def.size.body[0] / 2 - armW / 2, body.position.y - 0.1, 0);
+    lArm.castShadow = true;
+    group.add(lArm);
+    
+    const rArm = new THREE.Mesh(armGeo, armMat.clone());
+    rArm.position.set(def.size.body[0] / 2 + armW / 2, body.position.y - 0.1, 0);
+    rArm.castShadow = true;
+    group.add(rArm);
+    
+    // Legs
+    const legW = def.size.body[0] * 0.35;
+    const legH = 0.5;
+    const legGeo = new THREE.BoxGeometry(legW, legH, legW);
+    const legMat = new THREE.MeshLambertMaterial({ color: 0x333333 });
+    
+    const lLeg = new THREE.Mesh(legGeo, legMat);
+    lLeg.position.set(-def.size.body[0] * 0.25, 0.25, 0);
+    lLeg.castShadow = true;
+    group.add(lLeg);
+    
+    const rLeg = new THREE.Mesh(legGeo, legMat.clone());
+    rLeg.position.set(def.size.body[0] * 0.25, 0.25, 0);
+    rLeg.castShadow = true;
+    group.add(rLeg);
+    
+    // Eyes (small emissive spheres)
+    const eyeGeo = new THREE.SphereGeometry(0.06, 8, 8);
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    
+    const lEye = new THREE.Mesh(eyeGeo, eyeMat);
+    lEye.position.set(-def.size.head[0] * 0.25, head.position.y, def.size.head[2] / 2 + 0.02);
+    group.add(lEye);
+    
+    const rEye = new THREE.Mesh(eyeGeo, eyeMat.clone());
+    rEye.position.set(def.size.head[0] * 0.25, head.position.y, def.size.head[2] / 2 + 0.02);
+    group.add(rEye);
+    
+    return {
+      type,
+      def,
+      group,
+      bodyMesh: body,
+      headMesh: head,
+      lArm,
+      rArm,
+      lLeg,
+      rLeg,
+      hp: def.hp,
+      maxHp: def.maxHp,
+      walkPhase: 0,
+      hitFlash: 0,
+      dead: false,
+      deathTimer: -1,
+      worldX: 0,
+      worldZ: 0
+    };
+  }
+  
+  /**
+   * Update all enemies
+   * @param {number} dt - Delta time
+   * @param {number} armyX - Army X position
+   * @returns {Object} { soldierLosses, killedEnemies }
+   */
+  update(dt, armyX) {
+    let soldierLosses = 0;
+    const killedEnemies = [];
+    
+    for (let i = this.enemies.length - 1; i >= 0; i--) {
+      const enemy = this.enemies[i];
+      const def = enemy.def;
+      
+      // Death animation
+      if (enemy.dead) {
+        enemy.deathTimer += dt;
+        
+        // Fall animation
+        const fallT = Math.min(enemy.deathTimer / 0.5, 1);
+        enemy.group.rotation.x = fallT * Math.PI / 2;
+        enemy.group.position.y = -fallT * 0.5;
+        
+        // Fade out (scale down)
+        const fadeT = Math.max(0, (enemy.deathTimer - 0.3) / 0.5);
+        const scale = def.scale * (1 - fadeT);
+        enemy.group.scale.set(scale, scale, scale);
+        
+        if (enemy.deathTimer > 0.8) {
+          // Remove enemy
+          this._releaseEnemy(enemy);
+          this.enemies.splice(i, 1);
+        }
+        continue;
+      }
+      
+      // Walk toward army (positive Z direction)
+      enemy.worldZ += def.walkSpeed * dt;
+      enemy.group.position.z = enemy.worldZ;
+      
+      // Walk animation
+      enemy.walkPhase += dt * 6;
+      const armSwing = Math.sin(enemy.walkPhase) * 0.6;
+      const legSwing = Math.sin(enemy.walkPhase) * 0.5;
+      const bounce = Math.abs(Math.sin(enemy.walkPhase)) * 0.08;
+      
+      enemy.lArm.rotation.x = armSwing;
+      enemy.rArm.rotation.x = -armSwing;
+      enemy.lLeg.rotation.x = -legSwing;
+      enemy.rLeg.rotation.x = legSwing;
+      enemy.bodyMesh.position.y = def.size.body[1] / 2 + 0.3 + bounce;
+      enemy.headMesh.position.y = enemy.bodyMesh.position.y + def.size.body[1] / 2 + def.size.head[1] / 2;
+      
+      // Hit flash decay
+      if (enemy.hitFlash > 0) {
+        enemy.hitFlash -= dt * 8;
+        if (enemy.hitFlash < 0) enemy.hitFlash = 0;
+        
+        const flashColor = new THREE.Color().lerpColors(
+          new THREE.Color(def.color),
+          new THREE.Color(0xffffff),
+          enemy.hitFlash
+        );
+        enemy.bodyMesh.material.color.copy(flashColor);
+        enemy.headMesh.material.color.copy(flashColor);
+      }
+      
+      // Check if reached army
+      if (enemy.worldZ > 1.5) {
+        soldierLosses++;
+        
+        // Death effect
+        this.effects.explode(enemy.worldX, 1, enemy.worldZ, 0xff0000, 8, 3);
+        
+        // Remove enemy
+        this._releaseEnemy(enemy);
+        this.enemies.splice(i, 1);
+      }
+    }
+    
+    return { soldierLosses, killedEnemies };
+  }
+  
+  /**
+   * Check if bullet hits any enemy
+   * @param {number} bx - Bullet X
+   * @param {number} by - Bullet Y
+   * @param {number} bz - Bullet Z
+   * @returns {Object|null} Enemy data or null
+   */
+  checkBulletHit(bx, by, bz) {
+    for (const enemy of this.enemies) {
+      if (enemy.dead) continue;
+      
+      const def = enemy.def;
+      const scale = def.scale;
+      
+      // Simple box collision
+      const dx = Math.abs(bx - enemy.worldX);
+      const dz = Math.abs(bz - enemy.worldZ);
+      const hitW = (def.size.body[0] / 2 + 0.3) * scale;
+      const hitD = (def.size.body[2] / 2 + 0.4) * scale;
+      
+      if (dx < hitW && dz < hitD && by > 0 && by < 2.5 * scale) {
+        return enemy;
+      }
+    }
+    return null;
+  }
+  
+  /**
+   * Apply damage to enemy
+   * @param {Object} enemy - Enemy object
+   * @param {number} damage - Damage amount
+   * @returns {Object} { died, exploded }
+   */
+  damageEnemy(enemy, damage) {
+    if (enemy.dead) return { died: false, exploded: false };
+    
+    enemy.hp -= damage;
+    enemy.hitFlash = 1.0;
+    
+    if (window.audioManager) window.audioManager.enemyHit();
+    
+    if (enemy.hp <= 0) {
+      enemy.dead = true;
+      enemy.deathTimer = 0;
+      
+      if (window.audioManager) window.audioManager.enemyDeath();
+      
+      // Death particles
+      this.effects.explode(enemy.worldX, 1, enemy.worldZ, enemy.def.color, 15, 4);
+      
+      // Check for explosion
+      let exploded = false;
+      if (enemy.def.explodes) {
+        exploded = true;
+        this._doExplosion(enemy);
+      }
+      
+      return { died: true, exploded };
+    }
+    
+    return { died: false, exploded: false };
+  }
+  
+  /**
+   * Handle exploding enemy AOE
+   */
+  _doExplosion(enemy) {
+    const radius = enemy.def.explodeRadius || 4.0;
+    
+    // Big explosion effect
+    this.effects.explode(enemy.worldX, 1.5, enemy.worldZ, 0xff6600, 30, 6);
+    this.effects.screenFlash(0xff6600, 0.5);
+    
+    // Damage nearby enemies
+    for (const other of this.enemies) {
+      if (other === enemy || other.dead) continue;
+      
+      const dx = other.worldX - enemy.worldX;
+      const dz = other.worldZ - enemy.worldZ;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      
+      if (dist < radius) {
+        // Base explosion damage (defined in enemy def or default to 3)
+        const baseExplosionDamage = enemy.def.explosionDamage || 3;
+        const dmg = Math.ceil(baseExplosionDamage * (1 - dist / radius));
+        this.damageEnemy(other, dmg);
+      }
+    }
+  }
+  
+  /**
+   * Release enemy back to pool
+   */
+  _releaseEnemy(enemy) {
+    enemy.group.visible = false;
+    this.scene.remove(enemy.group);
+    this._pool.push(enemy);
+  }
+  
+  /**
+   * Clear all enemies
+   */
+  clear() {
+    for (const enemy of this.enemies) {
+      this._releaseEnemy(enemy);
+    }
+    this.enemies.length = 0;
+  }
+  
+  /**
+   * Get count of alive enemies
+   */
+  get count() {
+    return this.enemies.filter(e => !e.dead).length;
+  }
+}
