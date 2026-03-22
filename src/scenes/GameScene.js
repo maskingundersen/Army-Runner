@@ -1131,10 +1131,18 @@ class GameScene extends Phaser.Scene {
     }
   }
 
+  // ── destroyBossUI ─────────────────────────────────────────────────────────
+  destroyBossUI() {
+    if (this.bossBg)    { this.bossBg.destroy();    this.bossBg    = null; }
+    if (this.bossFill)  { this.bossFill.destroy();  this.bossFill  = null; }
+    if (this.bossLabel) { this.bossLabel.destroy();  this.bossLabel = null; }
+  }
+
   // ── bossDead ──────────────────────────────────────────────────────────────
   bossDead() {
     this.phase = 'result';
     this.cameras.main.shake(600, 0.025);
+    this.destroyBossUI();
 
     // Expanding circles animation
     for (let i = 0; i < 5; i++) {
@@ -1178,6 +1186,7 @@ class GameScene extends Phaser.Scene {
   endGame(won) {
     if (this.phase === 'result') return;
     this.phase = 'result';
+    this.destroyBossUI();
     if (!won && window.audioManager) window.audioManager.lose();
     this.time.delayedCall(700, () => {
       this.scene.stop('UIScene');
