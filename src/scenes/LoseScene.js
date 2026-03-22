@@ -15,82 +15,69 @@ class LoseScene extends Phaser.Scene {
 
     // Dark background
     this.add.rectangle(W / 2, H / 2, W, H, 0x0d0d1a);
-    this.add.rectangle(W / 2, H / 2, 260, H, 0x1a1a2e).setAlpha(0.5);
+    this.add.rectangle(W / 2, H / 2, 260, H, 0x1a0a0a).setAlpha(0.5);
 
-    // Skull emoji
-    this.add.text(W / 2, H * 0.28, '💀', { fontSize: '72px' }).setOrigin(0.5);
+    // Skull
+    const skull = this.add.text(W / 2, H * 0.27, '💀', { fontSize: '72px' }).setOrigin(0.5).setScale(0);
+    this.tweens.add({
+      targets: skull, scaleX: 1, scaleY: 1, duration: 500, ease: 'Back.easeOut', delay: 150,
+    });
 
     // Heading
     this.add.text(W / 2, H * 0.42, 'GAME OVER', {
-      fontSize: '36px',
-      fontStyle: 'bold',
-      fill: '#e74c3c',
-      stroke: '#000',
-      strokeThickness: 5,
+      fontSize: '36px', fontStyle: 'bold',
+      fill: '#e74c3c', stroke: '#000', strokeThickness: 5,
     }).setOrigin(0.5);
 
-    this.add.text(W / 2, H * 0.52, `Your army was defeated\non Level ${this.levelFailed}.\nTry again!`, {
-      fontSize: '16px',
-      fill: '#aaaacc',
-      align: 'center',
+    this.add.text(W / 2, H * 0.52, `Your army fell on Level ${this.levelFailed}.\nReinforce and try again!`, {
+      fontSize: '15px', fill: '#aaaacc', align: 'center',
     }).setOrigin(0.5);
 
     // Retry button
-    const retryBg = this.add.rectangle(W / 2, H * 0.65, 230, 68, 0xe74c3c)
-      .setInteractive({ useHandCursor: true })
-      .setStrokeStyle(3, 0xff6b6b);
+    const retryGfx = this.add.graphics();
+    retryGfx.fillStyle(0xe74c3c, 1);
+    retryGfx.fillRoundedRect(W / 2 - 115, H * 0.63 - 33, 230, 66, 14);
+    retryGfx.lineStyle(3, 0xff6b6b, 1);
+    retryGfx.strokeRoundedRect(W / 2 - 115, H * 0.63 - 33, 230, 66, 14);
 
-    this.add.text(W / 2, H * 0.65, '🔄  RETRY LEVEL', {
-      fontSize: '22px',
-      fontStyle: 'bold',
-      fill: '#ffffff',
+    const retryText = this.add.text(W / 2, H * 0.63, '🔄  RETRY LEVEL', {
+      fontSize: '21px', fontStyle: 'bold', fill: '#ffffff',
     }).setOrigin(0.5);
 
+    const retryHit = this.add.rectangle(W / 2, H * 0.63, 230, 66, 0x000000, 0)
+      .setInteractive({ useHandCursor: true });
+
     this.tweens.add({
-      targets: retryBg,
-      scaleX: 1.04,
-      scaleY: 1.04,
-      duration: 600,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
+      targets: [retryGfx, retryText], scaleX: 1.04, scaleY: 1.04,
+      duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
     });
 
-    retryBg.on('pointerdown', () => {
+    retryHit.on('pointerdown', () => {
       this.scene.launch('UIScene');
       this.scene.start('GameScene', { level: this.levelFailed });
     });
 
     // Main menu button
-    const menuBg = this.add.rectangle(W / 2, H * 0.76, 180, 52, 0x2c3e50)
+    const menuBg = this.add.rectangle(W / 2, H * 0.76, 180, 50, 0x1a1a2a, 1)
       .setInteractive({ useHandCursor: true })
-      .setStrokeStyle(2, 0x7f8c8d);
-
+      .setStrokeStyle(2, 0x555577);
     this.add.text(W / 2, H * 0.76, '🏠  MAIN MENU', {
-      fontSize: '16px',
-      fill: '#cccccc',
+      fontSize: '16px', fill: '#ccccdd',
     }).setOrigin(0.5);
+    menuBg.on('pointerdown', () => this.scene.start('BootScene'));
 
-    menuBg.on('pointerdown', () => {
-      this.scene.start('BootScene');
-    });
-
-    // Floating skulls effect
-    for (let i = 0; i < 6; i++) {
-      const x = Phaser.Math.Between(40, W - 40);
-      const startY = H + 20;
-      const skull = this.add.text(x, startY, '💀', {
-        fontSize: `${Phaser.Math.Between(14, 22)}px`,
-      }).setOrigin(0.5).setAlpha(0.3);
-
+    // Floating skull particles
+    for (let i = 0; i < 7; i++) {
+      const sx = Phaser.Math.Between(40, W - 40);
+      const skull2 = this.add.text(sx, H + 20, '💀', {
+        fontSize: `${Phaser.Math.Between(12, 20)}px`,
+      }).setOrigin(0.5).setAlpha(0.25).setDepth(2);
       this.tweens.add({
-        targets: skull,
-        y: -30,
-        alpha: 0,
+        targets: skull2, y: -30, alpha: 0,
         duration: Phaser.Math.Between(2500, 5000),
-        delay: Phaser.Math.Between(0, 2000),
-        repeat: -1,
-        ease: 'Linear',
+        delay: Phaser.Math.Between(0, 2500),
+        repeat: -1, ease: 'Linear',
+        onRepeat: () => { skull2.x = Phaser.Math.Between(40, W - 40); skull2.y = H + 20; skull2.alpha = 0.25; },
       });
     }
   }
