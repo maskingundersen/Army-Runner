@@ -796,7 +796,7 @@ class EnemyManager {
     const splitCount = enemy.def.splitCount || 2;
     for (let s = 0; s < splitCount; s++) {
       const child = this._getEnemy(enemy.type);
-      child.hp = Math.ceil(enemy.maxHp * 0.3);
+      child.hp = Math.ceil(enemy.def.hp * 0.3);
       child.maxHp = child.hp;
       child.worldX = enemy.worldX + (s - (splitCount - 1) / 2) * 1.5;
       child.worldZ = enemy.worldZ - 1;

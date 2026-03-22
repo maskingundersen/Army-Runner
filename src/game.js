@@ -1107,7 +1107,7 @@ class ArmyRunnerGame {
       this._showCycleMessage(reward.label);
     } else if (reward.type === 'fireRate') {
       if (reward.penalty) {
-        this.upgrades.betterGuns = Math.max(0, (this.upgrades.betterGuns || 0) - 1);
+        this.upgrades[reward.id] = Math.max(0, (this.upgrades[reward.id] || 0) - 1);
       } else {
         this.upgrades[reward.id] = (this.upgrades[reward.id] || 0) + 1;
       }
