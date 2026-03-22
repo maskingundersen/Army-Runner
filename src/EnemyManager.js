@@ -440,6 +440,7 @@ class EnemyManager {
         const shieldMat = new THREE.MeshLambertMaterial({ color: 0x5588cc, transparent: true, opacity: 0.8 });
         const shieldMesh = new THREE.Mesh(shieldGeo, shieldMat);
         shieldMesh.position.set(0, body.position.y, def.size.body[2] / 2 + 0.15);
+        shieldMesh.userData.isShield = true;
         group.add(shieldMesh);
         break;
       }
@@ -689,10 +690,10 @@ class EnemyManager {
       enemy.hitFlash = 1.0;
       if (enemy.shieldHp <= 0) {
         enemy.shieldHp = 0;
-        // Remove shield visual (first child matching shield material)
+        // Remove shield visual
         for (let c = enemy.group.children.length - 1; c >= 0; c--) {
           const child = enemy.group.children[c];
-          if (child.material && child.material.opacity === 0.8) {
+          if (child.userData && child.userData.isShield) {
             enemy.group.remove(child);
             break;
           }

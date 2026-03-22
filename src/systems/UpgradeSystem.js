@@ -270,7 +270,7 @@ class UpgradeSystem {
         spreadAngles.length = 0;
         bulletCount = wt.bullets;
         for (let bi = 0; bi < wt.bullets; bi++) {
-          const t = wt.bullets === 1 ? 0 : (bi / (wt.bullets - 1) - 0.5) * 2;
+          const t = (bi / (wt.bullets - 1) - 0.5) * 2;
           spreadAngles.push(t * wt.spread);
         }
       }

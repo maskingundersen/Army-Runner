@@ -887,7 +887,7 @@ class ArmyRunnerGame {
     mesh.position.y = 0.5;
     mesh.castShadow = true;
     // Random X on the road
-    const xPos = (Math.random() - 0.5) * 12;
+    const xPos = (Math.random() - 0.5) * (ArmyManager.ROAD_HALF * 2 - 4);
     mesh.position.x = xPos;
     this.scene.add(mesh);
     this._barrels.push({ mesh, worldZ, weaponType, xPos });
@@ -1025,8 +1025,8 @@ class ArmyRunnerGame {
       
       // Handle soldier losses — larger armies take more damage (#6)
       if (soldierLosses > 0) {
-        const armySizeMultiplier = this.soldierCount > ARMY_SOFT_CAP ? 2 : 1;
-        const effectiveLosses = soldierLosses * armySizeMultiplier;
+        const armySizeMultiplier = 1 + Math.max(0, (this.soldierCount - ARMY_SOFT_CAP) / ARMY_SOFT_CAP);
+        const effectiveLosses = Math.ceil(soldierLosses * armySizeMultiplier);
         this.soldierCount = Math.max(0, this.soldierCount - effectiveLosses);
         for (let i = 0; i < effectiveLosses; i++) {
           this.armyMgr.killSoldier();
@@ -1251,7 +1251,7 @@ class ArmyRunnerGame {
   _spawnSegmentGates(def, baseZ) {
     // Left = SAFE gate (negative rewards use bad flag) (#3)
     const safe = def.safeReward;
-    const isNegativeSafe = !!(safe.bad || (safe.label && safe.label.includes('☠️')));
+    const isNegativeSafe = !!safe.bad;
     const leftConfig = {
       label: safe.label,
       mod: safe.mod || { apply: (n) => n + safe.count },
