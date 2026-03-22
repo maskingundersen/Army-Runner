@@ -51,7 +51,9 @@ class ProjectileSystem {
       life: 0,
       damage: 1,
       homing: false,
-      targetEnemy: null
+      targetEnemy: null,
+      pierceHits: 0,
+      piercedEnemies: new Set()  // Pre-allocated, cleared on reuse
     }));
     
     // Fire timer
@@ -200,6 +202,8 @@ class ProjectileSystem {
         bullet.homing = stats.hasHoming;
         // Only assign target if homing and target is alive
         bullet.targetEnemy = (stats.hasHoming && target && !target.dead) ? target : null;
+        bullet.pierceHits = 0;
+        bullet.piercedEnemies.clear();
         
         this._bullets.push(idx);
       }
@@ -248,9 +252,10 @@ class ProjectileSystem {
   /**
    * Check bullet hits against enemies
    * @param {Object} enemyManager - EnemyManager instance
+   * @param {Object} [stats] - Computed stats for explosive/piercing
    * @returns {Array} Array of hit events
    */
-  checkHits(enemyManager) {
+  checkHits(enemyManager, stats) {
     const hits = [];
     
     for (let i = this._bullets.length - 1; i >= 0; i--) {
@@ -262,6 +267,9 @@ class ProjectileSystem {
       const enemy = enemyManager.checkBulletHit(bullet.x, bullet.y, bullet.z);
       
       if (enemy) {
+        // Skip enemies already pierced by this bullet
+        if (bullet.piercedEnemies && bullet.piercedEnemies.has(enemy)) continue;
+        
         // Hit enemy
         const result = enemyManager.damageEnemy(enemy, bullet.damage);
         
@@ -273,11 +281,36 @@ class ProjectileSystem {
           died: result.died
         });
         
-        // Small hit particle
-        this.effects.explode(bullet.x, bullet.y, bullet.z, 0xffee00, 3, 2);
+        // Explosive AOE
+        if (stats && stats.hasExplosive) {
+          const radius = stats.explosiveRadius || 4.0;
+          this.effects.explode(bullet.x, bullet.y, bullet.z, 0xff6600, 12, 5);
+          if (this.effects.camCtrl) this.effects.camCtrl.shake(0.5);
+          
+          for (const other of enemyManager.enemies) {
+            if (other === enemy || other.dead) continue;
+            const dx = other.worldX - bullet.x;
+            const dz = other.worldZ - bullet.z;
+            if (dx * dx + dz * dz < radius * radius) {
+              enemyManager.damageEnemy(other, bullet.damage);
+              this.effects.explode(other.worldX, 1, other.worldZ, 0xff4400, 4, 3);
+            }
+          }
+        } else {
+          // Small hit particle
+          this.effects.explode(bullet.x, bullet.y, bullet.z, 0xffee00, 3, 2);
+        }
         
-        // Deactivate bullet (unless ricochet - not implemented yet)
-        this._deactivateBullet(i, idx);
+        // Piercing: continue through enemies instead of deactivating
+        if (bullet.piercedEnemies && stats && stats.hasPiercing) {
+          bullet.piercedEnemies.add(enemy);
+          bullet.pierceHits++;
+          if (bullet.pierceHits >= (stats.pierceCount || 1)) {
+            this._deactivateBullet(i, idx);
+          }
+        } else {
+          this._deactivateBullet(i, idx);
+        }
       }
     }
     

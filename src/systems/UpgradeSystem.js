@@ -31,6 +31,7 @@ const WEAPON_GATES = [
   { id: 'sideCannons', label: 'Side Cannons',        color: '#ffaa44', icon: '🗡️'  },
   { id: 'armor',       label: '+Armor',              color: '#44aaff', icon: '🛡️' },
   { id: 'medic',       label: 'Medic Regen',         color: '#44ff88', icon: '❤️' },
+  { id: 'piercing',   label: 'Piercing Bullets',    color: '#88ff44', icon: '➡️' },
 ];
 
 // Between-run shop upgrades (persistent, bought with coins)
@@ -131,6 +132,10 @@ class UpgradeSystem {
       case 'medic':
         // Regen soldiers every few seconds
         break;
+
+      case 'piercing':
+        // Bullets pass through multiple enemies
+        break;
     }
   }
 
@@ -176,7 +181,7 @@ class UpgradeSystem {
       spreadAngles,
       hasHoming:    (upgrades.homing    || 0) > 0,
       hasExplosive: (upgrades.explosive || 0) > 0,
-      explosiveRadius: 40 + (upgrades.explosive || 0) * 15,
+      explosiveRadius: 4.0 + (upgrades.explosive || 0) * 1.5,
       hasRicochet:  (upgrades.ricochet  || 0) > 0,
       ricochetCount: upgrades.ricochet  || 0,
       hasSideCannons: (upgrades.sideCannons || 0) > 0,
@@ -184,6 +189,8 @@ class UpgradeSystem {
       armorHits:    (upgrades.armor || 0) > 0 ? 2 : 1,
       hasArmor:     (upgrades.armor || 0) > 0,
       hasMedic:     (upgrades.medic || 0) > 0,
+      hasPiercing:  (upgrades.piercing || 0) > 0,
+      pierceCount:  Math.min((upgrades.piercing || 0) + 1, 5),
     };
   }
 

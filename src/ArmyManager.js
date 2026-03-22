@@ -100,6 +100,89 @@ class ArmyManager {
     this._tempM4c = new THREE.Matrix4();
     
     this._activeCount = 0;
+    
+    this._createCompanions();
+  }
+  
+  _createCompanions() {
+    // Drone - small metallic box with propellers
+    const droneGroup = new THREE.Group();
+    const droneBody = new THREE.Mesh(
+      new THREE.BoxGeometry(0.4, 0.15, 0.4),
+      new THREE.MeshLambertMaterial({ color: 0x888899 })
+    );
+    droneBody.position.y = 3.5;
+    droneGroup.add(droneBody);
+    for (let i = 0; i < 4; i++) {
+      const arm = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5, 0.03, 0.06),
+        new THREE.MeshLambertMaterial({ color: 0x444455 })
+      );
+      arm.position.y = 3.6;
+      arm.rotation.y = (i / 4) * Math.PI * 2;
+      arm.position.x = Math.cos((i / 4) * Math.PI * 2) * 0.3;
+      arm.position.z = Math.sin((i / 4) * Math.PI * 2) * 0.3;
+      droneGroup.add(arm);
+    }
+    droneGroup.visible = false;
+    this.scene.add(droneGroup);
+    this._drone = droneGroup;
+    
+    // Dragon - larger flying creature
+    const dragonGroup = new THREE.Group();
+    const dragonBody = new THREE.Mesh(
+      new THREE.BoxGeometry(0.6, 0.4, 1.2),
+      new THREE.MeshLambertMaterial({ color: 0xcc3300 })
+    );
+    dragonBody.position.y = 5;
+    dragonGroup.add(dragonBody);
+    const wingGeo = new THREE.BoxGeometry(1.5, 0.05, 0.8);
+    const wingMat = new THREE.MeshLambertMaterial({ color: 0xff4400 });
+    const lWing = new THREE.Mesh(wingGeo, wingMat);
+    lWing.position.set(-0.9, 5, 0);
+    lWing.rotation.z = 0.2;
+    dragonGroup.add(lWing);
+    const rWing = new THREE.Mesh(wingGeo, wingMat);
+    rWing.position.set(0.9, 5, 0);
+    rWing.rotation.z = -0.2;
+    dragonGroup.add(rWing);
+    const dragonHead = new THREE.Mesh(
+      new THREE.BoxGeometry(0.3, 0.3, 0.4),
+      new THREE.MeshLambertMaterial({ color: 0xcc3300 })
+    );
+    dragonHead.position.set(0, 5.2, -0.7);
+    dragonGroup.add(dragonHead);
+    dragonGroup.visible = false;
+    this.scene.add(dragonGroup);
+    this._dragon = dragonGroup;
+    
+    this._companionPhase = 0;
+  }
+  
+  updateCompanions(dt, armyX, upgrades) {
+    this._companionPhase += dt * 2;
+    
+    // Drone
+    const hasDrone = (upgrades.sideCannons || 0) > 0;
+    this._drone.visible = hasDrone;
+    if (hasDrone) {
+      const dx = Math.cos(this._companionPhase * 1.5) * 2;
+      const dz = Math.sin(this._companionPhase * 1.5) * 2;
+      this._drone.position.set(armyX + dx, 0, dz);
+      this._drone.children[0].position.y = 3.5 + Math.sin(this._companionPhase * 3) * 0.15;
+    }
+    
+    // Dragon
+    const hasDragon = (upgrades.homing || 0) > 0;
+    this._dragon.visible = hasDragon;
+    if (hasDragon) {
+      const dx = Math.cos(this._companionPhase) * 3;
+      const dz = Math.sin(this._companionPhase) * 3 - 2;
+      this._dragon.position.set(armyX + dx, 0, dz);
+      const flapAngle = Math.sin(this._companionPhase * 4) * 0.3;
+      this._dragon.children[1].rotation.z = 0.2 + flapAngle;
+      this._dragon.children[2].rotation.z = -0.2 - flapAngle;
+    }
   }
   
   /**
@@ -177,7 +260,7 @@ class ArmyManager {
    * @param {number} armyX - Current army center X
    * @param {number} time - Total elapsed time
    */
-  update(dt, armyX, time) {
+  update(dt, armyX, time, upgrades) {
     // Recalculate formation targets
     const count = this._activeCount;
     const cols = Math.ceil(Math.sqrt(count * ArmyManager.FORMATION_ASPECT_RATIO));
@@ -235,6 +318,10 @@ class ArmyManager {
     }
     
     this._markNeedsUpdate();
+    
+    if (upgrades) {
+      this.updateCompanions(dt, armyX, upgrades);
+    }
   }
   
   /**
