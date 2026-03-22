@@ -1,6 +1,29 @@
 // src/EnemyManager.js — Manages enemies with different types
 
 const ENEMY_DEFS_3D = {
+  ogre: {
+    walkSpeed: 1.5,
+    hp: 80,
+    maxHp: 80,
+    scale: 2.0,
+    color: 0x7a5a2a,
+    hitColor: 0xffffff,
+    coinValue: 10,
+    size: { body: [1.2, 1.8, 0.7], head: [0.9, 0.9, 0.9] },
+    isBoss: true,
+  },
+  fireDragon: {
+    walkSpeed: 1.0,
+    hp: 200,
+    maxHp: 200,
+    scale: 2.8,
+    color: 0xcc3300,
+    hitColor: 0xffff00,
+    coinValue: 50,
+    size: { body: [1.8, 2.0, 1.0], head: [1.2, 1.0, 1.2] },
+    isBoss: true,
+    isFireDragon: true,
+  },
   zombie: {
     walkSpeed: 3.5,
     hp: 3,
