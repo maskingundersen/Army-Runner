@@ -93,6 +93,14 @@ function drawSoldier(gfx, x, y, scale, legPhase, upgrades) {
   // Helmet rim
   gfx.fillStyle(0x3a5a22, 1);
   gfx.fillRect(x - 7.5 * s, y - 7 * s, 15 * s, 2 * s);
+
+  // Side cannon visual (small barrel extending from left arm)
+  if (upgrades.sideCannons) {
+    gfx.fillStyle(0x111111, 1);
+    gfx.fillRect(x - 22 * s, y + 9 * s, 12 * s, 2 * s);
+    gfx.fillStyle(0x444444, 1);
+    gfx.fillRect(x - 22 * s, y + 9 * s, 12 * s, 1 * s);
+  }
 }
 
 /**
