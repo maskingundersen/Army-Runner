@@ -1,149 +1,128 @@
-// src/game.js — Three.js 3D Army Runner game
+// src/game.js — Three.js 3D Army Runner game (9-segment endless loop)
 
-// Level definitions (5 levels with different settings)
-const LEVEL_DEFS_3D = [
+// 9 segment definitions with fixed SAFE/RISK rewards
+const SEGMENT_DEFS = [
   {
-    name: 'Field',
-    skyColor: 0x7dd5f0,
-    groundColor: 0x3a7a2a,
-    roadColor: 0x333344,
-    fogNear: 40,
-    fogFar: 90,
-    bossHp: 50,
-    bossName: 'Field Commander',
-    segments: [
-      { type: 'gates', count: 3, badChance: 0.3 },
-      { type: 'enemies', waves: [
-        { count: 4, enemyType: 'zombie', hp: 3 },
-        { count: 2, enemyType: 'fast', hp: 1 },
-      ]},
-      { type: 'gates', count: 2, badChance: 0.25 },
-      { type: 'enemies', waves: [
-        { count: 4, enemyType: 'zombie', hp: 3 },
-        { count: 1, enemyType: 'tank', hp: 10 },
-      ]},
-      { type: 'gates', count: 3, badChance: 0.35 },
-      { type: 'enemies', waves: [
-        { count: 5, enemyType: 'zombie', hp: 3 },
-        { count: 2, enemyType: 'exploding', hp: 2 },
-      ]},
-      { type: 'boss' },
+    id: 1,
+    name: 'Intro',
+    safeReward: { type: 'soldiers', count: 3, label: '+3' },
+    riskReward: { type: 'soldiers', count: 10, label: '+10' },
+    enemies: [
+      { count: 3, enemyType: 'zombie', hp: 3 },
+      { count: 1, enemyType: 'fast', hp: 1 },
     ],
+    boss: null,
+    duration: 50,
   },
   {
-    name: 'Desert',
-    skyColor: 0xf0d090,
-    groundColor: 0xc4a55a,
-    roadColor: 0x4a4035,
-    fogNear: 50,
-    fogFar: 100,
-    bossHp: 75,
-    bossName: 'Desert Warlord',
-    segments: [
-      { type: 'gates', count: 2, badChance: 0.35 },
-      { type: 'enemies', waves: [
-        { count: 5, enemyType: 'zombie', hp: 4 },
-        { count: 3, enemyType: 'fast', hp: 1 },
-      ]},
-      { type: 'gates', count: 3, badChance: 0.3 },
-      { type: 'enemies', waves: [
-        { count: 3, enemyType: 'tank', hp: 12 },
-        { count: 4, enemyType: 'zombie', hp: 4 },
-      ]},
-      { type: 'gates', count: 2, badChance: 0.4 },
-      { type: 'enemies', waves: [
-        { count: 6, enemyType: 'fast', hp: 2 },
-        { count: 3, enemyType: 'exploding', hp: 3 },
-      ]},
-      { type: 'boss' },
+    id: 2,
+    name: 'First Decision',
+    safeReward: { type: 'soldiers', count: 5, label: '+5' },
+    riskReward: { type: 'upgrade', id: 'betterGuns', label: '\u{1F525} Fire Rate' },
+    enemies: [
+      { count: 4, enemyType: 'zombie', hp: 3 },
+      { count: 2, enemyType: 'fast', hp: 1 },
     ],
+    boss: null,
+    duration: 50,
   },
   {
-    name: 'Arctic',
-    skyColor: 0xd0e8f0,
-    groundColor: 0xe8f0f0,
-    roadColor: 0x5a6a70,
-    fogNear: 35,
-    fogFar: 80,
-    bossHp: 100,
-    bossName: 'Frost General',
-    segments: [
-      { type: 'gates', count: 3, badChance: 0.35 },
-      { type: 'enemies', waves: [
-        { count: 6, enemyType: 'zombie', hp: 5 },
-        { count: 4, enemyType: 'fast', hp: 2 },
-      ]},
-      { type: 'gates', count: 2, badChance: 0.35 },
-      { type: 'enemies', waves: [
-        { count: 4, enemyType: 'tank', hp: 15 },
-        { count: 5, enemyType: 'zombie', hp: 5 },
-      ]},
-      { type: 'gates', count: 3, badChance: 0.4 },
-      { type: 'enemies', waves: [
-        { count: 8, enemyType: 'zombie', hp: 5 },
-        { count: 4, enemyType: 'exploding', hp: 3 },
-      ]},
-      { type: 'boss' },
+    id: 3,
+    name: 'Pressure Intro',
+    safeReward: { type: 'soldiers', count: 8, label: '+8' },
+    riskReward: { type: 'upgrade', id: 'spreadShot', label: '\u{1F52B} Spread Shot' },
+    enemies: [
+      { count: 5, enemyType: 'zombie', hp: 4 },
+      { count: 3, enemyType: 'fast', hp: 2 },
     ],
+    boss: null,
+    duration: 60,
   },
   {
-    name: 'Volcanic',
-    skyColor: 0x6a3020,
-    groundColor: 0x3a2a2a,
-    roadColor: 0x2a1a1a,
-    fogNear: 30,
-    fogFar: 70,
-    bossHp: 130,
-    bossName: 'Lava Tyrant',
-    segments: [
-      { type: 'gates', count: 2, badChance: 0.4 },
-      { type: 'enemies', waves: [
-        { count: 8, enemyType: 'zombie', hp: 6 },
-        { count: 5, enemyType: 'fast', hp: 3 },
-      ]},
-      { type: 'gates', count: 3, badChance: 0.35 },
-      { type: 'enemies', waves: [
-        { count: 5, enemyType: 'tank', hp: 18 },
-        { count: 6, enemyType: 'zombie', hp: 6 },
-      ]},
-      { type: 'gates', count: 2, badChance: 0.45 },
-      { type: 'enemies', waves: [
-        { count: 10, enemyType: 'fast', hp: 3 },
-        { count: 5, enemyType: 'exploding', hp: 4 },
-      ]},
-      { type: 'boss' },
+    id: 4,
+    name: 'Skill Check',
+    safeReward: { type: 'soldiers', count: 10, label: '+10' },
+    riskReward: { type: 'upgrade', id: 'explosive', label: '\u{1F4A3} Grenade' },
+    enemies: [
+      { count: 4, enemyType: 'zombie', hp: 5 },
+      { count: 3, enemyType: 'exploding', hp: 2 },
     ],
+    boss: null,
+    duration: 60,
   },
   {
-    name: 'Final Fortress',
-    skyColor: 0x1a1a2a,
-    groundColor: 0x2a2a3a,
-    roadColor: 0x1a1a25,
-    fogNear: 25,
-    fogFar: 60,
-    bossHp: 200,
-    bossName: 'Supreme Commander',
-    segments: [
-      { type: 'gates', count: 3, badChance: 0.4 },
-      { type: 'enemies', waves: [
-        { count: 10, enemyType: 'zombie', hp: 8 },
-        { count: 6, enemyType: 'fast', hp: 4 },
-      ]},
-      { type: 'gates', count: 2, badChance: 0.4 },
-      { type: 'enemies', waves: [
-        { count: 6, enemyType: 'tank', hp: 25 },
-        { count: 8, enemyType: 'zombie', hp: 8 },
-      ]},
-      { type: 'gates', count: 3, badChance: 0.45 },
-      { type: 'enemies', waves: [
-        { count: 12, enemyType: 'fast', hp: 4 },
-        { count: 6, enemyType: 'exploding', hp: 5 },
-        { count: 3, enemyType: 'tank', hp: 25 },
-      ]},
-      { type: 'boss' },
+    id: 5,
+    name: 'Mini Boss',
+    safeReward: { type: 'soldiers', count: 12, label: '+12' },
+    riskReward: { type: 'upgrade', id: 'x2Bullets', label: '\u26A1 Double Shot' },
+    enemies: [],
+    boss: 'ogre',
+    duration: 60,
+  },
+  {
+    id: 6,
+    name: 'Build Defining',
+    safeReward: { type: 'soldiers', count: 10, label: '+10' },
+    riskReward: { type: 'upgrade', id: 'sideCannons', label: '\u{1F6F8} Drone Companion' },
+    enemies: [
+      { count: 6, enemyType: 'zombie', hp: 5 },
+      { count: 4, enemyType: 'fast', hp: 2 },
+      { count: 2, enemyType: 'tank', hp: 10 },
     ],
+    boss: null,
+    duration: 80,
+  },
+  {
+    id: 7,
+    name: 'High Pressure',
+    safeReward: { type: 'soldiers', count: 15, label: '+15' },
+    riskReward: { type: 'upgrade', id: 'explosive', label: '\u{1F4A5} Explosive Rounds' },
+    enemies: [
+      { count: 8, enemyType: 'fast', hp: 3 },
+      { count: 4, enemyType: 'exploding', hp: 3 },
+      { count: 2, enemyType: 'tank', hp: 12 },
+    ],
+    boss: null,
+    duration: 80,
+  },
+  {
+    id: 8,
+    name: 'Elite Path',
+    safeReward: { type: 'soldiers', count: 8, label: '+8' },
+    riskReward: { type: 'upgrade', id: 'homing', label: '\u{1F409} Dragon Companion' },
+    enemies: [
+      { count: 6, enemyType: 'tank', hp: 15 },
+      { count: 6, enemyType: 'zombie', hp: 6 },
+      { count: 3, enemyType: 'exploding', hp: 4 },
+    ],
+    boss: null,
+    duration: 80,
+  },
+  {
+    id: 9,
+    name: 'Major Boss',
+    safeReward: { type: 'soldiers', count: 15, label: '+15' },
+    riskReward: { type: 'upgrade', id: 'damage25', label: '\u2694\uFE0F Power Up' },
+    enemies: [],
+    boss: 'fireDragon',
+    duration: 60,
   },
 ];
+
+// Environment palettes cycled per segment cycle (reused from original level themes)
+const ENV_PALETTES = [
+  { skyColor: 0x7dd5f0, groundColor: 0x3a7a2a, roadColor: 0x333344, fogNear: 40, fogFar: 90 },
+  { skyColor: 0xf0d090, groundColor: 0xc4a55a, roadColor: 0x4a4035, fogNear: 50, fogFar: 100 },
+  { skyColor: 0xd0e8f0, groundColor: 0xe8f0f0, roadColor: 0x5a6a70, fogNear: 35, fogFar: 80 },
+  { skyColor: 0x6a3020, groundColor: 0x3a2a2a, roadColor: 0x2a1a1a, fogNear: 30, fogFar: 70 },
+  { skyColor: 0x1a1a2a, groundColor: 0x2a2a3a, roadColor: 0x1a1a25, fogNear: 25, fogFar: 60 },
+];
+
+// Base boss HP (scaled by difficultyMult each cycle)
+const BOSS_HP = { ogre: 80, fireDragon: 200 };
+
+// Shared identity modifier for upgrade gates (no soldier count change)
+const IDENTITY_MOD = { apply: (n) => n };
 
 class ArmyRunnerGame {
   constructor() {
@@ -188,7 +167,6 @@ class ArmyRunnerGame {
     
     // Game state
     this.state = 'boot';
-    this.currentLevel = 1;
     this.soldierCount = 20;
     this.upgrades = {};
     this.cameraZ = 0;
@@ -199,13 +177,16 @@ class ArmyRunnerGame {
     this.coins = 0;
     this.shopMeta = UpgradeSystem.loadShopMeta ? UpgradeSystem.loadShopMeta() : {};
     
-    // Segment tracking
-    this.segmentIndex = 0;
-    this.segments = [];
+    // Segment tracking (9-segment endless loop)
+    this.currentSegment = 0;        // 0-8 index into SEGMENT_DEFS
+    this.segmentCycle = 0;          // Which loop iteration (0=first, 1=second, ...)
+    this.difficultyMult = 1.0;      // HP multiplier, +0.4 per cycle
+    this.milestone = '';            // Best milestone reached
+    this.currentBoss = null;        // Boss type currently being fought
+    this.internalSegments = [];     // Flat sequence of gate/enemy/boss sub-steps
+    this.internalSegIdx = 0;        // Current position in internalSegments
     this.inCombat = false;
-    this.combatClear = false;
     this.nextSegmentDist = 50;
-    this.levelDef = null;
     
     // Input state
     this.isDragging = false;
@@ -430,15 +411,13 @@ class ArmyRunnerGame {
     
     // Boot screen play button
     document.getElementById('boot-play-btn').addEventListener('click', () => {
-      this.startGame(1);
+      this.startGame();
     });
     
-    // Win screen buttons
+    // Win screen buttons (kept as fallback, not normally triggered)
     document.getElementById('win-next-btn').addEventListener('click', () => {
-      const screen = document.getElementById('screen-win');
-      screen.classList.remove('active');
-      const nextLevel = this.currentLevel >= 5 ? 1 : this.currentLevel + 1;
-      this.startGame(nextLevel);
+      document.getElementById('screen-win').classList.remove('active');
+      this.startGame();
     });
     
     document.getElementById('win-menu-btn').addEventListener('click', () => {
@@ -451,7 +430,7 @@ class ArmyRunnerGame {
     // Lose screen buttons
     document.getElementById('lose-retry-btn').addEventListener('click', () => {
       document.getElementById('screen-lose').classList.remove('active');
-      this.startGame(this.currentLevel);
+      this.startGame();
     });
     
     document.getElementById('lose-menu-btn').addEventListener('click', () => {
@@ -462,39 +441,40 @@ class ArmyRunnerGame {
     });
   }
   
+  _formatCycleLabel() {
+    return this.segmentCycle > 0 ? ` C${this.segmentCycle + 1}` : '';
+  }
+  
   _updateHUD() {
     if (this.hudSoldierCount) this.hudSoldierCount.textContent = this.soldierCount;
     if (this.hudCoins) this.hudCoins.textContent = this.coins;
-    if (this.hudLevel) this.hudLevel.textContent = `LEVEL ${this.currentLevel}`;
+    if (this.hudLevel) {
+      const segDef = SEGMENT_DEFS[this.currentSegment] || SEGMENT_DEFS[0];
+      this.hudLevel.textContent = `${segDef.id}/9: ${segDef.name}${this._formatCycleLabel()}`;
+    }
   }
   
-  startGame(level) {
-    level = level || 1;
-    this.currentLevel = level;
+  startGame() {
     this.soldierCount = 20 + (this.shopMeta.startSoldiers || 0) * 5;
     this.upgrades = {};
     this.cameraZ = 0;
     this.armyX = 0;
     this.armyTargetX = 0;
-    this.segmentIndex = 0;
-    this.inCombat = false;
     this.coins = 0;
+    this.currentSegment = 0;
+    this.segmentCycle = 0;
+    this.difficultyMult = 1.0;
+    this.milestone = '';
+    this.currentBoss = null;
+    this.inCombat = false;
     
-    // Load level definition
-    const ld = LEVEL_DEFS_3D[(level - 1) % LEVEL_DEFS_3D.length];
-    this.levelDef = ld;
-    this.segments = ld.segments.slice();
+    // Build internal segment sequence
+    this._buildInternalSegments();
+    this.internalSegIdx = 0;
     this.nextSegmentDist = 50;
     
-    // Update scene colors
-    this.scene.background = new THREE.Color(ld.skyColor);
-    this.scene.fog.color.set(ld.skyColor);
-    this.scene.fog.near = ld.fogNear || 40;
-    this.scene.fog.far = ld.fogFar || 90;
-    
-    // Update ground/road colors
-    this.groundMesh.material.color.setHex(ld.groundColor);
-    this.roadMesh.material.color.setHex(ld.roadColor);
+    // Apply initial environment palette
+    this._applyEnvPalette();
     
     // Clear systems
     this.enemyMgr.clear();
@@ -514,6 +494,66 @@ class ArmyRunnerGame {
     
     // Reset camera
     this.camCtrl.follow(this.armyX, this.soldierCount);
+  }
+  
+  _buildInternalSegments() {
+    this.internalSegments = [];
+    for (let i = 0; i < SEGMENT_DEFS.length; i++) {
+      const def = SEGMENT_DEFS[i];
+      if (def.boss) {
+        // Boss segments: fight first, then recovery gate choice
+        this.internalSegments.push({ type: 'boss', defIdx: i });
+        this.internalSegments.push({ type: 'gates', defIdx: i });
+      } else {
+        // Normal segments: gate choice first, then enemy combat
+        this.internalSegments.push({ type: 'gates', defIdx: i });
+        this.internalSegments.push({ type: 'enemies', defIdx: i });
+      }
+    }
+  }
+  
+  _applyEnvPalette() {
+    const palette = ENV_PALETTES[this.segmentCycle % ENV_PALETTES.length];
+    this.scene.background = new THREE.Color(palette.skyColor);
+    this.scene.fog.color.set(palette.skyColor);
+    this.scene.fog.near = palette.fogNear;
+    this.scene.fog.far = palette.fogFar;
+    this.groundMesh.material.color.setHex(palette.groundColor);
+    this.roadMesh.material.color.setHex(palette.roadColor);
+  }
+  
+  _startNewCycle() {
+    this.segmentCycle++;
+    this.difficultyMult += 0.4;
+    this.milestone = 'Cycle ' + (this.segmentCycle + 1);
+    
+    // Visual feedback
+    this.effects.screenFlash(0x44aaff, 0.8);
+    this.camCtrl.shake(1.0);
+    this._showCycleMessage(`CYCLE ${this.segmentCycle + 1}`);
+    
+    // Update environment
+    this._applyEnvPalette();
+    
+    // Reset segment tracking for new cycle
+    this.currentSegment = 0;
+    this._buildInternalSegments();
+    this.internalSegIdx = 0;
+    this.nextSegmentDist = -this.cameraZ + 40;
+    this._updateHUD();
+  }
+  
+  _showCycleMessage(text) {
+    const msgEl = document.createElement('div');
+    msgEl.textContent = text;
+    msgEl.style.cssText =
+      'position:fixed;top:40%;left:50%;transform:translate(-50%,-50%);' +
+      'font-size:48px;font-weight:bold;color:#44aaff;' +
+      'text-shadow:2px 2px 8px rgba(0,0,0,0.8),0 0 30px rgba(68,170,255,0.5);' +
+      'z-index:150;pointer-events:none;opacity:1;transition:opacity 1.5s ease-out;';
+    document.body.appendChild(msgEl);
+    setTimeout(() => { msgEl.style.opacity = '0'; }, 500);
+    setTimeout(() => { if (msgEl.parentNode) msgEl.parentNode.removeChild(msgEl); }, 2500);
   }
   
   _loop() {
@@ -582,6 +622,14 @@ class ArmyRunnerGame {
       if (this.enemyMgr.count === 0) {
         this.inCombat = false;
         this.combatLight.intensity = 0;
+        
+        // Track boss defeat milestones
+        if (this.currentBoss) {
+          if (this.currentBoss === 'ogre') this.milestone = 'Defeated Ogre';
+          else if (this.currentBoss === 'fireDragon') this.milestone = 'Defeated Fire Dragon';
+          this.currentBoss = null;
+        }
+        
         this._triggerNextSegment();
       }
     }
@@ -617,61 +665,82 @@ class ArmyRunnerGame {
   }
   
   _triggerNextSegment() {
-    if (this.segmentIndex >= this.segments.length) {
-      this._triggerWin();
+    if (this.internalSegIdx >= this.internalSegments.length) {
+      this._startNewCycle();
       return;
     }
     
-    const seg = this.segments[this.segmentIndex++];
-    const spawnZ = this.cameraZ - 60; // Spawn 60 units ahead
+    const seg = this.internalSegments[this.internalSegIdx++];
+    const def = SEGMENT_DEFS[seg.defIdx];
+    this.currentSegment = seg.defIdx;
+    const spawnZ = this.cameraZ - 60;
     
     if (seg.type === 'gates') {
-      this._spawnGates(seg, spawnZ);
-      // Next segment triggers after player passes all gates (60 base + spacing per extra gate + buffer)
-      this.nextSegmentDist = -this.cameraZ + 60 + (seg.count - 1) * 22 + 25;
+      this._spawnSegmentGates(def, spawnZ);
+      this.nextSegmentDist = -this.cameraZ + 60 + 25;
     } else if (seg.type === 'enemies') {
-      this._spawnEnemies(seg);
+      this._spawnEnemies(def);
       this.inCombat = true;
       this.combatLight.intensity = 1.5;
     } else if (seg.type === 'boss') {
-      this._spawnBoss();
+      this._spawnBoss(def);
     }
+    
+    this._updateHUD();
   }
   
-  _spawnGates(seg, baseZ) {
-    for (let i = 0; i < seg.count; i++) {
-      const gateZ = baseZ - i * 22;
-      const isBad = Math.random() < seg.badChance;
-      
-      // Pick mods
-      const goodMods = UpgradeSystem.SOLDIER_GOOD_MODS;
-      const badMods = UpgradeSystem.SOLDIER_BAD_MODS;
-      
-      const leftMod = isBad 
-        ? badMods[Math.floor(Math.random() * badMods.length)]
-        : goodMods[Math.floor(Math.random() * goodMods.length)];
-      const rightMod = !isBad
-        ? badMods[Math.floor(Math.random() * badMods.length)]
-        : goodMods[Math.floor(Math.random() * goodMods.length)];
-      
-      this.gateSys.createGate(gateZ,
-        { label: leftMod.label, mod: leftMod, good: !isBad },
-        { label: rightMod.label, mod: rightMod, good: isBad }
-      );
+  _spawnSegmentGates(def, baseZ) {
+    // Left = SAFE gate (green, soldier modifier)
+    const safe = def.safeReward;
+    const leftConfig = {
+      label: safe.label,
+      mod: { apply: (n) => n + safe.count },
+      good: true,
+      reward: safe,
+    };
+    
+    // Right = RISK gate (upgrade or soldiers)
+    const risk = def.riskReward;
+    let rightConfig;
+    if (risk.type === 'upgrade') {
+      rightConfig = {
+        label: risk.label,
+        mod: IDENTITY_MOD,
+        good: true,
+        reward: risk,
+      };
+    } else {
+      rightConfig = {
+        label: risk.label,
+        mod: { apply: (n) => n + risk.count },
+        good: true,
+        reward: risk,
+      };
     }
+    
+    this.gateSys.createGate(baseZ, leftConfig, rightConfig);
   }
   
-  _spawnEnemies(seg) {
-    // Enemies always spawn 60 units ahead in Three.js space (army is at Z=0)
-    this.enemyMgr.spawnWave(seg.waves, -60, this.armyX, 1.0);
+  _spawnEnemies(def) {
+    this.enemyMgr.spawnWave(def.enemies, -60, this.armyX, this.difficultyMult);
   }
   
-  _spawnBoss() {
+  _spawnBoss(def) {
+    const bossType = def.boss;
+    if (!BOSS_HP[bossType]) {
+      console.warn(`Unknown boss type "${bossType}", using default HP 100`);
+    }
+    const baseHp = BOSS_HP[bossType] || 100;
+    
+    this.currentBoss = bossType;
+    if (bossType === 'ogre') this.milestone = 'Reached Ogre';
+    else if (bossType === 'fireDragon') this.milestone = 'Reached Fire Dragon';
+    
     this.enemyMgr.spawnWave(
-      [{ count: 1, enemyType: 'tank', hp: this.levelDef.bossHp }],
-      -50,   // Fixed spawn position in Three.js space
-      this.armyX, 
-      1.5
+      [{ count: 1, enemyType: bossType, hp: baseHp }],
+      -50,
+      this.armyX,
+      this.difficultyMult
     );
     this.inCombat = true;
     this.combatLight.intensity = 2.0;
@@ -686,13 +755,19 @@ class ArmyRunnerGame {
     gate.passed = true;
     
     const chosen = side === 'left' ? gate.left : gate.right;
+    const reward = chosen.reward;
     
-    // Apply mod
-    const prevCount = this.soldierCount;
-    this.soldierCount = Math.max(1, chosen.mod.apply(this.soldierCount));
+    // Apply reward
+    if (reward && reward.type === 'upgrade') {
+      // Weapon/ability upgrade
+      this.upgrades[reward.id] = (this.upgrades[reward.id] || 0) + 1;
+    } else {
+      // Soldier modifier (apply via mod function for compatibility)
+      this.soldierCount = Math.max(1, chosen.mod.apply(this.soldierCount));
+    }
     
     // Visual effects
-    const color = chosen.good ? 0x00ff88 : 0xff3300;
+    const color = (reward && reward.type === 'upgrade') ? 0xffaa00 : 0x00ff88;
     this.gateSys.triggerEffect(gate, side);
     this.effects.gateEffect(this.armyX, 1, 0, color);
     this.effects.screenFlash(color, 0.5);
@@ -701,27 +776,22 @@ class ArmyRunnerGame {
     // Update army
     this.armyMgr.setCount(this.soldierCount, this.armyX);
     
-    if (window.audioManager) {
-      if (chosen.good) window.audioManager.gatGood();
-      else window.audioManager.gateBad();
-    }
+    if (window.audioManager) window.audioManager.gatGood();
     
     this._updateHUD();
   }
   
   _triggerWin() {
+    // In the endless loop, win is not normally triggered.
+    // Kept as fallback; shows milestone summary.
     this.state = 'win';
     if (window.audioManager) window.audioManager.win();
-    
-    const nextLevel = this.currentLevel >= 5 ? null : this.currentLevel + 1;
     
     const screen = document.getElementById('screen-win');
     screen.classList.add('active');
     
-    document.getElementById('win-title').textContent = 
-      nextLevel ? `LEVEL ${this.currentLevel} COMPLETE!` : 'YOU WON ALL LEVELS!';
-    document.getElementById('win-next-btn').textContent = 
-      nextLevel ? '▶  NEXT LEVEL' : '🔄  PLAY AGAIN';
+    document.getElementById('win-title').textContent = this.milestone || 'VICTORY!';
+    document.getElementById('win-next-btn').textContent = '\u{1F504}  PLAY AGAIN';
   }
   
   _triggerLose() {
@@ -730,7 +800,10 @@ class ArmyRunnerGame {
     
     const screen = document.getElementById('screen-lose');
     screen.classList.add('active');
-    document.getElementById('lose-level').textContent = `Level ${this.currentLevel}`;
+    
+    const segDef = SEGMENT_DEFS[this.currentSegment] || SEGMENT_DEFS[0];
+    document.getElementById('lose-level').textContent =
+      `${this.milestone || ('Segment ' + segDef.id)}${this._formatCycleLabel()}`;
   }
   
   _updateScreenFlash() {
