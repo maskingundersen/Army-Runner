@@ -573,7 +573,7 @@ class GameScene extends Phaser.Scene {
       const col = idx % cols;
       const row = Math.floor(idx / cols);
       const spread = Math.min(cols - 1, 3) * 38;
-      const ex = VP_X - spread / 2 + col * (spread / Math.max(cols - 1, 1));
+      const ex = cols === 1 ? VP_X : VP_X - spread / 2 + col * (spread / (cols - 1));
       const ey = VP_Y + 40 + row * 50;
       const eScale = 0.7 + (e.type === 'heavy' ? 0.25 : 0);
 
@@ -1069,8 +1069,7 @@ class GameScene extends Phaser.Scene {
       if (Math.sqrt(dx * dx + dy * dy) < 40) {
         p.dead = true;
         const dmg = this.bossEnraged ? 3 : 2;
-        const actualDmg = this.upgrades.armor ? Math.ceil(dmg / 2) : dmg;
-        this.loseSoldiers(actualDmg);
+        this.loseSoldiers(dmg); // armor reduction handled inside loseSoldiers
         this.cameras.main.shake(250, 0.012);
         this.screenFlash = 0.7;
         this.screenFlashColor = 0xff0000;
