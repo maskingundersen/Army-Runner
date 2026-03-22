@@ -118,7 +118,7 @@ const ENV_PALETTES = [
   { skyColor: 0x1a1a2a, groundColor: 0x2a2a3a, roadColor: 0x1a1a25, fogNear: 25, fogFar: 60 },
 ];
 
-// Base boss HP (scaled by difficultyMult each cycle)
+// Base boss HP — mirrors ENEMY_DEFS_3D in EnemyManager.js, scaled by difficultyMult each cycle
 const BOSS_HP = { ogre: 80, fireDragon: 200 };
 
 // Shared identity modifier for upgrade gates (no soldier count change)
@@ -533,6 +533,7 @@ class ArmyRunnerGame {
   
   _startNewCycle() {
     this.segmentCycle++;
+    // Increase difficulty: enemy HP is multiplied by difficultyMult in spawnWave/spawnBoss
     this.difficultyMult += 0.4;
     this.milestone = 'Cycle ' + (this.segmentCycle + 1);
     

@@ -53,7 +53,7 @@ class ProjectileSystem {
       homing: false,
       targetEnemy: null,
       pierceHits: 0,
-      piercedEnemies: null
+      piercedEnemies: new Set()  // Pre-allocated, cleared on reuse
     }));
     
     // Fire timer
@@ -203,7 +203,7 @@ class ProjectileSystem {
         // Only assign target if homing and target is alive
         bullet.targetEnemy = (stats.hasHoming && target && !target.dead) ? target : null;
         bullet.pierceHits = 0;
-        bullet.piercedEnemies = stats.hasPiercing ? new Set() : null;
+        bullet.piercedEnemies.clear();
         
         this._bullets.push(idx);
       }

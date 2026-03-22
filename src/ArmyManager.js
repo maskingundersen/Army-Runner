@@ -142,7 +142,7 @@ class ArmyManager {
     lWing.position.set(-0.9, 5, 0);
     lWing.rotation.z = 0.2;
     dragonGroup.add(lWing);
-    const rWing = new THREE.Mesh(wingGeo, wingMat.clone());
+    const rWing = new THREE.Mesh(wingGeo, wingMat);
     rWing.position.set(0.9, 5, 0);
     rWing.rotation.z = -0.2;
     dragonGroup.add(rWing);
