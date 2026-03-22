@@ -553,12 +553,7 @@ class ArmyRunnerGame {
     this._updateDashes();
     this._updateTrees();
     
-    // 5. Update ground/road position (follow camera roughly)
-    const groundZ = this.cameraZ - 120;
-    this.groundMesh.position.z = groundZ;
-    this.roadMesh.position.z = groundZ;
-    this.leftEdge.position.z = groundZ;
-    this.rightEdge.position.z = groundZ;
+    // 5. Ground/road are fixed in Three.js space (camera never moves in Z)
     
     // 6. Combat update
     if (this.inCombat) {
@@ -632,9 +627,10 @@ class ArmyRunnerGame {
     
     if (seg.type === 'gates') {
       this._spawnGates(seg, spawnZ);
-      this.nextSegmentDist = -this.cameraZ + 55;
+      // Next segment triggers after player passes all gates (60 base + spacing per extra gate + buffer)
+      this.nextSegmentDist = -this.cameraZ + 60 + (seg.count - 1) * 22 + 25;
     } else if (seg.type === 'enemies') {
-      this._spawnEnemies(seg, spawnZ);
+      this._spawnEnemies(seg);
       this.inCombat = true;
       this.combatLight.intensity = 1.5;
     } else if (seg.type === 'boss') {
@@ -665,14 +661,15 @@ class ArmyRunnerGame {
     }
   }
   
-  _spawnEnemies(seg, spawnZ) {
-    this.enemyMgr.spawnWave(seg.waves, spawnZ, this.armyX, 1.0);
+  _spawnEnemies(seg) {
+    // Enemies always spawn 60 units ahead in Three.js space (army is at Z=0)
+    this.enemyMgr.spawnWave(seg.waves, -60, this.armyX, 1.0);
   }
   
   _spawnBoss() {
     this.enemyMgr.spawnWave(
       [{ count: 1, enemyType: 'tank', hp: this.levelDef.bossHp }],
-      this.cameraZ - 50, 
+      -50,   // Fixed spawn position in Three.js space
       this.armyX, 
       1.5
     );

@@ -141,8 +141,8 @@ class ProjectileSystem {
     const aliveEnemies = enemies.filter(e => !e.dead);
     if (aliveEnemies.length === 0) return;
     
-    // Sort by distance (closest first)
-    aliveEnemies.sort((a, b) => a.worldZ - b.worldZ);
+    // Sort by distance (closest first: highest worldZ = closest to army at Z=0)
+    aliveEnemies.sort((a, b) => b.worldZ - a.worldZ);
     
     // Get number of shots based on stats
     const shotsPerFire = Math.min(stats.bulletCount, 8);
