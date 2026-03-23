@@ -188,6 +188,39 @@ class EffectsManager {
   }
   
   /**
+   * Spawn hit sparks at position (for enemy damage feedback)
+   * @param {number} x - World X position
+   * @param {number} y - World Y position
+   * @param {number} z - World Z position
+   */
+  hitSpark(x, y, z) {
+    this.explode(x, y, z, 0xffaa00, 4, 3);
+  }
+  
+  /**
+   * Spawn floating damage number (burst of red particles upward)
+   * @param {number} x - World X position
+   * @param {number} y - World Y position
+   * @param {number} z - World Z position
+   * @param {number} damage - Damage dealt (more = more particles)
+   */
+  damageNumber(x, y, z, damage) {
+    const count = Math.min(8, Math.max(2, Math.ceil(damage / 3)));
+    this.explode(x, y + 1.5, z, 0xff2200, count, 2);
+  }
+  
+  /**
+   * Spawn soldier count change feedback
+   * @param {number} x - World X position
+   * @param {number} count - Soldiers gained (positive) or lost (negative)
+   */
+  soldierCountFeedback(x, count) {
+    const color = count > 0 ? 0x44ff88 : 0xff4444;
+    const particles = Math.min(15, Math.abs(count));
+    this.explode(x, 2, 0, color, particles, 4);
+  }
+  
+  /**
    * Trigger screen flash overlay
    * @param {number} color - Hex color
    * @param {number} intensity - Flash intensity (0-1)

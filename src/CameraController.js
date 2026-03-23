@@ -17,11 +17,11 @@ class CameraController {
     this.shakeOffsetX = 0;
     this.shakeOffsetY = 0;
     
-    // Camera position constants
-    this.baseHeight = 14;
-    this.baseDistance = 20;
+    // Camera position constants — close & low for high-intensity feel
+    this.baseHeight = 9;
+    this.baseDistance = 14;
     this.lookAtY = 0.5;
-    this.lookAtZ = -18; // Look further ahead so army sits in lower 30-40% of screen
+    this.lookAtZ = -12; // Look closer ahead so army fills bottom 50% of screen
     
     // Initialize camera position
     this._updateCameraPosition();
@@ -34,8 +34,8 @@ class CameraController {
    */
   follow(armyX, armyCount) {
     this.targetX = armyX;
-    // Zoom out as army grows: 1.0 at 0, up to 1.55 at 120+ soldiers
-    this.targetZoom = 1.0 + Math.min(armyCount / 120, 1.0) * 0.55;
+    // Zoom out as army grows: 1.0 at 0, up to 1.35 at 120+ soldiers (less zoom to keep intensity)
+    this.targetZoom = 1.0 + Math.min(armyCount / 120, 1.0) * 0.35;
   }
   
   /**

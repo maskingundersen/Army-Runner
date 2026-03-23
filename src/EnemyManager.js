@@ -243,6 +243,7 @@ class EnemyManager {
     enemy.maxHp = def.maxHp;
     enemy.walkPhase = Math.random() * Math.PI * 2;
     enemy.hitFlash = 0;
+    enemy.hitScale = 1.0;
     enemy.dead = false;
     enemy.deathTimer = -1;
     enemy.worldX = 0;
@@ -370,6 +371,7 @@ class EnemyManager {
       maxHp: def.maxHp,
       walkPhase: 0,
       hitFlash: 0,
+      hitScale: 1.0,
       dead: false,
       deathTimer: -1,
       worldX: 0,
@@ -701,6 +703,14 @@ class EnemyManager {
         enemy.headMesh.material.color.copy(flashColor);
       }
       
+      // Hit scale pulse decay
+      if (enemy.hitScale && enemy.hitScale > 1.0) {
+        enemy.hitScale -= dt * 4;
+        if (enemy.hitScale < 1.0) enemy.hitScale = 1.0;
+        const s = enemy.hitScale * (def.scale || 1);
+        enemy.group.scale.set(s, s, s);
+      }
+      
       // Update HP bar
       this._updateHPBar(enemy);
       
@@ -783,6 +793,13 @@ class EnemyManager {
     enemy.hp -= damage;
     enemy.hitFlash = 1.0;
     
+    // Hit reaction: brief scale pulse
+    enemy.hitScale = 1.2;
+    
+    // Hit spark + damage number visual feedback
+    this.effects.hitSpark(enemy.worldX, 1.5, enemy.worldZ);
+    this.effects.damageNumber(enemy.worldX, 2, enemy.worldZ, damage);
+    
     // Immediately update HP bar visual
     this._updateHPBar(enemy);
     
@@ -794,8 +811,9 @@ class EnemyManager {
       
       if (window.audioManager) window.audioManager.enemyDeath();
       
-      // Death particles
-      this.effects.explode(enemy.worldX, 1, enemy.worldZ, enemy.def.color, 15, 4);
+      // Death particles — enhanced for visual impact
+      this.effects.explode(enemy.worldX, 1, enemy.worldZ, enemy.def.color, 25, 5);
+      this.effects.explode(enemy.worldX, 1.5, enemy.worldZ, 0xff4400, 10, 3);
       
       // Check for explosion
       let exploded = false;

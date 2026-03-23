@@ -290,7 +290,7 @@ class ProjectileSystem {
         if (stats && stats.hasExplosive) {
           const radius = stats.explosiveRadius || 4.0;
           this.effects.explode(bullet.x, bullet.y, bullet.z, 0xff6600, 12, 5);
-          if (this.effects.camCtrl) this.effects.camCtrl.shake(0.5);
+          if (this.effects.camCtrl) this.effects.camCtrl.shake(0.6);
           
           for (const other of enemyManager.enemies) {
             if (other === enemy || other.dead) continue;
@@ -302,8 +302,9 @@ class ProjectileSystem {
             }
           }
         } else {
-          // Small hit particle
-          this.effects.explode(bullet.x, bullet.y, bullet.z, 0xffee00, 3, 2);
+          // Small hit spark on every impact
+          this.effects.explode(bullet.x, bullet.y, bullet.z, 0xffee00, 4, 2.5);
+          if (result.died && this.effects.camCtrl) this.effects.camCtrl.shake(0.2);
         }
         
         // Piercing: continue through enemies instead of deactivating
