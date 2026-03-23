@@ -634,7 +634,7 @@ class ArmyManager {
     this._tempM4.compose(this._tempV3, this._tempQ, new THREE.Vector3(scale, scale, scale));
     this.rLegInst.setMatrixAt(index, this._tempM4);
     
-    // Gun (follows right arm, points forward — cylinder rotated to Z-axis)
+    // Gun (follows right arm, points forward — CylinderGeometry is Y-up, rotate -90° to align barrel with Z-axis)
     this._tempE.set(rArmAngle + deathLean - 0.3 - Math.PI / 2, soldier.deathAngle, 0);
     this._tempQ.setFromEuler(this._tempE);
     const gunY = rArmY - 0.15;
