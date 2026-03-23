@@ -3,8 +3,8 @@
 const ENEMY_DEFS_3D = {
   ogre: {
     walkSpeed: 1.5,
-    hp: 80,
-    maxHp: 80,
+    hp: 600,
+    maxHp: 600,
     scale: 2.0,
     color: 0x7a5a2a,
     hitColor: 0xffffff,
@@ -14,8 +14,8 @@ const ENEMY_DEFS_3D = {
   },
   fireDragon: {
     walkSpeed: 1.0,
-    hp: 200,
-    maxHp: 200,
+    hp: 1750,
+    maxHp: 1750,
     scale: 2.8,
     color: 0xcc3300,
     hitColor: 0xffff00,
@@ -26,8 +26,8 @@ const ENEMY_DEFS_3D = {
   },
   zombie: {
     walkSpeed: 3.5,
-    hp: 3,
-    maxHp: 3,
+    hp: 10,
+    maxHp: 10,
     scale: 1.0,
     color: 0x5a8a3a,     // sickly green
     hitColor: 0xffffff,
@@ -36,8 +36,8 @@ const ENEMY_DEFS_3D = {
   },
   fast: {
     walkSpeed: 7.0,
-    hp: 1,
-    maxHp: 1,
+    hp: 4,
+    maxHp: 4,
     scale: 0.8,
     color: 0x8a3a8a,     // purple
     hitColor: 0xffffff,
@@ -46,8 +46,8 @@ const ENEMY_DEFS_3D = {
   },
   tank: {
     walkSpeed: 2.0,
-    hp: 10,
-    maxHp: 10,
+    hp: 40,
+    maxHp: 40,
     scale: 1.4,
     color: 0x8a4a2a,     // brown/rust
     hitColor: 0xffffff,
@@ -56,8 +56,8 @@ const ENEMY_DEFS_3D = {
   },
   exploding: {
     walkSpeed: 5.0,
-    hp: 2,
-    maxHp: 2,
+    hp: 6,
+    maxHp: 6,
     scale: 0.9,
     color: 0xff6600,     // orange
     hitColor: 0xffffff,
@@ -68,8 +68,8 @@ const ENEMY_DEFS_3D = {
   },
   giant: {
     walkSpeed: 1.2,
-    hp: 150,
-    maxHp: 150,
+    hp: 1250,
+    maxHp: 1250,
     scale: 2.4,
     color: 0x556655,     // dark stone green
     hitColor: 0xffffff,
@@ -79,20 +79,20 @@ const ENEMY_DEFS_3D = {
   },
   shield: {
     walkSpeed: 2.5,
-    hp: 8,
-    maxHp: 8,
+    hp: 32,
+    maxHp: 32,
     scale: 1.2,
     color: 0x4466aa,
     hitColor: 0xffffff,
     coinValue: 3,
     size: { body: [0.7, 1.0, 0.4], head: [0.45, 0.45, 0.45] },
     hasShield: true,
-    shieldHp: 5,
+    shieldHp: 15,
   },
   jumping: {
     walkSpeed: 4.0,
-    hp: 2,
-    maxHp: 2,
+    hp: 6,
+    maxHp: 6,
     scale: 0.9,
     color: 0x44aa44,
     hitColor: 0xffffff,
@@ -102,8 +102,8 @@ const ENEMY_DEFS_3D = {
   },
   ranged: {
     walkSpeed: 1.5,
-    hp: 4,
-    maxHp: 4,
+    hp: 16,
+    maxHp: 16,
     scale: 1.0,
     color: 0xaa4444,
     hitColor: 0xffffff,
@@ -113,8 +113,8 @@ const ENEMY_DEFS_3D = {
   },
   charger: {
     walkSpeed: 2.0,
-    hp: 5,
-    maxHp: 5,
+    hp: 15,
+    maxHp: 15,
     scale: 1.1,
     color: 0xcc8800,
     hitColor: 0xffffff,
@@ -126,8 +126,8 @@ const ENEMY_DEFS_3D = {
   },
   splitter: {
     walkSpeed: 3.0,
-    hp: 6,
-    maxHp: 6,
+    hp: 18,
+    maxHp: 18,
     scale: 1.1,
     color: 0x8844cc,
     hitColor: 0xffffff,
@@ -231,6 +231,15 @@ class EnemyManager {
     enemy.jumpTimer = 0;
     enemy.jumpY = 0;
     enemy.charging = false;
+    
+    // Boss attack state
+    enemy.bossAttackTimer = 0;
+    enemy.bossSlamTimer = 0;
+    enemy.bossProjectiles = [];
+    enemy.bossChargeTimer = 0;
+    enemy.bossCharging = false;
+    enemy.bossChargeSpeed = 0;
+    enemy.bossEnraged = false;
     
     enemy.group.visible = true;
     enemy.group.rotation.set(0, 0, 0);
@@ -347,7 +356,14 @@ class EnemyManager {
       shieldHp: def.shieldHp || 0,
       jumpTimer: 0,
       jumpY: 0,
-      charging: false
+      charging: false,
+      bossAttackTimer: 0,
+      bossSlamTimer: 0,
+      bossProjectiles: [],
+      bossChargeTimer: 0,
+      bossCharging: false,
+      bossChargeSpeed: 0,
+      bossEnraged: false
     };
   }
   
@@ -601,12 +617,21 @@ class EnemyManager {
       
       // Walk toward army (positive Z direction)
       // Charger: use charge speed when close to army
+      // Bosses: stop at a distance and fight (don't walk past army)
       let moveSpeed = def.walkSpeed;
-      if (def.charges && enemy.worldZ > -(def.chargeDistance || 8)) {
+      if (def.isBoss && !enemy.bossCharging) {
+        // Boss stops at distance -12 and fights from there
+        if (enemy.worldZ > -12) {
+          moveSpeed = 0;
+          enemy.worldZ = Math.min(enemy.worldZ, -12);
+        }
+      } else if (def.charges && enemy.worldZ > -(def.chargeDistance || 8)) {
         enemy.charging = true;
         moveSpeed = def.chargeSpeed;
       }
-      enemy.worldZ += moveSpeed * dt;
+      if (!enemy.bossCharging) {
+        enemy.worldZ += moveSpeed * dt;
+      }
       enemy.group.position.z = enemy.worldZ;
       
       // Jumping: periodically jump
@@ -622,6 +647,11 @@ class EnemyManager {
           enemy.jumpY = 0;
         }
         enemy.group.position.y = enemy.jumpY;
+      }
+      
+      // Boss attack patterns — bosses actively fight back
+      if (def.isBoss) {
+        soldierLosses += this._updateBossAttacks(enemy, dt, armyX);
       }
       
       // Walk animation
@@ -812,9 +842,145 @@ class EnemyManager {
   }
   
   /**
+   * Boss attack patterns — slam, projectile, charge
+   * @returns {number} soldier losses from boss attacks this frame
+   */
+  _updateBossAttacks(boss, dt, armyX) {
+    let soldierLosses = 0;
+    
+    // Enrage at 50% HP — faster attacks
+    if (!boss.bossEnraged && boss.hp <= boss.maxHp * 0.5) {
+      boss.bossEnraged = true;
+      this.effects.explode(boss.worldX, 2, boss.worldZ, 0xff0000, 30, 6);
+      this.effects.screenFlash(0xff0000, 0.6);
+    }
+    
+    const attackSpeedMult = boss.bossEnraged ? 1.5 : 1.0;
+    
+    // 1. Slam attack — area damage every 4s (3s when enraged)
+    boss.bossSlamTimer += dt * attackSpeedMult;
+    const slamInterval = 4.0;
+    if (boss.bossSlamTimer >= slamInterval) {
+      boss.bossSlamTimer = 0;
+      
+      // Slam kills 3-5 soldiers
+      const slamDamage = boss.bossEnraged ? 5 : 3;
+      soldierLosses += slamDamage;
+      
+      // Visual feedback — warning zone + slam effect
+      this.effects.explode(boss.worldX, 0.5, boss.worldZ + 3, 0xff2200, 25, 5);
+      this.effects.gateEffect(boss.worldX, 0.2, boss.worldZ + 3, 0xff4400);
+      
+      // Screen shake
+      if (this.effects.camCtrl) this.effects.camCtrl.shake(0.8);
+      
+      if (window.audioManager) window.audioManager.bossAttack();
+    }
+    
+    // 2. Projectile attack — boss shoots at army every 2.5s (1.5s when enraged)
+    boss.bossAttackTimer += dt * attackSpeedMult;
+    const projInterval = 2.5;
+    if (boss.bossAttackTimer >= projInterval) {
+      boss.bossAttackTimer = 0;
+      
+      // Spawn boss projectiles aimed at army
+      const projCount = boss.bossEnraged ? 3 : 1;
+      for (let p = 0; p < projCount; p++) {
+        const spreadAngle = (p - (projCount - 1) / 2) * 0.3;
+        const speed = 12 + Math.random() * 4;
+        const dx = armyX - boss.worldX + Math.sin(spreadAngle) * 3;
+        const dz = 0 - boss.worldZ;
+        const dist = Math.sqrt(dx * dx + dz * dz) || 1;
+        
+        boss.bossProjectiles.push({
+          x: boss.worldX,
+          y: 1.5,
+          z: boss.worldZ,
+          vx: (dx / dist) * speed,
+          vz: (dz / dist) * speed,
+          life: 3.0,
+          active: true
+        });
+      }
+      
+      // Projectile launch effect
+      this.effects.explode(boss.worldX, 2, boss.worldZ, boss.def.color, 8, 3);
+      if (window.audioManager) window.audioManager.shoot();
+    }
+    
+    // Update boss projectiles
+    for (let p = boss.bossProjectiles.length - 1; p >= 0; p--) {
+      const proj = boss.bossProjectiles[p];
+      if (!proj.active) { boss.bossProjectiles.splice(p, 1); continue; }
+      
+      proj.x += proj.vx * dt;
+      proj.z += proj.vz * dt;
+      proj.life -= dt;
+      
+      if (proj.life <= 0 || Math.abs(proj.x) > 20 || proj.z > 5) {
+        proj.active = false;
+        boss.bossProjectiles.splice(p, 1);
+        continue;
+      }
+      
+      // Check hit against army position (near Z=0)
+      if (proj.z > -1.5 && proj.z < 1.5 && Math.abs(proj.x - armyX) < 3.0) {
+        // Hit — kill 1-2 soldiers
+        soldierLosses += boss.bossEnraged ? 2 : 1;
+        this.effects.explode(proj.x, 1, proj.z, 0xff4400, 10, 3);
+        proj.active = false;
+        boss.bossProjectiles.splice(p, 1);
+      } else {
+        // Trail effect for boss projectile
+        this.effects.explode(proj.x, proj.y, proj.z, 0xff6600, 1, 1);
+      }
+    }
+    
+    // 3. Charge attack — every 8s (5s when enraged), rush forward then retreat
+    boss.bossChargeTimer += dt * attackSpeedMult;
+    const chargeInterval = 8.0;
+    if (boss.bossChargeTimer >= chargeInterval && !boss.bossCharging) {
+      boss.bossCharging = true;
+      boss.bossChargeSpeed = 15;
+      boss.bossChargeTimer = 0;
+      
+      // Warning effect
+      this.effects.explode(boss.worldX, 1, boss.worldZ, 0xffaa00, 15, 4);
+    }
+    
+    if (boss.bossCharging) {
+      // Rush forward quickly
+      boss.worldZ += boss.bossChargeSpeed * dt;
+      boss.group.position.z = boss.worldZ;
+      
+      // Check contact with army — kills soldiers on contact
+      if (boss.worldZ > -2 && boss.worldZ < 2) {
+        soldierLosses += boss.bossEnraged ? 4 : 2;
+        this.effects.explode(boss.worldX, 1, 0, 0xff0000, 15, 4);
+        if (this.effects.camCtrl) this.effects.camCtrl.shake(1.2);
+      }
+      
+      // Retreat after reaching past army
+      if (boss.worldZ > 0) {
+        boss.bossChargeSpeed = -8;
+      }
+      
+      // End charge when returned to far position
+      if (boss.worldZ < -15) {
+        boss.bossCharging = false;
+        boss.bossChargeSpeed = 0;
+      }
+    }
+    
+    return soldierLosses;
+  }
+  
+  /**
    * Release enemy back to pool
    */
   _releaseEnemy(enemy) {
+    // Clean up boss projectiles
+    if (enemy.bossProjectiles) enemy.bossProjectiles.length = 0;
     enemy.group.visible = false;
     this.scene.remove(enemy.group);
     this._pool.push(enemy);
