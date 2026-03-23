@@ -7,6 +7,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Army Runner 3D 🎮</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Orbitron:wght@700;800&display=swap');
+
     * {
       margin: 0;
       padding: 0;
@@ -14,7 +16,7 @@
     }
     
     body {
-      background: #0d1a0e;
+      background: #0a0f0a;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -22,7 +24,7 @@
       height: 100vh;
       overflow: hidden;
       touch-action: none;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: 'Rajdhani', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     
     #game-canvas {
@@ -53,17 +55,20 @@
     }
     
     .hud-box {
-      background: rgba(13, 26, 14, 0.85);
-      border: 2px solid #4a7c45;
-      border-radius: 8px;
-      padding: 8px 14px;
-      color: #c8e6c9;
-      font-weight: bold;
+      background: rgba(10, 20, 12, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(100, 180, 90, 0.35);
+      border-radius: 10px;
+      padding: 8px 16px;
+      color: #d0ecd0;
+      font-weight: 600;
       font-size: 16px;
-      text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+      text-shadow: 0 1px 3px rgba(0,0,0,0.9);
       display: flex;
       align-items: center;
       gap: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
     }
     
     .hud-box .icon {
@@ -72,41 +77,51 @@
     
     .hud-box .value {
       color: #ffffff;
-      font-size: 20px;
+      font-size: 22px;
+      font-family: 'Orbitron', monospace;
+      font-weight: 700;
     }
     
     .hud-level {
-      background: rgba(74, 124, 69, 0.9);
-      border-color: #6aaf5d;
+      background: rgba(60, 110, 55, 0.6);
+      border-color: rgba(130, 200, 110, 0.4);
+      font-family: 'Orbitron', monospace;
+      font-size: 13px;
+      letter-spacing: 1px;
     }
     
     .hud-milestone {
-      background: rgba(74, 60, 20, 0.9);
-      border-color: #ffd700;
+      background: rgba(80, 65, 20, 0.7);
+      border-color: rgba(255, 215, 0, 0.4);
       color: #ffd700;
-      font-size: 14px;
+      font-size: 13px;
+      font-family: 'Orbitron', monospace;
     }
     
     .hud-best {
-      background: rgba(40, 40, 60, 0.9);
-      border-color: #aaccff;
-      color: #aaccff;
-      font-size: 13px;
+      background: rgba(30, 35, 55, 0.7);
+      border-color: rgba(120, 170, 255, 0.35);
+      color: #99bbff;
+      font-size: 12px;
+      font-family: 'Orbitron', monospace;
     }
     
     .boot-best {
       color: #ffd700;
       font-size: 18px;
-      font-weight: bold;
+      font-weight: 700;
       margin-bottom: 20px;
-      text-shadow: 1px 1px 3px rgba(0,0,0,0.6);
+      text-shadow: 0 0 10px rgba(255,215,0,0.4);
+      font-family: 'Orbitron', monospace;
     }
     
     .lose-best {
       color: #ffd700;
-      font-size: 16px;
+      font-size: 15px;
+      font-weight: 600;
       margin-bottom: 20px;
-      text-shadow: 1px 1px 3px rgba(0,0,0,0.6);
+      text-shadow: 0 0 8px rgba(255,215,0,0.3);
+      font-family: 'Orbitron', monospace;
     }
     
     /* Screen Flash Overlay */
@@ -132,10 +147,10 @@
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      background: rgba(13, 26, 14, 0.95);
+      background: rgba(8, 14, 8, 0.96);
       opacity: 0;
       visibility: hidden;
-      transition: opacity 0.3s ease, visibility 0.3s ease;
+      transition: opacity 0.4s ease, visibility 0.4s ease;
       z-index: 200;
     }
     
@@ -146,21 +161,34 @@
     
     /* Boot Screen */
     #screen-boot {
-      background: linear-gradient(180deg, #0d1a0e 0%, #1a2e1a 50%, #0d1a0e 100%);
+      background: radial-gradient(ellipse at 50% 40%, rgba(40, 70, 35, 0.4) 0%, rgba(8, 14, 8, 0.98) 70%),
+                  linear-gradient(180deg, #0a120a 0%, #0d1a0e 50%, #0a0f0a 100%);
     }
     
     .boot-title {
-      font-size: 48px;
+      font-size: 56px;
       margin-bottom: 8px;
+      filter: drop-shadow(0 0 20px rgba(255, 200, 50, 0.3));
     }
     
     .boot-title-text {
-      font-size: 36px;
-      font-weight: bold;
-      color: #4a7c45;
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.8), 0 0 20px rgba(74,124,69,0.5);
-      letter-spacing: 4px;
-      margin-bottom: 20px;
+      font-size: 38px;
+      font-weight: 800;
+      color: #6aaf5d;
+      text-shadow: 0 0 30px rgba(106,175,93,0.4), 0 0 60px rgba(106,175,93,0.15), 2px 2px 4px rgba(0,0,0,0.9);
+      letter-spacing: 6px;
+      margin-bottom: 8px;
+      font-family: 'Orbitron', sans-serif;
+      text-transform: uppercase;
+    }
+    
+    .boot-subtitle {
+      font-size: 14px;
+      color: rgba(130, 200, 120, 0.5);
+      letter-spacing: 8px;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+      font-family: 'Orbitron', sans-serif;
     }
     
     .boot-tagline {
@@ -168,28 +196,33 @@
       font-size: 16px;
       margin-bottom: 50px;
       text-align: center;
-      max-width: 280px;
-      line-height: 1.4;
+      max-width: 320px;
+      line-height: 1.5;
+      opacity: 0.85;
     }
     
     .game-btn {
-      background: linear-gradient(180deg, #4a7c45 0%, #2d5a29 100%);
-      border: 3px solid #6aaf5d;
-      border-radius: 12px;
-      padding: 16px 48px;
+      background: linear-gradient(180deg, rgba(80, 140, 70, 0.9) 0%, rgba(45, 90, 40, 0.95) 100%);
+      border: 1px solid rgba(130, 200, 110, 0.5);
+      border-radius: 10px;
+      padding: 16px 52px;
       color: #ffffff;
-      font-size: 22px;
-      font-weight: bold;
+      font-size: 20px;
+      font-weight: 700;
       cursor: pointer;
-      text-shadow: 1px 1px 2px rgba(0,0,0,0.6);
-      box-shadow: 0 6px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2);
-      transition: transform 0.1s ease, box-shadow 0.1s ease;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+      box-shadow: 0 6px 24px rgba(0,0,0,0.4), 0 0 30px rgba(80,140,70,0.15), inset 0 1px 0 rgba(255,255,255,0.15);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
       margin: 8px;
+      font-family: 'Orbitron', sans-serif;
+      letter-spacing: 2px;
+      backdrop-filter: blur(4px);
     }
     
     .game-btn:hover {
       transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5), 0 0 40px rgba(80,140,70,0.25), inset 0 1px 0 rgba(255,255,255,0.2);
+      background: linear-gradient(180deg, rgba(90, 155, 80, 0.95) 0%, rgba(50, 100, 45, 0.95) 100%);
     }
     
     .game-btn:active {
@@ -198,86 +231,109 @@
     }
     
     .game-btn.secondary {
-      background: linear-gradient(180deg, #3a3a4a 0%, #252530 100%);
-      border-color: #5a5a6a;
+      background: linear-gradient(180deg, rgba(50, 50, 65, 0.85) 0%, rgba(30, 30, 40, 0.9) 100%);
+      border-color: rgba(90, 90, 110, 0.5);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
     }
     
     /* Win Screen */
     #screen-win {
-      background: linear-gradient(180deg, #0d1a0e 0%, #1a3a1a 50%, #0d1a0e 100%);
+      background: radial-gradient(ellipse at 50% 40%, rgba(40, 80, 35, 0.35) 0%, rgba(8, 14, 8, 0.98) 70%),
+                  linear-gradient(180deg, #0a120a 0%, #122a12 50%, #0a0f0a 100%);
     }
     
     .win-icon {
       font-size: 80px;
       margin-bottom: 20px;
-      animation: bounce 0.6s ease infinite alternate;
+      animation: trophy-float 1.5s ease-in-out infinite alternate;
+      filter: drop-shadow(0 0 30px rgba(255, 215, 0, 0.4));
     }
     
-    @keyframes bounce {
-      from { transform: translateY(0); }
-      to { transform: translateY(-10px); }
+    @keyframes trophy-float {
+      from { transform: translateY(0) scale(1); }
+      to { transform: translateY(-12px) scale(1.05); }
     }
     
     .win-title {
-      font-size: 32px;
-      font-weight: bold;
+      font-size: 34px;
+      font-weight: 800;
       color: #6aaf5d;
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.8), 0 0 30px rgba(106,175,93,0.5);
+      text-shadow: 0 0 30px rgba(106,175,93,0.4), 2px 2px 4px rgba(0,0,0,0.9);
       margin-bottom: 12px;
       text-align: center;
+      font-family: 'Orbitron', sans-serif;
+      letter-spacing: 3px;
     }
     
     .win-subtitle {
       color: #8ab886;
       font-size: 18px;
       margin-bottom: 40px;
+      opacity: 0.8;
     }
     
     /* Lose Screen */
     #screen-lose {
-      background: linear-gradient(180deg, #1a0d0d 0%, #2e1a1a 50%, #1a0d0d 100%);
+      background: radial-gradient(ellipse at 50% 40%, rgba(80, 20, 15, 0.3) 0%, rgba(14, 8, 8, 0.98) 70%),
+                  linear-gradient(180deg, #120a0a 0%, #201212 50%, #0f0808 100%);
     }
     
     .lose-icon {
       font-size: 80px;
       margin-bottom: 20px;
+      animation: skull-pulse 2s ease-in-out infinite;
+      filter: drop-shadow(0 0 25px rgba(200, 50, 30, 0.4));
+    }
+    
+    @keyframes skull-pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.06); opacity: 0.85; }
     }
     
     .lose-title {
-      font-size: 36px;
-      font-weight: bold;
-      color: #c44;
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.8), 0 0 20px rgba(204,68,68,0.4);
+      font-size: 38px;
+      font-weight: 800;
+      color: #dd4444;
+      text-shadow: 0 0 30px rgba(220,60,40,0.35), 2px 2px 4px rgba(0,0,0,0.9);
       margin-bottom: 8px;
+      font-family: 'Orbitron', sans-serif;
+      letter-spacing: 4px;
     }
     
     .lose-level {
-      color: #a88;
-      font-size: 18px;
+      color: #aa8888;
+      font-size: 17px;
       margin-bottom: 40px;
+      font-family: 'Orbitron', monospace;
+      letter-spacing: 1px;
     }
     
     .game-btn.danger {
-      background: linear-gradient(180deg, #8a3030 0%, #5a2020 100%);
-      border-color: #aa4040;
+      background: linear-gradient(180deg, rgba(140, 45, 40, 0.9) 0%, rgba(80, 25, 22, 0.95) 100%);
+      border-color: rgba(200, 70, 60, 0.5);
+      box-shadow: 0 6px 24px rgba(0,0,0,0.4), 0 0 25px rgba(140,45,40,0.15), inset 0 1px 0 rgba(255,255,255,0.1);
     }
     
     /* Responsive adjustments */
     @media (max-width: 400px) {
       .boot-title-text {
-        font-size: 28px;
-        letter-spacing: 2px;
+        font-size: 26px;
+        letter-spacing: 3px;
+      }
+      .boot-subtitle {
+        font-size: 10px;
+        letter-spacing: 4px;
       }
       .hud-box {
         padding: 6px 10px;
         font-size: 14px;
       }
       .hud-box .value {
-        font-size: 16px;
+        font-size: 18px;
       }
       .game-btn {
         padding: 14px 36px;
-        font-size: 18px;
+        font-size: 16px;
       }
     }
   </style>
@@ -306,30 +362,31 @@
   
   <!-- Boot Screen -->
   <div id="screen-boot" class="game-screen active">
-    <div class="boot-title">🎖️</div>
-    <div class="boot-title-text">ARMY RUNNER 3D</div>
+    <div class="boot-title">⚔️</div>
+    <div class="boot-title-text">ARMY RUNNER</div>
+    <div class="boot-subtitle">3D TACTICAL COMBAT</div>
     <div class="boot-tagline">Lead your army through enemy territory. Choose your path wisely — SAFE or RISK — and defeat the bosses!</div>
     <div id="boot-best" class="boot-best" style="display:none;"></div>
-    <button class="game-btn" id="boot-play-btn">▶  TAP TO PLAY</button>
+    <button class="game-btn" id="boot-play-btn">▶  DEPLOY</button>
   </div>
   
   <!-- Win Screen -->
   <div id="screen-win" class="game-screen">
     <div class="win-icon">🏆</div>
-    <div class="win-title" id="win-title">LEVEL COMPLETE!</div>
+    <div class="win-title" id="win-title">MISSION COMPLETE</div>
     <div class="win-subtitle">Your army is victorious!</div>
-    <button class="game-btn" id="win-next-btn">▶  NEXT LEVEL</button>
-    <button class="game-btn secondary" id="win-menu-btn">🏠  MAIN MENU</button>
+    <button class="game-btn" id="win-next-btn">▶  ADVANCE</button>
+    <button class="game-btn secondary" id="win-menu-btn">🏠  BASE CAMP</button>
   </div>
   
   <!-- Lose Screen -->
   <div id="screen-lose" class="game-screen">
     <div class="lose-icon">💀</div>
-    <div class="lose-title">GAME OVER</div>
+    <div class="lose-title">MISSION FAILED</div>
     <div class="lose-level" id="lose-level">Segment 1</div>
     <div class="lose-best" id="lose-best" style="display:none;"></div>
-    <button class="game-btn danger" id="lose-retry-btn">🔄  RETRY</button>
-    <button class="game-btn secondary" id="lose-menu-btn">🏠  MAIN MENU</button>
+    <button class="game-btn danger" id="lose-retry-btn">🔄  REDEPLOY</button>
+    <button class="game-btn secondary" id="lose-menu-btn">🏠  BASE CAMP</button>
   </div>
   
   <!-- Three.js -->

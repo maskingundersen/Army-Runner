@@ -47,7 +47,7 @@ class GateSystem {
     
     // Center divider pillar
     const dividerGeo = new THREE.BoxGeometry(0.3, gateHeight, 0.3);
-    const dividerMat = new THREE.MeshLambertMaterial({ color: 0x333333 });
+    const dividerMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5, metalness: 0.3 });
     const divider = new THREE.Mesh(dividerGeo, dividerMat);
     divider.position.y = gateHeight / 2;
     divider.castShadow = true;
@@ -87,7 +87,7 @@ class GateSystem {
     const archDepth = 0.3;
     
     // Material
-    const pillarMat = new THREE.MeshLambertMaterial({ color: color });
+    const pillarMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.4, metalness: 0.2 });
     const glowColor = isGood ? 0x44ff88 : 0xff4444;
     
     // Left pillar

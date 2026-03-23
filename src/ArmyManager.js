@@ -6,31 +6,31 @@ class ArmyManager {
     this.MAX = 200;
     
     // Create instanced meshes for soldier body parts
-    // Body - green torso
-    const bodyGeo = new THREE.BoxGeometry(0.55, 0.85, 0.3);
-    const bodyMat = new THREE.MeshLambertMaterial({ color: 0x4a7c45 });
+    // Body - green torso (rounded cylinder)
+    const bodyGeo = new THREE.CylinderGeometry(0.22, 0.2, 0.85, 8);
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x4a7c45, roughness: 0.7, metalness: 0.1 });
     this.bodyInst = new THREE.InstancedMesh(bodyGeo, bodyMat, this.MAX);
     this.bodyInst.castShadow = true;
     this.bodyInst.receiveShadow = true;
     this.scene.add(this.bodyInst);
     
-    // Head - skin color
-    const headGeo = new THREE.BoxGeometry(0.36, 0.36, 0.36);
-    const headMat = new THREE.MeshLambertMaterial({ color: 0xe8b89a });
+    // Head - skin color (sphere)
+    const headGeo = new THREE.SphereGeometry(0.18, 10, 8);
+    const headMat = new THREE.MeshStandardMaterial({ color: 0xe8b89a, roughness: 0.6, metalness: 0.0 });
     this.headInst = new THREE.InstancedMesh(headGeo, headMat, this.MAX);
     this.headInst.castShadow = true;
     this.scene.add(this.headInst);
     
-    // Helmet - dark green
-    const helmetGeo = new THREE.BoxGeometry(0.42, 0.18, 0.42);
-    const helmetMat = new THREE.MeshLambertMaterial({ color: 0x1f3d1f });
+    // Helmet - dark green (rounded dome)
+    const helmetGeo = new THREE.SphereGeometry(0.21, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.6);
+    const helmetMat = new THREE.MeshStandardMaterial({ color: 0x1f3d1f, roughness: 0.4, metalness: 0.3 });
     this.helmetInst = new THREE.InstancedMesh(helmetGeo, helmetMat, this.MAX);
     this.helmetInst.castShadow = true;
     this.scene.add(this.helmetInst);
     
-    // Left Arm - green
-    const armGeo = new THREE.BoxGeometry(0.18, 0.5, 0.18);
-    const armMat = new THREE.MeshLambertMaterial({ color: 0x4a7c45 });
+    // Left Arm - green (cylinder)
+    const armGeo = new THREE.CylinderGeometry(0.07, 0.08, 0.5, 6);
+    const armMat = new THREE.MeshStandardMaterial({ color: 0x4a7c45, roughness: 0.7, metalness: 0.1 });
     this.lArmInst = new THREE.InstancedMesh(armGeo, armMat, this.MAX);
     this.lArmInst.castShadow = true;
     this.scene.add(this.lArmInst);
@@ -40,9 +40,9 @@ class ArmyManager {
     this.rArmInst.castShadow = true;
     this.scene.add(this.rArmInst);
     
-    // Left Leg - dark pants
-    const legGeo = new THREE.BoxGeometry(0.22, 0.5, 0.22);
-    const legMat = new THREE.MeshLambertMaterial({ color: 0x2a3a5a });
+    // Left Leg - dark pants (cylinder)
+    const legGeo = new THREE.CylinderGeometry(0.08, 0.1, 0.5, 6);
+    const legMat = new THREE.MeshStandardMaterial({ color: 0x2a3a5a, roughness: 0.8, metalness: 0.05 });
     this.lLegInst = new THREE.InstancedMesh(legGeo, legMat, this.MAX);
     this.lLegInst.castShadow = true;
     this.scene.add(this.lLegInst);
@@ -52,16 +52,16 @@ class ArmyManager {
     this.rLegInst.castShadow = true;
     this.scene.add(this.rLegInst);
     
-    // Gun - dark metal (default handgun)
+    // Gun - dark metal (default handgun, cylinder barrel)
     this._weaponGeos = {
-      handgun:  new THREE.BoxGeometry(0.07, 0.07, 0.35),
-      assault:  new THREE.BoxGeometry(0.06, 0.06, 0.6),
-      shotgun:  new THREE.BoxGeometry(0.09, 0.09, 0.45),
-      minigun:  new THREE.BoxGeometry(0.10, 0.10, 0.7),
-      rocket:   new THREE.BoxGeometry(0.12, 0.12, 0.55),
-      sniper:   new THREE.BoxGeometry(0.05, 0.05, 0.8),
+      handgun:  new THREE.CylinderGeometry(0.03, 0.03, 0.35, 6),
+      assault:  new THREE.CylinderGeometry(0.025, 0.03, 0.6, 6),
+      shotgun:  new THREE.CylinderGeometry(0.04, 0.04, 0.45, 6),
+      minigun:  new THREE.CylinderGeometry(0.05, 0.05, 0.7, 8),
+      rocket:   new THREE.CylinderGeometry(0.06, 0.06, 0.55, 8),
+      sniper:   new THREE.CylinderGeometry(0.02, 0.025, 0.8, 6),
     };
-    const gunMat = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
+    const gunMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.3, metalness: 0.8 });
     this.gunInst = new THREE.InstancedMesh(this._weaponGeos.handgun, gunMat, this.MAX);
     this.gunInst.castShadow = true;
     this.scene.add(this.gunInst);
@@ -123,82 +123,105 @@ class ArmyManager {
   }
 
   _createCompanions() {
-    // Drone - small metallic box with propellers
+    // Drone - sleek metallic body with spinning propellers
     const droneGroup = new THREE.Group();
     const droneBody = new THREE.Mesh(
-      new THREE.BoxGeometry(0.4, 0.15, 0.4),
-      new THREE.MeshLambertMaterial({ color: 0x888899 })
+      new THREE.CylinderGeometry(0.2, 0.15, 0.15, 8),
+      new THREE.MeshStandardMaterial({ color: 0x888899, roughness: 0.3, metalness: 0.7 })
     );
     droneBody.position.y = 3.5;
     droneGroup.add(droneBody);
     for (let i = 0; i < 4; i++) {
       const arm = new THREE.Mesh(
-        new THREE.BoxGeometry(0.5, 0.03, 0.06),
-        new THREE.MeshLambertMaterial({ color: 0x444455 })
+        new THREE.CylinderGeometry(0.015, 0.015, 0.5, 4),
+        new THREE.MeshStandardMaterial({ color: 0x444455, roughness: 0.4, metalness: 0.6 })
       );
       arm.position.y = 3.6;
+      arm.rotation.z = Math.PI / 2;
       arm.rotation.y = (i / 4) * Math.PI * 2;
       arm.position.x = Math.cos((i / 4) * Math.PI * 2) * 0.3;
       arm.position.z = Math.sin((i / 4) * Math.PI * 2) * 0.3;
       droneGroup.add(arm);
+      // Add rotor disc
+      const rotor = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.12, 0.12, 0.01, 12),
+        new THREE.MeshStandardMaterial({ color: 0x99aacc, roughness: 0.5, metalness: 0.3, transparent: true, opacity: 0.6 })
+      );
+      rotor.position.set(
+        Math.cos((i / 4) * Math.PI * 2) * 0.35,
+        3.65,
+        Math.sin((i / 4) * Math.PI * 2) * 0.35
+      );
+      droneGroup.add(rotor);
     }
     droneGroup.visible = false;
     this.scene.add(droneGroup);
     this._drone = droneGroup;
     
-    // Dragon - larger flying creature (stackable up to 3)
+    // Dragon - larger flying creature with proper dragon shape
     this._dragons = [];
     for (let d = 0; d < 3; d++) {
       const dragonGroup = new THREE.Group();
       const dragonBody = new THREE.Mesh(
-        new THREE.BoxGeometry(0.6, 0.4, 1.2),
-        new THREE.MeshLambertMaterial({ color: 0xcc3300 })
+        new THREE.CylinderGeometry(0.2, 0.25, 1.2, 8),
+        new THREE.MeshStandardMaterial({ color: 0xcc3300, roughness: 0.5, metalness: 0.2 })
       );
       dragonBody.position.y = 5;
+      dragonBody.rotation.x = Math.PI / 2;
       dragonGroup.add(dragonBody);
-      const wingGeo = new THREE.BoxGeometry(1.5, 0.05, 0.8);
-      const wingMat = new THREE.MeshLambertMaterial({ color: 0xff4400 });
+      // Wings - membrane style
+      const wingGeo = new THREE.BoxGeometry(1.5, 0.03, 0.8);
+      const wingMat = new THREE.MeshStandardMaterial({ color: 0xff4400, roughness: 0.6, metalness: 0.1, transparent: true, opacity: 0.85 });
       const lWing = new THREE.Mesh(wingGeo, wingMat);
       lWing.position.set(-0.9, 5, 0);
       lWing.rotation.z = 0.2;
       dragonGroup.add(lWing);
-      const rWing = new THREE.Mesh(wingGeo, wingMat);
+      const rWing = new THREE.Mesh(wingGeo, wingMat.clone());
       rWing.position.set(0.9, 5, 0);
       rWing.rotation.z = -0.2;
       dragonGroup.add(rWing);
+      // Dragon head with snout
       const dragonHead = new THREE.Mesh(
-        new THREE.BoxGeometry(0.3, 0.3, 0.4),
-        new THREE.MeshLambertMaterial({ color: 0xcc3300 })
+        new THREE.SphereGeometry(0.18, 8, 6),
+        new THREE.MeshStandardMaterial({ color: 0xcc3300, roughness: 0.5, metalness: 0.2 })
       );
-      dragonHead.position.set(0, 5.2, -0.7);
+      dragonHead.position.set(0, 5.1, -0.7);
       dragonGroup.add(dragonHead);
+      const snout = new THREE.Mesh(
+        new THREE.ConeGeometry(0.08, 0.25, 6),
+        new THREE.MeshStandardMaterial({ color: 0xdd4400, roughness: 0.5, metalness: 0.2 })
+      );
+      snout.position.set(0, 5.05, -0.95);
+      snout.rotation.x = -Math.PI / 2;
+      dragonGroup.add(snout);
       dragonGroup.visible = false;
       this.scene.add(dragonGroup);
       this._dragons.push(dragonGroup);
     }
     
-    // Auto-turret - small rotating gun platform
+    // Auto-turret - rotating gun platform with dome
     this._turrets = [];
     for (let t = 0; t < 2; t++) {
       const turretGroup = new THREE.Group();
       // Base
       const turretBase = new THREE.Mesh(
         new THREE.CylinderGeometry(0.25, 0.3, 0.3, 8),
-        new THREE.MeshLambertMaterial({ color: 0x556655 })
+        new THREE.MeshStandardMaterial({ color: 0x556655, roughness: 0.4, metalness: 0.5 })
       );
       turretBase.position.y = 0.15;
       turretGroup.add(turretBase);
       // Gun barrel
       const turretBarrel = new THREE.Mesh(
-        new THREE.BoxGeometry(0.08, 0.08, 0.5),
-        new THREE.MeshLambertMaterial({ color: 0x333333 })
+        new THREE.CylinderGeometry(0.03, 0.035, 0.5, 6),
+        new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.3, metalness: 0.8 })
       );
       turretBarrel.position.set(0, 0.35, -0.2);
+      turretBarrel.rotation.x = Math.PI / 2;
       turretGroup.add(turretBarrel);
       // Top dome
       const turretDome = new THREE.Mesh(
         new THREE.SphereGeometry(0.18, 8, 6),
-        new THREE.MeshLambertMaterial({ color: 0x778877 })
+        new THREE.MeshStandardMaterial({ color: 0x778877, roughness: 0.4, metalness: 0.4 })
       );
       turretDome.position.y = 0.4;
       turretGroup.add(turretDome);
@@ -611,8 +634,8 @@ class ArmyManager {
     this._tempM4.compose(this._tempV3, this._tempQ, new THREE.Vector3(scale, scale, scale));
     this.rLegInst.setMatrixAt(index, this._tempM4);
     
-    // Gun (follows right arm, points forward)
-    this._tempE.set(rArmAngle + deathLean - 0.3, soldier.deathAngle, 0);
+    // Gun (follows right arm, points forward — CylinderGeometry is Y-up, rotate -90° to align barrel with Z-axis)
+    this._tempE.set(rArmAngle + deathLean - 0.3 - Math.PI / 2, soldier.deathAngle, 0);
     this._tempQ.setFromEuler(this._tempE);
     const gunY = rArmY - 0.15;
     const gunZ = z - 0.25 * scale;

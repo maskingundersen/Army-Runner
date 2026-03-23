@@ -11,8 +11,8 @@ const OBSTACLE_CLEANUP_THRESHOLD = 50;
 const ARMY_SOFT_CAP = 40;
 const ARMY_HARD_CAP = 80;
 const ARMY_BOSS_CAP = 150;
-const ARMY_DECAY_THRESHOLD = 60;
-const ARMY_DECAY_INTERVAL = 3.0; // seconds between decay ticks
+const ARMY_DECAY_THRESHOLD = 70;
+const ARMY_DECAY_INTERVAL = 4.0; // seconds between decay ticks
 
 // Milestone rankings (ascending order of difficulty)
 const MILESTONE_ORDER = [
@@ -62,7 +62,7 @@ const SEGMENT_DEFS = [
   {
     id: 3,
     name: 'Pressure Intro',
-    safeReward: { type: 'soldiers', count: -8, label: '-8 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 8) } },
+    safeReward: { type: 'soldiers', count: -5, label: '-5 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 5) } },
     riskReward: { type: 'soldiers', count: 10, label: '+10' },
     enemies: [
       { count: 14, enemyType: 'zombie', hp: 12, xOffset: 0 },
@@ -76,7 +76,7 @@ const SEGMENT_DEFS = [
   {
     id: 4,
     name: 'Skill Check',
-    safeReward: { type: 'soldiers', count: -10, label: '-10 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 10) } },
+    safeReward: { type: 'soldiers', count: -5, label: '-5 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 5) } },
     riskReward: { type: 'soldiers', count: 15, label: '+15' },
     enemies: [
       { count: 12, enemyType: 'zombie', hp: 15 },
@@ -117,7 +117,7 @@ const SEGMENT_DEFS = [
   {
     id: 7,
     name: 'Heavy Assault',
-    safeReward: { type: 'soldiers', count: -15, label: '-15 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 15) } },
+    safeReward: { type: 'soldiers', count: -8, label: '-8 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 8) } },
     riskReward: { type: 'soldiers', count: 15, label: '+15' },
     enemies: [
       { count: 20, enemyType: 'fast', hp: 10, xOffset: -2 },
@@ -162,7 +162,7 @@ const ENV_PALETTES = [
 ];
 
 // Base boss HP — mirrors ENEMY_DEFS_3D in EnemyManager.js, scaled by difficultyMult each cycle
-const BOSS_HP = { ogre: 350, giant: 750, fireDragon: 1100 };
+const BOSS_HP = { ogre: 280, giant: 600, fireDragon: 850 };
 
 // Shared identity modifier for upgrade gates (no soldier count change)
 const IDENTITY_MOD = { apply: (n) => n };
@@ -417,7 +417,7 @@ class ArmyRunnerGame {
     
     // Continuous enemy pressure timer
     this._continuousSpawnTimer = 0;
-    this._continuousSpawnInterval = 1.5; // spawn every 1.5 seconds
+    this._continuousSpawnInterval = 2.0; // spawn every 2.0 seconds
     
     // Path obstacle tracking
     this._pathObstacles = [];
@@ -450,24 +450,29 @@ class ArmyRunnerGame {
   }
   
   _setupLights() {
-    // Ambient light - soft fill
-    const ambient = new THREE.AmbientLight(0x9ab5d4, 0.8);
+    // Ambient light - warm soft fill
+    const ambient = new THREE.AmbientLight(0xb0c8e0, 0.9);
     this.scene.add(ambient);
     
-    // Directional sun light
-    const sun = new THREE.DirectionalLight(0xfff0d0, 1.4);
+    // Directional sun light - stronger with better shadows
+    const sun = new THREE.DirectionalLight(0xfff5e0, 1.6);
     sun.position.set(8, 20, 10);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.mapSize.set(2048, 2048);
     sun.shadow.camera.near = 1;
     sun.shadow.camera.far = 100;
     sun.shadow.camera.left = -25;
     sun.shadow.camera.right = 25;
     sun.shadow.camera.top = 25;
     sun.shadow.camera.bottom = -25;
-    sun.shadow.bias = -0.001;
+    sun.shadow.bias = -0.0005;
+    sun.shadow.normalBias = 0.02;
     this.scene.add(sun);
     this.sun = sun;
+    
+    // Hemisphere light for natural sky/ground color bleeding
+    const hemi = new THREE.HemisphereLight(0x87ceeb, 0x3a6a2a, 0.4);
+    this.scene.add(hemi);
     
     // Combat point light (glows during combat)
     this.combatLight = new THREE.PointLight(0xff8844, 0, 15);
@@ -476,18 +481,18 @@ class ArmyRunnerGame {
   }
   
   _buildRoad() {
-    // Ground plane - extends far
+    // Ground plane - extends far with better material
     const groundGeo = new THREE.PlaneGeometry(80, 400);
-    const groundMat = new THREE.MeshLambertMaterial({ color: 0x3a7a2a });
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x3a7a2a, roughness: 0.95, metalness: 0.0 });
     this.groundMesh = new THREE.Mesh(groundGeo, groundMat);
     this.groundMesh.rotation.x = -Math.PI / 2;
     this.groundMesh.position.set(0, -0.02, -120);
     this.groundMesh.receiveShadow = true;
     this.scene.add(this.groundMesh);
     
-    // Road strip (wider for formation gameplay)
+    // Road strip (wider for formation gameplay) with asphalt-like material
     const roadGeo = new THREE.PlaneGeometry(20, 400);
-    const roadMat = new THREE.MeshLambertMaterial({ color: 0x282836 });
+    const roadMat = new THREE.MeshStandardMaterial({ color: 0x333344, roughness: 0.85, metalness: 0.05 });
     this.roadMesh = new THREE.Mesh(roadGeo, roadMat);
     this.roadMesh.rotation.x = -Math.PI / 2;
     this.roadMesh.position.set(0, -0.01, -120);
@@ -532,12 +537,12 @@ class ArmyRunnerGame {
   }
   
   _buildTrees() {
-    // Create tree geometry (simple low-poly tree)
-    const trunkGeo = new THREE.CylinderGeometry(0.15, 0.2, 1.5, 6);
-    const trunkMat = new THREE.MeshLambertMaterial({ color: 0x5a3a20 });
+    // Create tree geometry (low-poly tree with better materials)
+    const trunkGeo = new THREE.CylinderGeometry(0.12, 0.22, 1.5, 8);
+    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5a3a20, roughness: 0.9, metalness: 0.0 });
     
-    const foliageGeo = new THREE.ConeGeometry(0.8, 2, 6);
-    const foliageMat = new THREE.MeshLambertMaterial({ color: 0x2a5a2a });
+    const foliageGeo = new THREE.ConeGeometry(0.8, 2, 8);
+    const foliageMat = new THREE.MeshStandardMaterial({ color: 0x2a5a2a, roughness: 0.85, metalness: 0.0 });
     
     // Create instanced meshes for trees
     const numTrees = 80;
@@ -732,7 +737,7 @@ class ArmyRunnerGame {
   }
   
   startGame() {
-    this.soldierCount = 3;
+    this.soldierCount = 5;
     this.upgrades = {};
     this.cameraZ = 0;
     this.armyX = 0;
@@ -761,7 +766,7 @@ class ArmyRunnerGame {
     
     // Continuous enemy pressure timer
     this._continuousSpawnTimer = 0;
-    this._continuousSpawnInterval = 1.5;
+    this._continuousSpawnInterval = 2.0;
     
     // Companion attack timers (#7)
     this._dragonAttackTimer = 0;
@@ -856,7 +861,7 @@ class ArmyRunnerGame {
   _startNewCycle() {
     this.segmentCycle++;
     // Increase difficulty: enemy HP is multiplied by difficultyMult in spawnWave/spawnBoss
-    this.difficultyMult += 0.4;
+    this.difficultyMult += 0.3;
     this.milestone = 'Cycle ' + (this.segmentCycle + 1);
     this._saveBestMilestone();
     
@@ -898,7 +903,7 @@ class ArmyRunnerGame {
     const wallHeight = 3.5;
     const wallLength = 55;
     const wallGeo = new THREE.BoxGeometry(0.6, wallHeight, wallLength);
-    const wallMat = new THREE.MeshLambertMaterial({ color: 0x555555 });
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.6, metalness: 0.2 });
     
     const wall = new THREE.Mesh(wallGeo, wallMat);
     // Store local offset from base worldZ; actual position set during _updatePathObstacles
@@ -909,7 +914,7 @@ class ArmyRunnerGame {
     
     // Rocky barrier pieces along divider (visual variety)
     const rockGeo = new THREE.BoxGeometry(0.8, 1.2, 1.5);
-    const rockMat = new THREE.MeshLambertMaterial({ color: 0x666666 });
+    const rockMat = new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.85, metalness: 0.1 });
     for (let i = 0; i < 4; i++) {
       const rock = new THREE.Mesh(rockGeo, rockMat);
       const lz = 5 + i * 4.5 + (Math.random() - 0.5) * 1.5;
@@ -923,7 +928,7 @@ class ArmyRunnerGame {
     // If risk path is narrow, add barriers on the right side
     if (riskNarrow) {
       const barrierGeo = new THREE.BoxGeometry(0.5, 2.0, 2.0);
-      const barrierMat = new THREE.MeshLambertMaterial({ color: 0x884422 });
+      const barrierMat = new THREE.MeshStandardMaterial({ color: 0x884422, roughness: 0.8, metalness: 0.1 });
       for (let i = 0; i < 3; i++) {
         const barrier = new THREE.Mesh(barrierGeo, barrierMat);
         const lz = 6 + i * 5;
@@ -992,7 +997,7 @@ class ArmyRunnerGame {
     
     const geo = new THREE.CylinderGeometry(0.6, 0.6, 1.2, 12);
     const barrelColor = reward.good ? 0x44aa44 : 0xaa4422;
-    const mat = new THREE.MeshLambertMaterial({ color: barrelColor });
+    const mat = new THREE.MeshStandardMaterial({ color: barrelColor, roughness: 0.5, metalness: 0.3 });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.y = 0.6;
     mesh.castShadow = true;
@@ -1269,7 +1274,7 @@ class ArmyRunnerGame {
       
       // Handle soldier losses — larger armies take more damage (#6)
       if (soldierLosses > 0) {
-        const armySizeMultiplier = 1 + Math.max(0, (this.soldierCount - ARMY_SOFT_CAP) / ARMY_SOFT_CAP);
+        const armySizeMultiplier = 1 + Math.max(0, (this.soldierCount - ARMY_SOFT_CAP) / (ARMY_SOFT_CAP * 1.5));
         const effectiveLosses = Math.ceil(soldierLosses * armySizeMultiplier);
         this.soldierCount = Math.max(0, this.soldierCount - effectiveLosses);
         for (let i = 0; i < effectiveLosses; i++) {
@@ -1362,11 +1367,11 @@ class ArmyRunnerGame {
     if (this._continuousSpawnTimer >= this._continuousSpawnInterval) {
       this._continuousSpawnTimer = 0;
       // Adjust spawn interval: faster in later cycles, capped at 0.8s minimum
-      this._continuousSpawnInterval = Math.max(0.8, 1.5 - Math.min(this.segmentCycle, 7) * 0.1);
+      this._continuousSpawnInterval = Math.max(1.2, 2.0 - Math.min(this.segmentCycle, 7) * 0.1);
       // Weighted fodder distribution: 40% zombie, 40% fast, 20% exploding
       const spawnTypes = ['zombie', 'fast', 'zombie', 'fast', 'exploding'];
       const type = spawnTypes[Math.floor(Math.random() * spawnTypes.length)];
-      const count = 2 + Math.floor(Math.random() * 4);
+      const count = 1 + Math.floor(Math.random() * 3);
       const hpScale = 1 + this.segmentCycle * 0.3;
       const baseHp = type === 'fast' ? 4 : type === 'exploding' ? 6 : 10;
       const xOff = (Math.random() - 0.5) * 12;
