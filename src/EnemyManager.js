@@ -16,6 +16,9 @@ const BOSS_CHARGE_DAMAGE_ENRAGED = 4;
 const BOSS_PROJ_HIT_ZONE_Z = 1.5;
 const BOSS_PROJ_HIT_ZONE_X = 3.0;
 
+// Road boundary for enemy spawning (road half-width with inward padding)
+const ENEMY_ROAD_HALF = 8.5;
+
 const ENEMY_DEFS_3D = {
   ogre: {
     walkSpeed: 1.5,
@@ -200,6 +203,8 @@ class EnemyManager {
         const rz = (Math.random() - 0.5) * 0.5;
         
         enemy.worldX = armyX + xOff + flankOffset + rx;
+        // Clamp to road boundaries so enemies stay on the playable road
+        enemy.worldX = Math.max(-ENEMY_ROAD_HALF, Math.min(ENEMY_ROAD_HALF, enemy.worldX));
         enemy.worldZ = spawnZ - zOff + rz - totalIdx * 2;
         enemy.group.position.set(enemy.worldX, 0, enemy.worldZ);
         
@@ -844,6 +849,8 @@ class EnemyManager {
       child.hp = Math.ceil(enemy.def.hp * 0.3);
       child.maxHp = child.hp;
       child.worldX = enemy.worldX + (s - (splitCount - 1) / 2) * 1.5;
+      // Clamp to road boundaries
+      child.worldX = Math.max(-ENEMY_ROAD_HALF, Math.min(ENEMY_ROAD_HALF, child.worldX));
       child.worldZ = enemy.worldZ - 1;
       child.group.position.set(child.worldX, 0, child.worldZ);
       // Make children smaller
