@@ -11,8 +11,8 @@ const OBSTACLE_CLEANUP_THRESHOLD = 50;
 const ARMY_SOFT_CAP = 40;
 const ARMY_HARD_CAP = 80;
 const ARMY_BOSS_CAP = 150;
-const ARMY_DECAY_THRESHOLD = 60;
-const ARMY_DECAY_INTERVAL = 3.0; // seconds between decay ticks
+const ARMY_DECAY_THRESHOLD = 70;
+const ARMY_DECAY_INTERVAL = 4.0; // seconds between decay ticks
 
 // Milestone rankings (ascending order of difficulty)
 const MILESTONE_ORDER = [
@@ -62,7 +62,7 @@ const SEGMENT_DEFS = [
   {
     id: 3,
     name: 'Pressure Intro',
-    safeReward: { type: 'soldiers', count: -8, label: '-8 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 8) } },
+    safeReward: { type: 'soldiers', count: -5, label: '-5 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 5) } },
     riskReward: { type: 'soldiers', count: 10, label: '+10' },
     enemies: [
       { count: 14, enemyType: 'zombie', hp: 12, xOffset: 0 },
@@ -76,7 +76,7 @@ const SEGMENT_DEFS = [
   {
     id: 4,
     name: 'Skill Check',
-    safeReward: { type: 'soldiers', count: -10, label: '-10 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 10) } },
+    safeReward: { type: 'soldiers', count: -5, label: '-5 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 5) } },
     riskReward: { type: 'soldiers', count: 15, label: '+15' },
     enemies: [
       { count: 12, enemyType: 'zombie', hp: 15 },
@@ -117,7 +117,7 @@ const SEGMENT_DEFS = [
   {
     id: 7,
     name: 'Heavy Assault',
-    safeReward: { type: 'soldiers', count: -15, label: '-15 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 15) } },
+    safeReward: { type: 'soldiers', count: -8, label: '-8 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 8) } },
     riskReward: { type: 'soldiers', count: 15, label: '+15' },
     enemies: [
       { count: 20, enemyType: 'fast', hp: 10, xOffset: -2 },
@@ -162,7 +162,7 @@ const ENV_PALETTES = [
 ];
 
 // Base boss HP — mirrors ENEMY_DEFS_3D in EnemyManager.js, scaled by difficultyMult each cycle
-const BOSS_HP = { ogre: 350, giant: 750, fireDragon: 1100 };
+const BOSS_HP = { ogre: 280, giant: 600, fireDragon: 850 };
 
 // Shared identity modifier for upgrade gates (no soldier count change)
 const IDENTITY_MOD = { apply: (n) => n };
@@ -417,7 +417,7 @@ class ArmyRunnerGame {
     
     // Continuous enemy pressure timer
     this._continuousSpawnTimer = 0;
-    this._continuousSpawnInterval = 1.5; // spawn every 1.5 seconds
+    this._continuousSpawnInterval = 2.0; // spawn every 2.0 seconds
     
     // Path obstacle tracking
     this._pathObstacles = [];
@@ -732,7 +732,7 @@ class ArmyRunnerGame {
   }
   
   startGame() {
-    this.soldierCount = 3;
+    this.soldierCount = 5;
     this.upgrades = {};
     this.cameraZ = 0;
     this.armyX = 0;
@@ -761,7 +761,7 @@ class ArmyRunnerGame {
     
     // Continuous enemy pressure timer
     this._continuousSpawnTimer = 0;
-    this._continuousSpawnInterval = 1.5;
+    this._continuousSpawnInterval = 2.0;
     
     // Companion attack timers (#7)
     this._dragonAttackTimer = 0;
@@ -856,7 +856,7 @@ class ArmyRunnerGame {
   _startNewCycle() {
     this.segmentCycle++;
     // Increase difficulty: enemy HP is multiplied by difficultyMult in spawnWave/spawnBoss
-    this.difficultyMult += 0.4;
+    this.difficultyMult += 0.3;
     this.milestone = 'Cycle ' + (this.segmentCycle + 1);
     this._saveBestMilestone();
     
@@ -1269,7 +1269,7 @@ class ArmyRunnerGame {
       
       // Handle soldier losses — larger armies take more damage (#6)
       if (soldierLosses > 0) {
-        const armySizeMultiplier = 1 + Math.max(0, (this.soldierCount - ARMY_SOFT_CAP) / ARMY_SOFT_CAP);
+        const armySizeMultiplier = 1 + Math.max(0, (this.soldierCount - ARMY_SOFT_CAP) / (ARMY_SOFT_CAP * 1.5));
         const effectiveLosses = Math.ceil(soldierLosses * armySizeMultiplier);
         this.soldierCount = Math.max(0, this.soldierCount - effectiveLosses);
         for (let i = 0; i < effectiveLosses; i++) {
@@ -1362,11 +1362,11 @@ class ArmyRunnerGame {
     if (this._continuousSpawnTimer >= this._continuousSpawnInterval) {
       this._continuousSpawnTimer = 0;
       // Adjust spawn interval: faster in later cycles, capped at 0.8s minimum
-      this._continuousSpawnInterval = Math.max(0.8, 1.5 - Math.min(this.segmentCycle, 7) * 0.1);
+      this._continuousSpawnInterval = Math.max(1.2, 2.0 - Math.min(this.segmentCycle, 7) * 0.1);
       // Weighted fodder distribution: 40% zombie, 40% fast, 20% exploding
       const spawnTypes = ['zombie', 'fast', 'zombie', 'fast', 'exploding'];
       const type = spawnTypes[Math.floor(Math.random() * spawnTypes.length)];
-      const count = 2 + Math.floor(Math.random() * 4);
+      const count = 1 + Math.floor(Math.random() * 3);
       const hpScale = 1 + this.segmentCycle * 0.3;
       const baseHp = type === 'fast' ? 4 : type === 'exploding' ? 6 : 10;
       const xOff = (Math.random() - 0.5) * 12;

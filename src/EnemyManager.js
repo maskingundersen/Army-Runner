@@ -2,13 +2,13 @@
 
 // Boss attack tuning constants
 const BOSS_STOP_DISTANCE = -12;
-const BOSS_ROCK_INTERVAL = 4.0;
+const BOSS_ROCK_INTERVAL = 5.0;
 const BOSS_ROCK_DAMAGE = 1;
 const BOSS_ROCK_DAMAGE_ENRAGED = 2;
-const BOSS_PROJ_INTERVAL = 3.0;
+const BOSS_PROJ_INTERVAL = 3.5;
 const BOSS_PROJ_DAMAGE = 1;
 const BOSS_PROJ_DAMAGE_ENRAGED = 1;
-const BOSS_CHARGE_INTERVAL = 10.0;
+const BOSS_CHARGE_INTERVAL = 12.0;
 const BOSS_CHARGE_SPEED = 12;
 const BOSS_CHARGE_RETREAT_SPEED = -8;
 const BOSS_CHARGE_DAMAGE = 1;
@@ -22,8 +22,8 @@ const ENEMY_ROAD_HALF = 8.5;
 const ENEMY_DEFS_3D = {
   ogre: {
     walkSpeed: 1.5,
-    hp: 350,
-    maxHp: 350,
+    hp: 280,
+    maxHp: 280,
     scale: 2.0,
     color: 0x7a5a2a,
     hitColor: 0xffffff,
@@ -33,8 +33,8 @@ const ENEMY_DEFS_3D = {
   },
   fireDragon: {
     walkSpeed: 1.0,
-    hp: 1100,
-    maxHp: 1100,
+    hp: 850,
+    maxHp: 850,
     scale: 2.8,
     color: 0xcc3300,
     hitColor: 0xffff00,
@@ -87,8 +87,8 @@ const ENEMY_DEFS_3D = {
   },
   giant: {
     walkSpeed: 1.2,
-    hp: 750,
-    maxHp: 750,
+    hp: 600,
+    maxHp: 600,
     scale: 2.4,
     color: 0x556655,     // dark stone green
     hitColor: 0xffffff,
