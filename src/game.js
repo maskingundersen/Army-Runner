@@ -903,7 +903,7 @@ class ArmyRunnerGame {
     const wallHeight = 3.5;
     const wallLength = 55;
     const wallGeo = new THREE.BoxGeometry(0.6, wallHeight, wallLength);
-    const wallMat = new THREE.MeshLambertMaterial({ color: 0x555555 });
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.6, metalness: 0.2 });
     
     const wall = new THREE.Mesh(wallGeo, wallMat);
     // Store local offset from base worldZ; actual position set during _updatePathObstacles
@@ -914,7 +914,7 @@ class ArmyRunnerGame {
     
     // Rocky barrier pieces along divider (visual variety)
     const rockGeo = new THREE.BoxGeometry(0.8, 1.2, 1.5);
-    const rockMat = new THREE.MeshLambertMaterial({ color: 0x666666 });
+    const rockMat = new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.85, metalness: 0.1 });
     for (let i = 0; i < 4; i++) {
       const rock = new THREE.Mesh(rockGeo, rockMat);
       const lz = 5 + i * 4.5 + (Math.random() - 0.5) * 1.5;
@@ -928,7 +928,7 @@ class ArmyRunnerGame {
     // If risk path is narrow, add barriers on the right side
     if (riskNarrow) {
       const barrierGeo = new THREE.BoxGeometry(0.5, 2.0, 2.0);
-      const barrierMat = new THREE.MeshLambertMaterial({ color: 0x884422 });
+      const barrierMat = new THREE.MeshStandardMaterial({ color: 0x884422, roughness: 0.8, metalness: 0.1 });
       for (let i = 0; i < 3; i++) {
         const barrier = new THREE.Mesh(barrierGeo, barrierMat);
         const lz = 6 + i * 5;
@@ -997,7 +997,7 @@ class ArmyRunnerGame {
     
     const geo = new THREE.CylinderGeometry(0.6, 0.6, 1.2, 12);
     const barrelColor = reward.good ? 0x44aa44 : 0xaa4422;
-    const mat = new THREE.MeshLambertMaterial({ color: barrelColor });
+    const mat = new THREE.MeshStandardMaterial({ color: barrelColor, roughness: 0.5, metalness: 0.3 });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.y = 0.6;
     mesh.castShadow = true;
