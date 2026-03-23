@@ -407,7 +407,7 @@ class ArmyRunnerGame {
     this.internalSegments = [];     // Flat sequence of gate/enemy/boss sub-steps
     this.internalSegIdx = 0;        // Current position in internalSegments
     this.inCombat = false;
-    this.nextSegmentDist = 50;
+    this.nextSegmentDist = 120;
     
     // Active ability cooldown timers
     this._grenadeCooldown = 0;
@@ -763,7 +763,7 @@ class ArmyRunnerGame {
     // Build internal segment sequence
     this._buildInternalSegments();
     this.internalSegIdx = 0;
-    this.nextSegmentDist = 50;
+    this.nextSegmentDist = 120;
     
     // Apply initial environment palette
     this._applyEnvPalette();
@@ -867,7 +867,7 @@ class ArmyRunnerGame {
     this.currentSegment = 0;
     this._buildInternalSegments();
     this.internalSegIdx = 0;
-    this.nextSegmentDist = -this.cameraZ + 40;
+    this.nextSegmentDist = -this.cameraZ + 100;
     this._updateHUD();
   }
   
@@ -1488,11 +1488,11 @@ class ArmyRunnerGame {
     const seg = this.internalSegments[this.internalSegIdx++];
     const def = this._getSegDef(seg.defIdx);
     this.currentSegment = seg.defIdx;
-    const spawnZ = this.cameraZ - 60;
+    const spawnZ = this.cameraZ - 180;
     
     if (seg.type === 'gates') {
       this._spawnSegmentGates(def, spawnZ);
-      this.nextSegmentDist = -this.cameraZ + 60 + 25;
+      this.nextSegmentDist = -this.cameraZ + 180 + 25;
     } else if (seg.type === 'enemies') {
       this._spawnEnemies(def);
       this.inCombat = true;
@@ -1550,10 +1550,10 @@ class ArmyRunnerGame {
     
     // Spawn weapon barrels in the approach zone
     if (Math.random() < 0.5) {
-      this._spawnBarrel(baseZ + 15);
+      this._spawnBarrel(baseZ + 45);
     }
     if (Math.random() < 0.25) {
-      this._spawnBarrel(baseZ + 25);
+      this._spawnBarrel(baseZ + 75);
     }
   }
   
@@ -1569,7 +1569,7 @@ class ArmyRunnerGame {
       hp: Math.ceil((e.hp || 1) * hpScale),
       xOffset: e.xOffset || 0,
     }));
-    this.enemyMgr.spawnWave(scaledEnemies, -60, this.armyX, this.difficultyMult);
+    this.enemyMgr.spawnWave(scaledEnemies, -150, this.armyX, this.difficultyMult);
   }
   
   _spawnBoss(def) {
@@ -1586,7 +1586,7 @@ class ArmyRunnerGame {
     
     this.enemyMgr.spawnWave(
       [{ count: 1, enemyType: bossType, hp: baseHp }],
-      -50,
+      -150,
       this.armyX,
       this.difficultyMult
     );
