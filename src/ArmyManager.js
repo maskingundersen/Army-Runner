@@ -88,6 +88,7 @@ class ArmyManager {
         active: false,
         x: 0,
         z: 0,
+        prevX: 0,
         targetX: 0,
         targetZ: 0,
         phase: Math.random() * Math.PI * 2, // Walk animation phase
@@ -363,6 +364,9 @@ class ArmyManager {
         continue;
       }
       
+      // Save previous X position for obstacle collision resolution
+      soldier.prevX = soldier.x;
+      
       // Death animation — keep position fixed, just advance timer
       if (soldier.deathTimer >= 0) {
         soldier.deathTimer += dt;
@@ -490,17 +494,33 @@ class ArmyManager {
         
         // AABB collision check
         if (Math.abs(dx) < halfW && Math.abs(dz) < halfD) {
-          // Find shortest push-out direction
           const overlapX = halfW - Math.abs(dx);
           const overlapZ = halfD - Math.abs(dz);
           
+          // Use previous X position to determine which side the soldier came from
+          // This prevents tunneling through thin walls
+          const prevDx = s.prevX - pos.x;
+          
           if (overlapX < overlapZ) {
-            s.x += dx > 0 ? overlapX : -overlapX;
+            // Push out on X axis — use previous position to decide direction
+            if (Math.abs(prevDx) >= halfW) {
+              // Soldier was outside on X last frame — push back to that side
+              s.x = pos.x + (prevDx > 0 ? halfW : -halfW);
+            } else {
+              s.x += dx > 0 ? overlapX : -overlapX;
+            }
           } else {
             s.z += dz > 0 ? overlapZ : -overlapZ;
           }
         }
       }
+    }
+    
+    // Re-clamp all soldiers to road bounds after obstacle push-out
+    for (let i = 0; i < this.MAX; i++) {
+      const s = this._soldiers[i];
+      if (!s.active || s.deathTimer >= 0) continue;
+      s.x = Math.max(-ArmyManager.ROAD_HALF, Math.min(ArmyManager.ROAD_HALF, s.x));
     }
   }
   

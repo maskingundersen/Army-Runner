@@ -129,7 +129,7 @@ class ProjectileSystem {
       bullet.life -= dt;
       
       // Check bounds and life
-      if (bullet.life <= 0 || bullet.z < -100 || Math.abs(bullet.x) > 20) {
+      if (bullet.life <= 0 || bullet.z < -200 || Math.abs(bullet.x) > 20) {
         this._deactivateBullet(i, idx);
         continue;
       }
@@ -204,7 +204,7 @@ class ProjectileSystem {
             bullet.targetEnemy = null;
           }
           
-          bullet.life = 3;
+          bullet.life = 5;
           bullet.damage = stats.damage || 1;
           bullet.pierceHits = 0;
           bullet.piercedEnemies.clear();

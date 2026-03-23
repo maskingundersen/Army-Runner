@@ -2,17 +2,17 @@
 
 // Boss attack tuning constants
 const BOSS_STOP_DISTANCE = -12;
-const BOSS_SLAM_INTERVAL = 4.0;
-const BOSS_SLAM_DAMAGE = 3;
-const BOSS_SLAM_DAMAGE_ENRAGED = 5;
-const BOSS_PROJ_INTERVAL = 2.5;
+const BOSS_ROCK_INTERVAL = 4.0;
+const BOSS_ROCK_DAMAGE = 1;
+const BOSS_ROCK_DAMAGE_ENRAGED = 2;
+const BOSS_PROJ_INTERVAL = 3.0;
 const BOSS_PROJ_DAMAGE = 1;
-const BOSS_PROJ_DAMAGE_ENRAGED = 2;
-const BOSS_CHARGE_INTERVAL = 8.0;
-const BOSS_CHARGE_SPEED = 15;
+const BOSS_PROJ_DAMAGE_ENRAGED = 1;
+const BOSS_CHARGE_INTERVAL = 10.0;
+const BOSS_CHARGE_SPEED = 12;
 const BOSS_CHARGE_RETREAT_SPEED = -8;
-const BOSS_CHARGE_DAMAGE = 2;
-const BOSS_CHARGE_DAMAGE_ENRAGED = 4;
+const BOSS_CHARGE_DAMAGE = 1;
+const BOSS_CHARGE_DAMAGE_ENRAGED = 2;
 const BOSS_PROJ_HIT_ZONE_Z = 1.5;
 const BOSS_PROJ_HIT_ZONE_X = 3.0;
 
@@ -22,8 +22,8 @@ const ENEMY_ROAD_HALF = 8.5;
 const ENEMY_DEFS_3D = {
   ogre: {
     walkSpeed: 1.5,
-    hp: 600,
-    maxHp: 600,
+    hp: 350,
+    maxHp: 350,
     scale: 2.0,
     color: 0x7a5a2a,
     hitColor: 0xffffff,
@@ -33,8 +33,8 @@ const ENEMY_DEFS_3D = {
   },
   fireDragon: {
     walkSpeed: 1.0,
-    hp: 1750,
-    maxHp: 1750,
+    hp: 1100,
+    maxHp: 1100,
     scale: 2.8,
     color: 0xcc3300,
     hitColor: 0xffff00,
@@ -87,8 +87,8 @@ const ENEMY_DEFS_3D = {
   },
   giant: {
     walkSpeed: 1.2,
-    hp: 1250,
-    maxHp: 1250,
+    hp: 750,
+    maxHp: 750,
     scale: 2.4,
     color: 0x556655,     // dark stone green
     hitColor: 0xffffff,
@@ -864,7 +864,7 @@ class EnemyManager {
   }
   
   /**
-   * Boss attack patterns — slam, projectile, charge
+   * Boss attack patterns — rock throw, projectile, charge
    * @returns {number} soldier losses from boss attacks this frame
    */
   _updateBossAttacks(boss, dt, armyX) {
@@ -879,19 +879,33 @@ class EnemyManager {
     
     const attackSpeedMult = boss.bossEnraged ? 1.5 : 1.0;
     
-    // 1. Slam attack — area damage on interval
+    // 1. Rock throw — boss hurls rocks at army on interval
     boss.bossSlamTimer += dt * attackSpeedMult;
-    if (boss.bossSlamTimer >= BOSS_SLAM_INTERVAL) {
+    if (boss.bossSlamTimer >= BOSS_ROCK_INTERVAL) {
       boss.bossSlamTimer = 0;
       
-      const slamDamage = boss.bossEnraged ? BOSS_SLAM_DAMAGE_ENRAGED : BOSS_SLAM_DAMAGE;
-      soldierLosses += slamDamage;
+      const rockCount = boss.bossEnraged ? 3 : 1;
+      for (let r = 0; r < rockCount; r++) {
+        const spreadX = (r - (rockCount - 1) / 2) * 2.5;
+        const speed = 10 + Math.random() * 3;
+        const dx = armyX - boss.worldX + spreadX;
+        const dz = 0 - boss.worldZ;
+        const dist = Math.sqrt(dx * dx + dz * dz) || 1;
+        
+        boss.bossProjectiles.push({
+          x: boss.worldX,
+          y: 2.0,
+          z: boss.worldZ,
+          vx: (dx / dist) * speed,
+          vz: (dz / dist) * speed,
+          life: 3.0,
+          active: true,
+          isRock: true
+        });
+      }
       
-      // Visual feedback — warning zone + slam effect
-      this.effects.explode(boss.worldX, 0.5, boss.worldZ + 3, 0xff2200, 25, 5);
-      this.effects.gateEffect(boss.worldX, 0.2, boss.worldZ + 3, 0xff4400);
-      
-      if (this.effects.camCtrl) this.effects.camCtrl.shake(0.8);
+      // Visual feedback — rock throw effect
+      this.effects.explode(boss.worldX, 2, boss.worldZ, 0x886644, 12, 4);
       if (window.audioManager) window.audioManager.bossAttack();
     }
     
@@ -940,12 +954,18 @@ class EnemyManager {
       
       // Check hit against army position (near Z=0)
       if (proj.z > -BOSS_PROJ_HIT_ZONE_Z && proj.z < BOSS_PROJ_HIT_ZONE_Z && Math.abs(proj.x - armyX) < BOSS_PROJ_HIT_ZONE_X) {
-        soldierLosses += boss.bossEnraged ? BOSS_PROJ_DAMAGE_ENRAGED : BOSS_PROJ_DAMAGE;
-        this.effects.explode(proj.x, 1, proj.z, 0xff4400, 10, 3);
+        if (proj.isRock) {
+          soldierLosses += boss.bossEnraged ? BOSS_ROCK_DAMAGE_ENRAGED : BOSS_ROCK_DAMAGE;
+          this.effects.explode(proj.x, 1, proj.z, 0x886644, 15, 4);
+        } else {
+          soldierLosses += boss.bossEnraged ? BOSS_PROJ_DAMAGE_ENRAGED : BOSS_PROJ_DAMAGE;
+          this.effects.explode(proj.x, 1, proj.z, 0xff4400, 10, 3);
+        }
         proj.active = false;
         boss.bossProjectiles.splice(p, 1);
       } else {
-        this.effects.explode(proj.x, proj.y, proj.z, 0xff6600, 1, 1);
+        const trailColor = proj.isRock ? 0x886644 : 0xff6600;
+        this.effects.explode(proj.x, proj.y, proj.z, trailColor, 1, 1);
       }
     }
     
