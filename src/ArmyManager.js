@@ -52,12 +52,20 @@ class ArmyManager {
     this.rLegInst.castShadow = true;
     this.scene.add(this.rLegInst);
     
-    // Gun - dark metal
-    const gunGeo = new THREE.BoxGeometry(0.07, 0.07, 0.5);
+    // Gun - dark metal (default handgun)
+    this._weaponGeos = {
+      handgun:  new THREE.BoxGeometry(0.07, 0.07, 0.35),
+      assault:  new THREE.BoxGeometry(0.06, 0.06, 0.6),
+      shotgun:  new THREE.BoxGeometry(0.09, 0.09, 0.45),
+      minigun:  new THREE.BoxGeometry(0.10, 0.10, 0.7),
+      rocket:   new THREE.BoxGeometry(0.12, 0.12, 0.55),
+      sniper:   new THREE.BoxGeometry(0.05, 0.05, 0.8),
+    };
     const gunMat = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
-    this.gunInst = new THREE.InstancedMesh(gunGeo, gunMat, this.MAX);
+    this.gunInst = new THREE.InstancedMesh(this._weaponGeos.handgun, gunMat, this.MAX);
     this.gunInst.castShadow = true;
     this.scene.add(this.gunInst);
+    this._currentWeaponType = 'handgun';
     
     // Initialize all instances to scale(0,0,0)
     const hideMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
@@ -103,7 +111,16 @@ class ArmyManager {
     
     this._createCompanions();
   }
-  
+
+  setWeaponType(type) {
+    if (type === this._currentWeaponType) return;
+    if (!this._weaponGeos[type]) return;
+    this._currentWeaponType = type;
+    // Swap geometry on gun instanced mesh (don't dispose — geometries are reused)
+    this.gunInst.geometry = this._weaponGeos[type];
+    this._markNeedsUpdate();
+  }
+
   _createCompanions() {
     // Drone - small metallic box with propellers
     const droneGroup = new THREE.Group();

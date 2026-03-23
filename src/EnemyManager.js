@@ -124,6 +124,18 @@ const ENEMY_DEFS_3D = {
     chargeSpeed: 12.0,
     chargeDistance: 8.0,
   },
+  splitter: {
+    walkSpeed: 3.0,
+    hp: 6,
+    maxHp: 6,
+    scale: 1.1,
+    color: 0x8844cc,
+    hitColor: 0xffffff,
+    coinValue: 3,
+    size: { body: [0.65, 0.8, 0.35], head: [0.5, 0.5, 0.5] },
+    splits: true,
+    splitCount: 2,
+  },
 };
 
 class EnemyManager {
@@ -474,6 +486,21 @@ class EnemyManager {
         group.add(rPad);
         break;
       }
+      case 'splitter': {
+        // Splitter: glowing core visible through body
+        const coreGeo = new THREE.SphereGeometry(0.15, 8, 8);
+        const coreMat = new THREE.MeshBasicMaterial({ color: 0xcc66ff });
+        const core = new THREE.Mesh(coreGeo, coreMat);
+        core.position.set(0, body.position.y, 0);
+        group.add(core);
+        // Split line visual
+        const lineGeo = new THREE.BoxGeometry(0.02, def.size.body[1] * 0.8, 0.02);
+        const lineMat = new THREE.MeshBasicMaterial({ color: 0xcc66ff });
+        const splitLine = new THREE.Mesh(lineGeo, lineMat);
+        splitLine.position.set(0, body.position.y, def.size.body[2] / 2 + 0.02);
+        group.add(splitLine);
+        break;
+      }
     }
   }
   
@@ -727,6 +754,11 @@ class EnemyManager {
         this._doExplosion(enemy);
       }
       
+      // Splitter: spawn smaller units on death
+      if (enemy.def.splits) {
+        this._doSplit(enemy);
+      }
+      
       return { died: true, exploded };
     }
     
@@ -758,6 +790,25 @@ class EnemyManager {
         this.damageEnemy(other, dmg);
       }
     }
+  }
+
+  _doSplit(enemy) {
+    const splitCount = enemy.def.splitCount || 2;
+    for (let s = 0; s < splitCount; s++) {
+      const child = this._getEnemy(enemy.type);
+      child.hp = Math.ceil(enemy.def.hp * 0.3);
+      child.maxHp = child.hp;
+      child.worldX = enemy.worldX + (s - (splitCount - 1) / 2) * 1.5;
+      child.worldZ = enemy.worldZ - 1;
+      child.group.position.set(child.worldX, 0, child.worldZ);
+      // Make children smaller
+      const childScale = enemy.def.scale * 0.65;
+      child.group.scale.set(childScale, childScale, childScale);
+      // Prevent infinite splitting - children don't split again
+      child.def = Object.assign({}, enemy.def, { splits: false });
+      this.enemies.push(child);
+    }
+    this.effects.explode(enemy.worldX, 1, enemy.worldZ, 0xcc66ff, 12, 4);
   }
   
   /**
