@@ -149,7 +149,6 @@ class ProjectileSystem {
    */
   _fireBullets(muzzlePositions, armyX, enemies, stats) {
     const aliveEnemies = enemies.filter(e => !e.dead);
-    if (aliveEnemies.length === 0) return;
     
     const spreadAngles = stats.spreadAngles || [0];
     const tripleAngles = stats.tripleAngles || [0];

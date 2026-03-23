@@ -9,7 +9,10 @@ const OBSTACLE_CLEANUP_THRESHOLD = 50;
 
 // Army size control
 const ARMY_SOFT_CAP = 40;
-const ARMY_HARD_CAP = 100;
+const ARMY_HARD_CAP = 80;
+const ARMY_BOSS_CAP = 150;
+const ARMY_DECAY_THRESHOLD = 60;
+const ARMY_DECAY_INTERVAL = 3.0; // seconds between decay ticks
 
 // Milestone rankings (ascending order of difficulty)
 const MILESTONE_ORDER = [
@@ -34,9 +37,9 @@ const SEGMENT_DEFS = [
     safeReward: { type: 'soldiers', count: 2, label: '+2' },
     riskReward: { type: 'soldiers', count: 6, label: '+6' },
     enemies: [
-      { count: 8, enemyType: 'zombie', hp: 3 },
-      { count: 5, enemyType: 'fast', hp: 1 },
-      { count: 2, enemyType: 'zombie', hp: 3, xOffset: -4 },
+      { count: 8, enemyType: 'zombie', hp: 10 },
+      { count: 5, enemyType: 'fast', hp: 4 },
+      { count: 2, enemyType: 'zombie', hp: 10, xOffset: -4 },
     ],
     boss: null,
     duration: 50,
@@ -45,12 +48,12 @@ const SEGMENT_DEFS = [
   {
     id: 2,
     name: 'First Decision',
-    safeReward: { type: 'soldiers', count: 5, label: '+5' },
-    riskReward: { type: 'soldiers', count: 12, label: '+12' },
+    safeReward: { type: 'soldiers', count: 3, label: '+3' },
+    riskReward: { type: 'soldiers', count: 8, label: '+8' },
     enemies: [
-      { count: 10, enemyType: 'zombie', hp: 3 },
-      { count: 6, enemyType: 'fast', hp: 1 },
-      { count: 3, enemyType: 'zombie', hp: 3, xOffset: 4 },
+      { count: 10, enemyType: 'zombie', hp: 10 },
+      { count: 6, enemyType: 'fast', hp: 4 },
+      { count: 3, enemyType: 'zombie', hp: 10, xOffset: 4 },
     ],
     boss: null,
     duration: 50,
@@ -60,11 +63,11 @@ const SEGMENT_DEFS = [
     id: 3,
     name: 'Pressure Intro',
     safeReward: { type: 'soldiers', count: -5, label: '-5 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 5) } },
-    riskReward: { type: 'soldiers', count: 8, label: '+8' },
+    riskReward: { type: 'soldiers', count: 6, label: '+6' },
     enemies: [
-      { count: 10, enemyType: 'zombie', hp: 4, xOffset: 0 },
-      { count: 6, enemyType: 'fast', hp: 2, xOffset: -3 },
-      { count: 3, enemyType: 'exploding', hp: 2 },
+      { count: 10, enemyType: 'zombie', hp: 12, xOffset: 0 },
+      { count: 6, enemyType: 'fast', hp: 6, xOffset: -3 },
+      { count: 3, enemyType: 'exploding', hp: 6 },
     ],
     boss: null,
     duration: 60,
@@ -74,12 +77,12 @@ const SEGMENT_DEFS = [
     id: 4,
     name: 'Skill Check',
     safeReward: { type: 'soldiers', count: -8, label: '-8 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 8) } },
-    riskReward: { type: 'soldiers', count: 10, label: '+10' },
+    riskReward: { type: 'soldiers', count: 8, label: '+8' },
     enemies: [
-      { count: 8, enemyType: 'zombie', hp: 5 },
-      { count: 6, enemyType: 'exploding', hp: 2 },
-      { count: 4, enemyType: 'fast', hp: 2, xOffset: 3 },
-      { count: 2, enemyType: 'tank', hp: 10 },
+      { count: 8, enemyType: 'zombie', hp: 15 },
+      { count: 6, enemyType: 'exploding', hp: 6 },
+      { count: 4, enemyType: 'fast', hp: 6, xOffset: 3 },
+      { count: 2, enemyType: 'tank', hp: 40 },
     ],
     boss: null,
     duration: 60,
@@ -88,8 +91,8 @@ const SEGMENT_DEFS = [
   {
     id: 5,
     name: 'Mini Boss',
-    safeReward: { type: 'soldiers', count: 8, label: '+8 \u{1F6E1}\uFE0F' },
-    riskReward: { type: 'soldiers', count: 15, label: '+15' },
+    safeReward: { type: 'soldiers', count: 5, label: '+5 \u{1F6E1}\uFE0F' },
+    riskReward: { type: 'soldiers', count: 10, label: '+10' },
     enemies: [],
     boss: 'ogre',
     duration: 60,
@@ -99,13 +102,13 @@ const SEGMENT_DEFS = [
     id: 6,
     name: 'Build Defining',
     safeReward: { type: 'soldiers', count: 0, label: '\u00D71.5', mod: { apply: (n) => Math.floor(n * 1.5) } },
-    riskReward: { type: 'soldiers', count: 0, label: '\u00D72', mod: { apply: (n) => Math.min(ARMY_HARD_CAP, n * 2) } },
+    riskReward: { type: 'soldiers', count: 0, label: '\u00D71.5', mod: { apply: (n) => Math.min(ARMY_HARD_CAP, Math.floor(n * 1.5)) } },
     enemies: [
-      { count: 12, enemyType: 'zombie', hp: 5, xOffset: 0 },
-      { count: 8, enemyType: 'fast', hp: 2, xOffset: -3 },
-      { count: 4, enemyType: 'tank', hp: 10, xOffset: 2 },
-      { count: 3, enemyType: 'exploding', hp: 3 },
-      { count: 2, enemyType: 'shield', hp: 8 },
+      { count: 12, enemyType: 'zombie', hp: 15, xOffset: 0 },
+      { count: 8, enemyType: 'fast', hp: 6, xOffset: -3 },
+      { count: 4, enemyType: 'tank', hp: 40, xOffset: 2 },
+      { count: 3, enemyType: 'exploding', hp: 9 },
+      { count: 2, enemyType: 'shield', hp: 32 },
     ],
     boss: null,
     duration: 80,
@@ -115,13 +118,13 @@ const SEGMENT_DEFS = [
     id: 7,
     name: 'Heavy Assault',
     safeReward: { type: 'soldiers', count: 0, label: '÷2 ☠️', bad: true, mod: { apply: (n) => Math.max(1, Math.floor(n / 2)) } },
-    riskReward: { type: 'soldiers', count: 20, label: '+20' },
+    riskReward: { type: 'soldiers', count: 12, label: '+12' },
     enemies: [
-      { count: 16, enemyType: 'fast', hp: 3, xOffset: -2 },
-      { count: 8, enemyType: 'exploding', hp: 3, xOffset: 2 },
-      { count: 4, enemyType: 'tank', hp: 12 },
-      { count: 3, enemyType: 'charger', hp: 5, xOffset: -3 },
-      { count: 3, enemyType: 'zombie', hp: 5, xOffset: 5 },
+      { count: 16, enemyType: 'fast', hp: 10, xOffset: -2 },
+      { count: 8, enemyType: 'exploding', hp: 9, xOffset: 2 },
+      { count: 4, enemyType: 'tank', hp: 48 },
+      { count: 3, enemyType: 'charger', hp: 15, xOffset: -3 },
+      { count: 3, enemyType: 'zombie', hp: 15, xOffset: 5 },
     ],
     boss: null,
     duration: 80,
@@ -130,8 +133,8 @@ const SEGMENT_DEFS = [
   {
     id: 8,
     name: 'Titan Gate',
-    safeReward: { type: 'soldiers', count: 6, label: '+6' },
-    riskReward: { type: 'soldiers', count: 18, label: '+18' },
+    safeReward: { type: 'soldiers', count: 5, label: '+5' },
+    riskReward: { type: 'soldiers', count: 10, label: '+10' },
     enemies: [],
     boss: 'giant',
     duration: 70,
@@ -140,8 +143,8 @@ const SEGMENT_DEFS = [
   {
     id: 9,
     name: 'Dragon\'s Lair',
-    safeReward: { type: 'soldiers', count: 15, label: '+15' },
-    riskReward: { type: 'soldiers', count: 25, label: '+25' },
+    safeReward: { type: 'soldiers', count: 8, label: '+8' },
+    riskReward: { type: 'soldiers', count: 12, label: '+12' },
     enemies: [],
     boss: 'fireDragon',
     duration: 60,
@@ -151,15 +154,15 @@ const SEGMENT_DEFS = [
 
 // Environment palettes cycled per segment cycle (reused from original level themes)
 const ENV_PALETTES = [
-  { skyColor: 0x7dd5f0, groundColor: 0x3a7a2a, roadColor: 0x333344, fogNear: 40, fogFar: 90 },
-  { skyColor: 0xf0d090, groundColor: 0xc4a55a, roadColor: 0x4a4035, fogNear: 50, fogFar: 100 },
-  { skyColor: 0xd0e8f0, groundColor: 0xe8f0f0, roadColor: 0x5a6a70, fogNear: 35, fogFar: 80 },
-  { skyColor: 0x6a3020, groundColor: 0x3a2a2a, roadColor: 0x2a1a1a, fogNear: 30, fogFar: 70 },
-  { skyColor: 0x1a1a2a, groundColor: 0x2a2a3a, roadColor: 0x1a1a25, fogNear: 25, fogFar: 60 },
+  { skyColor: 0x7dd5f0, groundColor: 0x3a7a2a, roadColor: 0x333344, fogNear: 160, fogFar: 360 },
+  { skyColor: 0xf0d090, groundColor: 0xc4a55a, roadColor: 0x4a4035, fogNear: 200, fogFar: 400 },
+  { skyColor: 0xd0e8f0, groundColor: 0xe8f0f0, roadColor: 0x5a6a70, fogNear: 140, fogFar: 320 },
+  { skyColor: 0x6a3020, groundColor: 0x3a2a2a, roadColor: 0x2a1a1a, fogNear: 120, fogFar: 280 },
+  { skyColor: 0x1a1a2a, groundColor: 0x2a2a3a, roadColor: 0x1a1a25, fogNear: 100, fogFar: 240 },
 ];
 
 // Base boss HP — mirrors ENEMY_DEFS_3D in EnemyManager.js, scaled by difficultyMult each cycle
-const BOSS_HP = { ogre: 120, giant: 250, fireDragon: 350 };
+const BOSS_HP = { ogre: 600, giant: 1250, fireDragon: 1750 };
 
 // Shared identity modifier for upgrade gates (no soldier count change)
 const IDENTITY_MOD = { apply: (n) => n };
@@ -177,33 +180,33 @@ const MAP_LAYOUTS = [
 const EXTRA_SEGMENTS = [
   {
     id: 10, name: 'Narrow Corridor',
-    safeReward: { type: 'soldiers', count: 5, label: '+5' },
-    riskReward: { type: 'soldiers', count: 10, label: '+10' },
+    safeReward: { type: 'soldiers', count: 3, label: '+3' },
+    riskReward: { type: 'soldiers', count: 8, label: '+8' },
     enemies: [
-      { count: 12, enemyType: 'fast', hp: 2, xOffset: 0 },
-      { count: 4, enemyType: 'tank', hp: 12 },
+      { count: 12, enemyType: 'fast', hp: 6, xOffset: 0 },
+      { count: 4, enemyType: 'tank', hp: 40 },
     ],
     boss: null, duration: 60, riskNarrow: true,
   },
   {
     id: 11, name: 'Heavy Swarm',
-    safeReward: { type: 'soldiers', count: -3, label: '-3 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 3) } },
-    riskReward: { type: 'soldiers', count: 8, label: '+8' },
+    safeReward: { type: 'soldiers', count: -5, label: '-5 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 5) } },
+    riskReward: { type: 'soldiers', count: 6, label: '+6' },
     enemies: [
-      { count: 20, enemyType: 'zombie', hp: 3, xOffset: 0 },
-      { count: 8, enemyType: 'fast', hp: 2, xOffset: -4 },
-      { count: 8, enemyType: 'fast', hp: 2, xOffset: 4 },
+      { count: 20, enemyType: 'zombie', hp: 10, xOffset: 0 },
+      { count: 8, enemyType: 'fast', hp: 6, xOffset: -4 },
+      { count: 8, enemyType: 'fast', hp: 6, xOffset: 4 },
     ],
     boss: null, duration: 70, riskNarrow: false,
   },
   {
     id: 12, name: 'Elite Ambush',
-    safeReward: { type: 'soldiers', count: 8, label: '+8' },
-    riskReward: { type: 'soldiers', count: 12, label: '+12' },
+    safeReward: { type: 'soldiers', count: 5, label: '+5' },
+    riskReward: { type: 'soldiers', count: 10, label: '+10' },
     enemies: [
-      { count: 6, enemyType: 'tank', hp: 15, xOffset: -3 },
-      { count: 6, enemyType: 'tank', hp: 15, xOffset: 3 },
-      { count: 4, enemyType: 'exploding', hp: 3 },
+      { count: 6, enemyType: 'tank', hp: 50, xOffset: -3 },
+      { count: 6, enemyType: 'tank', hp: 50, xOffset: 3 },
+      { count: 4, enemyType: 'exploding', hp: 9 },
     ],
     boss: null, duration: 80, riskNarrow: true,
   },
@@ -212,130 +215,130 @@ const EXTRA_SEGMENTS = [
     safeReward: { type: 'soldiers', count: 0, label: '÷2 ☠️', bad: true, mod: { apply: (n) => Math.max(1, Math.floor(n / 2)) } },
     riskReward: { type: 'soldiers', count: 0, label: '×1.5', mod: { apply: (n) => Math.floor(n * 1.5) } },
     enemies: [
-      { count: 10, enemyType: 'zombie', hp: 5 },
-      { count: 6, enemyType: 'fast', hp: 3, xOffset: -4 },
-      { count: 4, enemyType: 'exploding', hp: 3, xOffset: 3 },
-      { count: 3, enemyType: 'tank', hp: 12 },
+      { count: 10, enemyType: 'zombie', hp: 15 },
+      { count: 6, enemyType: 'fast', hp: 10, xOffset: -4 },
+      { count: 4, enemyType: 'exploding', hp: 9, xOffset: 3 },
+      { count: 3, enemyType: 'tank', hp: 40 },
     ],
     boss: null, duration: 80, riskNarrow: false,
   },
   {
     id: 14, name: 'Obstacle Maze',
-    safeReward: { type: 'soldiers', count: 10, label: '+10' },
-    riskReward: { type: 'soldiers', count: 15, label: '+15' },
+    safeReward: { type: 'soldiers', count: 5, label: '+5' },
+    riskReward: { type: 'soldiers', count: 10, label: '+10' },
     enemies: [
-      { count: 15, enemyType: 'zombie', hp: 4, xOffset: 0 },
-      { count: 5, enemyType: 'exploding', hp: 3, xOffset: 2 },
+      { count: 15, enemyType: 'zombie', hp: 12, xOffset: 0 },
+      { count: 5, enemyType: 'exploding', hp: 9, xOffset: 2 },
     ],
     boss: null, duration: 60, riskNarrow: true,
   },
   {
     id: 15, name: 'Boss Rush',
-    safeReward: { type: 'soldiers', count: 15, label: '+15' },
-    riskReward: { type: 'soldiers', count: 20, label: '+20' },
+    safeReward: { type: 'soldiers', count: 8, label: '+8' },
+    riskReward: { type: 'soldiers', count: 12, label: '+12' },
     enemies: [
-      { count: 4, enemyType: 'tank', hp: 20, xOffset: 0 },
-      { count: 8, enemyType: 'zombie', hp: 6 },
-      { count: 6, enemyType: 'fast', hp: 3, xOffset: -3 },
+      { count: 4, enemyType: 'tank', hp: 60, xOffset: 0 },
+      { count: 8, enemyType: 'zombie', hp: 18 },
+      { count: 6, enemyType: 'fast', hp: 10, xOffset: -3 },
     ],
     boss: null, duration: 80, riskNarrow: false,
   },
   {
     id: 16, name: 'Shield Wall',
-    safeReward: { type: 'soldiers', count: 5, label: '+5' },
-    riskReward: { type: 'soldiers', count: 12, label: '+12' },
+    safeReward: { type: 'soldiers', count: 3, label: '+3' },
+    riskReward: { type: 'soldiers', count: 8, label: '+8' },
     enemies: [
-      { count: 8, enemyType: 'shield', hp: 10, xOffset: 0 },
-      { count: 4, enemyType: 'tank', hp: 15, xOffset: -3 },
-      { count: 6, enemyType: 'zombie', hp: 5, xOffset: 3 },
+      { count: 8, enemyType: 'shield', hp: 32, xOffset: 0 },
+      { count: 4, enemyType: 'tank', hp: 50, xOffset: -3 },
+      { count: 6, enemyType: 'zombie', hp: 15, xOffset: 3 },
     ],
     boss: null, duration: 70, riskNarrow: true,
   },
   {
     id: 17, name: 'Speed Blitz',
-    safeReward: { type: 'soldiers', count: -3, label: '-3 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 3) } },
-    riskReward: { type: 'soldiers', count: 10, label: '+10' },
+    safeReward: { type: 'soldiers', count: -5, label: '-5 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 5) } },
+    riskReward: { type: 'soldiers', count: 8, label: '+8' },
     enemies: [
-      { count: 20, enemyType: 'fast', hp: 2, xOffset: 0 },
-      { count: 10, enemyType: 'fast', hp: 3, xOffset: -4 },
-      { count: 5, enemyType: 'charger', hp: 6, xOffset: 3 },
+      { count: 20, enemyType: 'fast', hp: 6, xOffset: 0 },
+      { count: 10, enemyType: 'fast', hp: 10, xOffset: -4 },
+      { count: 5, enemyType: 'charger', hp: 18, xOffset: 3 },
     ],
     boss: null, duration: 60, riskNarrow: false,
   },
   {
     id: 18, name: 'Splitter Swarm',
-    safeReward: { type: 'soldiers', count: 8, label: '+8' },
-    riskReward: { type: 'soldiers', count: 15, label: '+15' },
+    safeReward: { type: 'soldiers', count: 5, label: '+5' },
+    riskReward: { type: 'soldiers', count: 10, label: '+10' },
     enemies: [
-      { count: 8, enemyType: 'splitter', hp: 6, xOffset: 0 },
-      { count: 6, enemyType: 'zombie', hp: 4, xOffset: -3 },
-      { count: 4, enemyType: 'fast', hp: 2, xOffset: 3 },
+      { count: 8, enemyType: 'splitter', hp: 18, xOffset: 0 },
+      { count: 6, enemyType: 'zombie', hp: 12, xOffset: -3 },
+      { count: 4, enemyType: 'fast', hp: 6, xOffset: 3 },
     ],
     boss: null, duration: 70, riskNarrow: false,
   },
   {
     id: 19, name: 'Charger Rush',
-    safeReward: { type: 'soldiers', count: 5, label: '+5' },
+    safeReward: { type: 'soldiers', count: 3, label: '+3' },
     riskReward: { type: 'soldiers', count: 0, label: '×1.5', mod: { apply: (n) => Math.floor(n * 1.5) } },
     enemies: [
-      { count: 10, enemyType: 'charger', hp: 6, xOffset: 0 },
-      { count: 6, enemyType: 'charger', hp: 8, xOffset: -3 },
-      { count: 4, enemyType: 'tank', hp: 12, xOffset: 3 },
+      { count: 10, enemyType: 'charger', hp: 18, xOffset: 0 },
+      { count: 6, enemyType: 'charger', hp: 24, xOffset: -3 },
+      { count: 4, enemyType: 'tank', hp: 40, xOffset: 3 },
     ],
     boss: null, duration: 60, riskNarrow: true,
   },
   {
     id: 20, name: 'Explosive Gauntlet',
-    safeReward: { type: 'soldiers', count: -5, label: '-5 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 5) } },
-    riskReward: { type: 'soldiers', count: 12, label: '+12' },
+    safeReward: { type: 'soldiers', count: -8, label: '-8 ☠️', bad: true, mod: { apply: (n) => Math.max(1, n - 8) } },
+    riskReward: { type: 'soldiers', count: 8, label: '+8' },
     enemies: [
-      { count: 12, enemyType: 'exploding', hp: 3, xOffset: 0 },
-      { count: 8, enemyType: 'exploding', hp: 4, xOffset: -3 },
-      { count: 4, enemyType: 'tank', hp: 15, xOffset: 3 },
+      { count: 12, enemyType: 'exploding', hp: 9, xOffset: 0 },
+      { count: 8, enemyType: 'exploding', hp: 12, xOffset: -3 },
+      { count: 4, enemyType: 'tank', hp: 50, xOffset: 3 },
     ],
     boss: null, duration: 80, riskNarrow: false,
   },
   {
     id: 21, name: 'Ranged Siege',
-    safeReward: { type: 'soldiers', count: 10, label: '+10' },
-    riskReward: { type: 'soldiers', count: 18, label: '+18' },
+    safeReward: { type: 'soldiers', count: 5, label: '+5' },
+    riskReward: { type: 'soldiers', count: 10, label: '+10' },
     enemies: [
-      { count: 8, enemyType: 'ranged', hp: 5, xOffset: 0 },
-      { count: 6, enemyType: 'shield', hp: 10, xOffset: -4 },
-      { count: 4, enemyType: 'zombie', hp: 6, xOffset: 4 },
+      { count: 8, enemyType: 'ranged', hp: 16, xOffset: 0 },
+      { count: 6, enemyType: 'shield', hp: 32, xOffset: -4 },
+      { count: 4, enemyType: 'zombie', hp: 18, xOffset: 4 },
     ],
     boss: null, duration: 70, riskNarrow: true,
   },
   {
     id: 22, name: 'Jump Maze',
     safeReward: { type: 'soldiers', count: 3, label: '+3' },
-    riskReward: { type: 'soldiers', count: 8, label: '+8' },
+    riskReward: { type: 'soldiers', count: 6, label: '+6' },
     enemies: [
-      { count: 15, enemyType: 'jumping', hp: 3, xOffset: 0 },
-      { count: 8, enemyType: 'fast', hp: 2, xOffset: -3 },
-      { count: 5, enemyType: 'zombie', hp: 5, xOffset: 3 },
+      { count: 15, enemyType: 'jumping', hp: 10, xOffset: 0 },
+      { count: 8, enemyType: 'fast', hp: 6, xOffset: -3 },
+      { count: 5, enemyType: 'zombie', hp: 15, xOffset: 3 },
     ],
     boss: null, duration: 60, riskNarrow: false,
   },
   {
     id: 23, name: 'Resource Zone',
-    safeReward: { type: 'soldiers', count: 15, label: '+15' },
-    riskReward: { type: 'soldiers', count: 0, label: '×2', mod: { apply: (n) => Math.min(ARMY_HARD_CAP, n * 2) } },
+    safeReward: { type: 'soldiers', count: 8, label: '+8' },
+    riskReward: { type: 'soldiers', count: 0, label: '×1.5', mod: { apply: (n) => Math.min(ARMY_HARD_CAP, Math.floor(n * 1.5)) } },
     enemies: [
-      { count: 4, enemyType: 'zombie', hp: 3, xOffset: 0 },
-      { count: 2, enemyType: 'fast', hp: 1, xOffset: -3 },
+      { count: 4, enemyType: 'zombie', hp: 10, xOffset: 0 },
+      { count: 2, enemyType: 'fast', hp: 4, xOffset: -3 },
     ],
     boss: null, duration: 40, riskNarrow: false,
   },
   {
     id: 24, name: 'Mini-Boss Gauntlet',
-    safeReward: { type: 'soldiers', count: 10, label: '+10' },
-    riskReward: { type: 'soldiers', count: 20, label: '+20' },
+    safeReward: { type: 'soldiers', count: 5, label: '+5' },
+    riskReward: { type: 'soldiers', count: 12, label: '+12' },
     enemies: [
-      { count: 2, enemyType: 'tank', hp: 25, xOffset: 0 },
-      { count: 8, enemyType: 'zombie', hp: 6, xOffset: -3 },
-      { count: 6, enemyType: 'fast', hp: 3, xOffset: 3 },
-      { count: 4, enemyType: 'charger', hp: 8, xOffset: 0 },
+      { count: 2, enemyType: 'tank', hp: 80, xOffset: 0 },
+      { count: 8, enemyType: 'zombie', hp: 18, xOffset: -3 },
+      { count: 6, enemyType: 'fast', hp: 10, xOffset: 3 },
+      { count: 4, enemyType: 'charger', hp: 24, xOffset: 0 },
     ],
     boss: null, duration: 80, riskNarrow: true,
   },
@@ -357,7 +360,7 @@ class ArmyRunnerGame {
     this.scene = new THREE.Scene();
     
     // Camera: portrait mobile aspect
-    this.camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 500);
+    this.camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 2000);
     
     // Resize handling
     window.addEventListener('resize', () => this._onResize());
@@ -367,8 +370,8 @@ class ArmyRunnerGame {
     this._setupLights();
     
     // Background / sky
-    this.scene.background = new THREE.Color(0x7dd5f0);
-    this.scene.fog = new THREE.Fog(0x7dd5f0, 40, 90);
+    this.scene.background = new THREE.Color(ENV_PALETTES[0].skyColor);
+    this.scene.fog = new THREE.Fog(ENV_PALETTES[0].skyColor, ENV_PALETTES[0].fogNear, ENV_PALETTES[0].fogFar);
     
     // Build road and environment
     this._buildRoad();
@@ -750,6 +753,7 @@ class ArmyRunnerGame {
     this._airstrikeCooldown = 0;
     this._shockwaveCooldown = 0;
     this._medicTimer = 0;
+    this._decayTimer = 0;
     
     // Companion attack timers (#7)
     this._dragonAttackTimer = 0;
@@ -1313,6 +1317,18 @@ class ArmyRunnerGame {
       }
     }
     
+    // 7c. Army decay — attrition when above threshold to prevent hoarding
+    if (this.soldierCount > ARMY_DECAY_THRESHOLD) {
+      this._decayTimer += dt;
+      if (this._decayTimer >= ARMY_DECAY_INTERVAL) {
+        this._decayTimer = 0;
+        this.soldierCount = Math.max(ARMY_DECAY_THRESHOLD, this.soldierCount - 1);
+        this.armyMgr.killSoldier();
+        this.armyMgr.setCount(this.soldierCount, this.armyX);
+        this._updateHUD();
+      }
+    }
+    
     // 8. Update projectiles
     this.projSys.update(dt, this.armyX, 0, this.soldierCount, 
       this.enemyMgr.enemies, this.upgrades, stats, null, this.armyMgr);
@@ -1488,6 +1504,15 @@ class ArmyRunnerGame {
     this._updateHUD();
   }
   
+  _isBossNearby() {
+    // Check if a boss segment is coming up in the next few internal segments
+    for (let i = this.internalSegIdx; i < Math.min(this.internalSegIdx + 3, this.internalSegments.length); i++) {
+      if (this.internalSegments[i] && this.internalSegments[i].type === 'boss') return true;
+    }
+    // Also true if currently fighting a boss
+    return !!this.currentBoss;
+  }
+  
   _spawnSegmentGates(def, baseZ) {
     // Left = SAFE gate (negative rewards use bad flag) (#3)
     const safe = def.safeReward;
@@ -1512,7 +1537,7 @@ class ArmyRunnerGame {
     } else {
       rightConfig = {
         label: risk.label,
-        mod: { apply: (n) => n + risk.count },
+        mod: risk.mod || { apply: (n) => n + risk.count },
         good: true,
         reward: risk,
       };
@@ -1535,9 +1560,9 @@ class ArmyRunnerGame {
   _spawnEnemies(def) {
     // Scale enemy count by cycle (more enemies in later cycles)
     const countMult = 1 + this.segmentCycle * ENEMY_COUNT_SCALE_PER_CYCLE;
-    // Within-segment HP scaling (#2) — use internalSegIdx for consistent progression
+    // Within-segment HP scaling (#2) — steeper progression for real challenge
     const segmentProgress = Math.min(1, this.internalSegIdx / Math.max(this.internalSegments.length, 1));
-    const hpScale = 1 + segmentProgress * 0.8;
+    const hpScale = 1 + segmentProgress * 2.0;
     const scaledEnemies = def.enemies.map(e => ({
       ...e,
       count: Math.ceil(e.count * countMult),
@@ -1593,12 +1618,14 @@ class ArmyRunnerGame {
       }
     } else {
       // Soldier modifier with army size control (#6)
+      // Use higher cap if a boss fight is imminent
+      const effectiveCap = this._isBossNearby() ? ARMY_BOSS_CAP : ARMY_HARD_CAP;
       let newCount = Math.max(1, chosen.mod.apply(this.soldierCount));
       if (newCount > ARMY_SOFT_CAP) {
         const excess = newCount - ARMY_SOFT_CAP;
         newCount = ARMY_SOFT_CAP + Math.floor(excess * 0.5);
       }
-      newCount = Math.min(newCount, ARMY_HARD_CAP);
+      newCount = Math.min(newCount, effectiveCap);
       this.soldierCount = newCount;
     }
     

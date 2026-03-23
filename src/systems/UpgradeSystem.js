@@ -8,12 +8,11 @@
 const SOLDIER_GOOD_MODS = [
   { label: '+3',   apply: (n) => n + 3  },
   { label: '+5',   apply: (n) => n + 5  },
+  { label: '+8',   apply: (n) => n + 8  },
   { label: '+10',  apply: (n) => n + 10 },
-  { label: '+15',  apply: (n) => n + 15 },
-  { label: '+25',  apply: (n) => n + 25 },
+  { label: '+12',  apply: (n) => n + 12 },
   { label: '×1.5', apply: (n) => Math.floor(n * 1.5) },
   { label: '×2',   apply: (n) => n * 2  },
-  { label: '×3',   apply: (n) => n * 3  },
 ];
 
 const SOLDIER_BAD_MODS = [
@@ -105,8 +104,8 @@ const BARREL_REWARDS = [
   { type: 'weapon', id: 'minigun',  label: 'MINIGUN',        good: true },
   { type: 'weapon', id: 'rocket',   label: 'ROCKET',         good: true },
   { type: 'weapon', id: 'sniper',   label: 'SNIPER',         good: true },
-  { type: 'soldiers', count: 10,    label: '+10 SOLDIERS',   good: true },
-  { type: 'soldiers', count: 15,    label: '+15 SOLDIERS',   good: true },
+  { type: 'soldiers', count: 5,     label: '+5 SOLDIERS',    good: true },
+  { type: 'soldiers', count: 8,     label: '+8 SOLDIERS',    good: true },
   { type: 'soldiers', count: -5,    label: '-5 SOLDIERS',    good: false },
   { type: 'soldiers', count: -10,   label: '-10 SOLDIERS',   good: false },
   { type: 'fireRate', id: 'betterGuns', label: 'FIRE RATE UP', good: true },
