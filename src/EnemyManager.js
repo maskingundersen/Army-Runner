@@ -1,5 +1,21 @@
 // src/EnemyManager.js — Manages enemies with different types
 
+// Boss attack tuning constants
+const BOSS_STOP_DISTANCE = -12;
+const BOSS_SLAM_INTERVAL = 4.0;
+const BOSS_SLAM_DAMAGE = 3;
+const BOSS_SLAM_DAMAGE_ENRAGED = 5;
+const BOSS_PROJ_INTERVAL = 2.5;
+const BOSS_PROJ_DAMAGE = 1;
+const BOSS_PROJ_DAMAGE_ENRAGED = 2;
+const BOSS_CHARGE_INTERVAL = 8.0;
+const BOSS_CHARGE_SPEED = 15;
+const BOSS_CHARGE_RETREAT_SPEED = -8;
+const BOSS_CHARGE_DAMAGE = 2;
+const BOSS_CHARGE_DAMAGE_ENRAGED = 4;
+const BOSS_PROJ_HIT_ZONE_Z = 1.5;
+const BOSS_PROJ_HIT_ZONE_X = 3.0;
+
 const ENEMY_DEFS_3D = {
   ogre: {
     walkSpeed: 1.5,
@@ -620,10 +636,9 @@ class EnemyManager {
       // Bosses: stop at a distance and fight (don't walk past army)
       let moveSpeed = def.walkSpeed;
       if (def.isBoss && !enemy.bossCharging) {
-        // Boss stops at distance -12 and fights from there
-        if (enemy.worldZ > -12) {
+        if (enemy.worldZ > BOSS_STOP_DISTANCE) {
           moveSpeed = 0;
-          enemy.worldZ = Math.min(enemy.worldZ, -12);
+          enemy.worldZ = Math.min(enemy.worldZ, BOSS_STOP_DISTANCE);
         }
       } else if (def.charges && enemy.worldZ > -(def.chargeDistance || 8)) {
         enemy.charging = true;
@@ -857,33 +872,27 @@ class EnemyManager {
     
     const attackSpeedMult = boss.bossEnraged ? 1.5 : 1.0;
     
-    // 1. Slam attack — area damage every 4s (3s when enraged)
+    // 1. Slam attack — area damage on interval
     boss.bossSlamTimer += dt * attackSpeedMult;
-    const slamInterval = 4.0;
-    if (boss.bossSlamTimer >= slamInterval) {
+    if (boss.bossSlamTimer >= BOSS_SLAM_INTERVAL) {
       boss.bossSlamTimer = 0;
       
-      // Slam kills 3-5 soldiers
-      const slamDamage = boss.bossEnraged ? 5 : 3;
+      const slamDamage = boss.bossEnraged ? BOSS_SLAM_DAMAGE_ENRAGED : BOSS_SLAM_DAMAGE;
       soldierLosses += slamDamage;
       
       // Visual feedback — warning zone + slam effect
       this.effects.explode(boss.worldX, 0.5, boss.worldZ + 3, 0xff2200, 25, 5);
       this.effects.gateEffect(boss.worldX, 0.2, boss.worldZ + 3, 0xff4400);
       
-      // Screen shake
       if (this.effects.camCtrl) this.effects.camCtrl.shake(0.8);
-      
       if (window.audioManager) window.audioManager.bossAttack();
     }
     
-    // 2. Projectile attack — boss shoots at army every 2.5s (1.5s when enraged)
+    // 2. Projectile attack — boss shoots at army on interval
     boss.bossAttackTimer += dt * attackSpeedMult;
-    const projInterval = 2.5;
-    if (boss.bossAttackTimer >= projInterval) {
+    if (boss.bossAttackTimer >= BOSS_PROJ_INTERVAL) {
       boss.bossAttackTimer = 0;
       
-      // Spawn boss projectiles aimed at army
       const projCount = boss.bossEnraged ? 3 : 1;
       for (let p = 0; p < projCount; p++) {
         const spreadAngle = (p - (projCount - 1) / 2) * 0.3;
@@ -903,7 +912,6 @@ class EnemyManager {
         });
       }
       
-      // Projectile launch effect
       this.effects.explode(boss.worldX, 2, boss.worldZ, boss.def.color, 8, 3);
       if (window.audioManager) window.audioManager.shoot();
     }
@@ -924,24 +932,21 @@ class EnemyManager {
       }
       
       // Check hit against army position (near Z=0)
-      if (proj.z > -1.5 && proj.z < 1.5 && Math.abs(proj.x - armyX) < 3.0) {
-        // Hit — kill 1-2 soldiers
-        soldierLosses += boss.bossEnraged ? 2 : 1;
+      if (proj.z > -BOSS_PROJ_HIT_ZONE_Z && proj.z < BOSS_PROJ_HIT_ZONE_Z && Math.abs(proj.x - armyX) < BOSS_PROJ_HIT_ZONE_X) {
+        soldierLosses += boss.bossEnraged ? BOSS_PROJ_DAMAGE_ENRAGED : BOSS_PROJ_DAMAGE;
         this.effects.explode(proj.x, 1, proj.z, 0xff4400, 10, 3);
         proj.active = false;
         boss.bossProjectiles.splice(p, 1);
       } else {
-        // Trail effect for boss projectile
         this.effects.explode(proj.x, proj.y, proj.z, 0xff6600, 1, 1);
       }
     }
     
-    // 3. Charge attack — every 8s (5s when enraged), rush forward then retreat
+    // 3. Charge attack — rush forward then retreat on interval
     boss.bossChargeTimer += dt * attackSpeedMult;
-    const chargeInterval = 8.0;
-    if (boss.bossChargeTimer >= chargeInterval && !boss.bossCharging) {
+    if (boss.bossChargeTimer >= BOSS_CHARGE_INTERVAL && !boss.bossCharging) {
       boss.bossCharging = true;
-      boss.bossChargeSpeed = 15;
+      boss.bossChargeSpeed = BOSS_CHARGE_SPEED;
       boss.bossChargeTimer = 0;
       
       // Warning effect
@@ -949,24 +954,23 @@ class EnemyManager {
     }
     
     if (boss.bossCharging) {
-      // Rush forward quickly
       boss.worldZ += boss.bossChargeSpeed * dt;
       boss.group.position.z = boss.worldZ;
       
       // Check contact with army — kills soldiers on contact
       if (boss.worldZ > -2 && boss.worldZ < 2) {
-        soldierLosses += boss.bossEnraged ? 4 : 2;
+        soldierLosses += boss.bossEnraged ? BOSS_CHARGE_DAMAGE_ENRAGED : BOSS_CHARGE_DAMAGE;
         this.effects.explode(boss.worldX, 1, 0, 0xff0000, 15, 4);
         if (this.effects.camCtrl) this.effects.camCtrl.shake(1.2);
       }
       
       // Retreat after reaching past army
       if (boss.worldZ > 0) {
-        boss.bossChargeSpeed = -8;
+        boss.bossChargeSpeed = BOSS_CHARGE_RETREAT_SPEED;
       }
       
-      // End charge when returned to far position
-      if (boss.worldZ < -15) {
+      // End charge when returned past stop distance
+      if (boss.worldZ < BOSS_STOP_DISTANCE - 3) {
         boss.bossCharging = false;
         boss.bossChargeSpeed = 0;
       }

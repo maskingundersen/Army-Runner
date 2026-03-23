@@ -370,8 +370,8 @@ class ArmyRunnerGame {
     this._setupLights();
     
     // Background / sky
-    this.scene.background = new THREE.Color(0x7dd5f0);
-    this.scene.fog = new THREE.Fog(0x7dd5f0, 160, 360);
+    this.scene.background = new THREE.Color(ENV_PALETTES[0].skyColor);
+    this.scene.fog = new THREE.Fog(ENV_PALETTES[0].skyColor, ENV_PALETTES[0].fogNear, ENV_PALETTES[0].fogFar);
     
     // Build road and environment
     this._buildRoad();
