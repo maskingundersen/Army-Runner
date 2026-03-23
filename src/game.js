@@ -162,7 +162,7 @@ const ENV_PALETTES = [
 ];
 
 // Base boss HP — mirrors ENEMY_DEFS_3D in EnemyManager.js, scaled by difficultyMult each cycle
-const BOSS_HP = { ogre: 600, giant: 1250, fireDragon: 1750 };
+const BOSS_HP = { ogre: 350, giant: 750, fireDragon: 1100 };
 
 // Shared identity modifier for upgrade gates (no soldier count change)
 const IDENTITY_MOD = { apply: (n) => n };
