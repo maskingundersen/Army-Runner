@@ -1361,15 +1361,16 @@ class ArmyRunnerGame {
     this._continuousSpawnTimer += dt;
     if (this._continuousSpawnTimer >= this._continuousSpawnInterval) {
       this._continuousSpawnTimer = 0;
-      // Adjust spawn interval: faster in later cycles
-      this._continuousSpawnInterval = Math.max(0.8, 1.5 - this.segmentCycle * 0.1);
-      // Spawn 2-5 fodder enemies at random positions ahead
+      // Adjust spawn interval: faster in later cycles, capped at 0.8s minimum
+      this._continuousSpawnInterval = Math.max(0.8, 1.5 - Math.min(this.segmentCycle, 7) * 0.1);
+      // Weighted fodder distribution: 40% zombie, 40% fast, 20% exploding
       const spawnTypes = ['zombie', 'fast', 'zombie', 'fast', 'exploding'];
       const type = spawnTypes[Math.floor(Math.random() * spawnTypes.length)];
       const count = 2 + Math.floor(Math.random() * 4);
       const hpScale = 1 + this.segmentCycle * 0.3;
       const baseHp = type === 'fast' ? 4 : type === 'exploding' ? 6 : 10;
       const xOff = (Math.random() - 0.5) * 12;
+      // Spawn further than segment enemies (-100 to -140) so they approach gradually
       this.enemyMgr.spawnWave(
         [{ count, enemyType: type, hp: Math.ceil(baseHp * hpScale), xOffset: xOff }],
         -100 - Math.random() * 40,
