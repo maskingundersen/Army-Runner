@@ -255,7 +255,7 @@ class EnemyManager {
     
     // Boss attack state
     enemy.bossAttackTimer = 0;
-    enemy.bossSlamTimer = 0;
+    enemy.bossRockTimer = 0;
     enemy.bossProjectiles = [];
     enemy.bossChargeTimer = 0;
     enemy.bossCharging = false;
@@ -379,7 +379,7 @@ class EnemyManager {
       jumpY: 0,
       charging: false,
       bossAttackTimer: 0,
-      bossSlamTimer: 0,
+      bossRockTimer: 0,
       bossProjectiles: [],
       bossChargeTimer: 0,
       bossCharging: false,
@@ -880,9 +880,9 @@ class EnemyManager {
     const attackSpeedMult = boss.bossEnraged ? 1.5 : 1.0;
     
     // 1. Rock throw — boss hurls rocks at army on interval
-    boss.bossSlamTimer += dt * attackSpeedMult;
-    if (boss.bossSlamTimer >= BOSS_ROCK_INTERVAL) {
-      boss.bossSlamTimer = 0;
+    boss.bossRockTimer += dt * attackSpeedMult;
+    if (boss.bossRockTimer >= BOSS_ROCK_INTERVAL) {
+      boss.bossRockTimer = 0;
       
       const rockCount = boss.bossEnraged ? 3 : 1;
       for (let r = 0; r < rockCount; r++) {
