@@ -2,9 +2,6 @@
 
 // Boss attack tuning constants
 const BOSS_STOP_DISTANCE = -12;
-
-// Road boundary for enemy spawning (road half-width with inward padding)
-const ENEMY_ROAD_HALF = 8.5;
 const BOSS_SLAM_INTERVAL = 4.0;
 const BOSS_SLAM_DAMAGE = 3;
 const BOSS_SLAM_DAMAGE_ENRAGED = 5;
@@ -18,6 +15,9 @@ const BOSS_CHARGE_DAMAGE = 2;
 const BOSS_CHARGE_DAMAGE_ENRAGED = 4;
 const BOSS_PROJ_HIT_ZONE_Z = 1.5;
 const BOSS_PROJ_HIT_ZONE_X = 3.0;
+
+// Road boundary for enemy spawning (road half-width with inward padding)
+const ENEMY_ROAD_HALF = 8.5;
 
 const ENEMY_DEFS_3D = {
   ogre: {
