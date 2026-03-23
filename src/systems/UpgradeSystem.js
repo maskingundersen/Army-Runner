@@ -88,12 +88,12 @@ const SHOP_UPGRADES = [
 // Maximum dragon companions allowed
 const MAX_DRAGON_COUNT = 3;
 
-// Weapon types — collected via barrels on the road
+// Weapon types — collected via barrels on the road — distinct patterns with no randomness
 const WEAPON_TYPES = {
   handgun:  { name: 'Handgun',        fireInterval: 0.6, damage: 1,  bulletSpeed: 1.0, spread: 0,    bullets: 1, color: 0xaaaaaa, label: '🔫 Handgun' },
-  assault:  { name: 'Assault Rifle',   fireInterval: 0.3, damage: 1,  bulletSpeed: 1.2, spread: 0.05, bullets: 1, color: 0x2a5a2a, label: '🔫 Assault' },
-  shotgun:  { name: 'Shotgun',         fireInterval: 0.9, damage: 2,  bulletSpeed: 0.8, spread: 0.4,  bullets: 5, color: 0x8a5a2a, label: '💥 Shotgun' },
-  minigun:  { name: 'Minigun',         fireInterval: 0.1, damage: 1,  bulletSpeed: 1.0, spread: 0.15, bullets: 1, color: 0x3a3a3a, label: '🔧 Minigun' },
+  assault:  { name: 'Assault Rifle',   fireInterval: 0.3, damage: 1,  bulletSpeed: 1.2, spread: 0,    bullets: 1, color: 0x2a5a2a, label: '🔫 Assault' },
+  shotgun:  { name: 'Shotgun',         fireInterval: 0.9, damage: 2,  bulletSpeed: 0.8, spread: 0.5,  bullets: 5, color: 0x8a5a2a, label: '💥 Shotgun' },
+  minigun:  { name: 'Minigun',         fireInterval: 0.08, damage: 1,  bulletSpeed: 1.0, spread: 0,    bullets: 1, color: 0x3a3a3a, label: '🔧 Minigun' },
   rocket:   { name: 'Rocket',          fireInterval: 1.5, damage: 8,  bulletSpeed: 0.6, spread: 0,    bullets: 1, color: 0x5a2a2a, label: '🚀 Rocket', explosive: true },
   sniper:   { name: 'Sniper',          fireInterval: 1.8, damage: 12, bulletSpeed: 2.0, spread: 0,    bullets: 1, color: 0x2a2a5a, label: '🎯 Sniper' },
 };
