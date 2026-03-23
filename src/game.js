@@ -450,24 +450,29 @@ class ArmyRunnerGame {
   }
   
   _setupLights() {
-    // Ambient light - soft fill
-    const ambient = new THREE.AmbientLight(0x9ab5d4, 0.8);
+    // Ambient light - warm soft fill
+    const ambient = new THREE.AmbientLight(0xb0c8e0, 0.9);
     this.scene.add(ambient);
     
-    // Directional sun light
-    const sun = new THREE.DirectionalLight(0xfff0d0, 1.4);
+    // Directional sun light - stronger with better shadows
+    const sun = new THREE.DirectionalLight(0xfff5e0, 1.6);
     sun.position.set(8, 20, 10);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.mapSize.set(2048, 2048);
     sun.shadow.camera.near = 1;
     sun.shadow.camera.far = 100;
     sun.shadow.camera.left = -25;
     sun.shadow.camera.right = 25;
     sun.shadow.camera.top = 25;
     sun.shadow.camera.bottom = -25;
-    sun.shadow.bias = -0.001;
+    sun.shadow.bias = -0.0005;
+    sun.shadow.normalBias = 0.02;
     this.scene.add(sun);
     this.sun = sun;
+    
+    // Hemisphere light for natural sky/ground color bleeding
+    const hemi = new THREE.HemisphereLight(0x87ceeb, 0x3a6a2a, 0.4);
+    this.scene.add(hemi);
     
     // Combat point light (glows during combat)
     this.combatLight = new THREE.PointLight(0xff8844, 0, 15);
@@ -476,18 +481,18 @@ class ArmyRunnerGame {
   }
   
   _buildRoad() {
-    // Ground plane - extends far
+    // Ground plane - extends far with better material
     const groundGeo = new THREE.PlaneGeometry(80, 400);
-    const groundMat = new THREE.MeshLambertMaterial({ color: 0x3a7a2a });
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x3a7a2a, roughness: 0.95, metalness: 0.0 });
     this.groundMesh = new THREE.Mesh(groundGeo, groundMat);
     this.groundMesh.rotation.x = -Math.PI / 2;
     this.groundMesh.position.set(0, -0.02, -120);
     this.groundMesh.receiveShadow = true;
     this.scene.add(this.groundMesh);
     
-    // Road strip (wider for formation gameplay)
+    // Road strip (wider for formation gameplay) with asphalt-like material
     const roadGeo = new THREE.PlaneGeometry(20, 400);
-    const roadMat = new THREE.MeshLambertMaterial({ color: 0x282836 });
+    const roadMat = new THREE.MeshStandardMaterial({ color: 0x333344, roughness: 0.85, metalness: 0.05 });
     this.roadMesh = new THREE.Mesh(roadGeo, roadMat);
     this.roadMesh.rotation.x = -Math.PI / 2;
     this.roadMesh.position.set(0, -0.01, -120);
@@ -532,12 +537,12 @@ class ArmyRunnerGame {
   }
   
   _buildTrees() {
-    // Create tree geometry (simple low-poly tree)
-    const trunkGeo = new THREE.CylinderGeometry(0.15, 0.2, 1.5, 6);
-    const trunkMat = new THREE.MeshLambertMaterial({ color: 0x5a3a20 });
+    // Create tree geometry (low-poly tree with better materials)
+    const trunkGeo = new THREE.CylinderGeometry(0.12, 0.22, 1.5, 8);
+    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5a3a20, roughness: 0.9, metalness: 0.0 });
     
-    const foliageGeo = new THREE.ConeGeometry(0.8, 2, 6);
-    const foliageMat = new THREE.MeshLambertMaterial({ color: 0x2a5a2a });
+    const foliageGeo = new THREE.ConeGeometry(0.8, 2, 8);
+    const foliageMat = new THREE.MeshStandardMaterial({ color: 0x2a5a2a, roughness: 0.85, metalness: 0.0 });
     
     // Create instanced meshes for trees
     const numTrees = 80;
