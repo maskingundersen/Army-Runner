@@ -95,6 +95,9 @@ class EffectsManager {
     this._screenFlashColor = 0x00ff88;
     this._screenFlashDecay = 5;
     
+    // Floating text sprites
+    this._floatingTexts = [];
+    
     // Temp objects for calculations
     this._tempMatrix = new THREE.Matrix4();
     this._tempColor = new THREE.Color();
@@ -157,12 +160,12 @@ class EffectsManager {
     this._shockwaves.push({
       mesh: ring,
       life: 0,
-      maxLife: 0.5,
+      maxLife: 0.6,
       color: color
     });
     
-    // Also spawn some particles
-    this.explode(x, y + 1, z, color, 20, 4);
+    // Also spawn more particles for enhanced gate pass burst
+    this.explode(x, y + 1, z, color, 50, 6);
   }
   
   /**
@@ -218,6 +221,85 @@ class EffectsManager {
     const color = count > 0 ? 0x44ff88 : 0xff4444;
     const particles = Math.min(15, Math.abs(count));
     this.explode(x, 2, 0, color, particles, 4);
+  }
+  
+  /**
+   * Spawn floating text showing soldier count change (e.g. "+20" or "-5")
+   * @param {number} x - World X position
+   * @param {number} count - Soldiers gained (positive) or lost (negative)
+   */
+  soldierCountText(x, count) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, 128, 64);
+    ctx.font = 'bold 48px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = count > 0 ? '#44ff88' : '#ff4444';
+    ctx.fillText((count > 0 ? '+' : '') + count, 64, 32);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const mat = new THREE.SpriteMaterial({ map: texture, transparent: true, opacity: 1.0 });
+    const sprite = new THREE.Sprite(mat);
+    sprite.position.set(x, 3, 0);
+    sprite.scale.set(2, 1, 1);
+    this.scene.add(sprite);
+
+    this._floatingTexts.push({ sprite, life: 0, maxLife: 1.0, texture });
+  }
+  
+  /**
+   * Spawn boss stomp shockwave on the ground
+   * @param {number} x - World X position
+   * @param {number} z - World Z position
+   */
+  bossStompShockwave(x, z) {
+    const ring = this._shockwavePool.pop();
+    if (!ring) return;
+    
+    ring.visible = true;
+    ring.position.set(x, 0.1, z);
+    ring.scale.set(1, 1, 1);
+    ring.material.color.setHex(0xff4400);
+    ring.material.opacity = 0.8;
+    
+    this._shockwaves.push({
+      mesh: ring,
+      life: 0,
+      maxLife: 0.5,
+      color: 0xff4400,
+      targetScale: 8
+    });
+  }
+  
+  /**
+   * Spawn dust trail particles behind the army
+   * @param {number} x - World X position
+   * @param {number} z - World Z position
+   */
+  dustTrail(x, z) {
+    const count = 1 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < count; i++) {
+      const idx = this._particlePool.pop();
+      if (idx === undefined) break;
+      
+      const p = this._particleData[idx];
+      p.active = true;
+      p.x = x + (Math.random() - 0.5) * 0.5;
+      p.y = 0.1 + Math.random() * 0.2;
+      p.z = z + (Math.random() - 0.5) * 0.3;
+      p.vx = (Math.random() - 0.5) * 0.5;
+      p.vy = 0.5 + Math.random() * 0.5;
+      p.vz = 1.0 + Math.random() * 0.5; // backward (positive z = behind)
+      p.life = 0.3;
+      p.maxLife = 0.3;
+      p.scale = 0.4 + Math.random() * 0.3;
+      p.color = 0xccbbaa;
+      
+      this._particles.push(idx);
+    }
   }
   
   /**
@@ -308,7 +390,8 @@ class EffectsManager {
       }
       
       // Expand and fade
-      const scale = 1 + t * 6;
+      const maxScale = sw.targetScale || 7;
+      const scale = 1 + t * (maxScale - 1);
       sw.mesh.scale.set(scale, scale, scale);
       sw.mesh.material.opacity = (1 - t) * 0.8;
     }
@@ -331,6 +414,24 @@ class EffectsManager {
       const scale = 1 - t * 0.5;
       mf.mesh.scale.set(scale, scale, scale);
       mf.mesh.material.opacity = 1 - t;
+    }
+    
+    // Update floating texts
+    for (let i = this._floatingTexts.length - 1; i >= 0; i--) {
+      const ft = this._floatingTexts[i];
+      ft.life += dt;
+      const t = ft.life / ft.maxLife;
+      
+      if (t >= 1) {
+        this.scene.remove(ft.sprite);
+        ft.sprite.material.map.dispose();
+        ft.sprite.material.dispose();
+        this._floatingTexts.splice(i, 1);
+        continue;
+      }
+      
+      ft.sprite.position.y += dt * 2;
+      ft.sprite.material.opacity = 1 - t;
     }
     
     // Update screen flash
@@ -384,5 +485,13 @@ class EffectsManager {
     
     // Clear screen flash
     this._screenFlashAlpha = 0;
+    
+    // Clear floating texts
+    for (const ft of this._floatingTexts) {
+      this.scene.remove(ft.sprite);
+      ft.sprite.material.map.dispose();
+      ft.sprite.material.dispose();
+    }
+    this._floatingTexts.length = 0;
   }
 }
