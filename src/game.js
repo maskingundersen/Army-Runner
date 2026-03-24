@@ -49,6 +49,9 @@ class ArmyRunnerGame {
     this.world.buildTrees();
     this.world.buildTorches();
     this.world.buildMountains();
+    this.world._buildWallPool();
+    this.world._buildBannerPool();
+    this.world._buildFogPatches();
 
     // Initialize systems
     this.camCtrl = new CameraController(this.camera);
@@ -349,6 +352,9 @@ class ArmyRunnerGame {
     this.world.updateTrees(this.cameraZ);
     this.world.updateTorches(this.cameraZ);
     this.world.updateParallax(this.cameraZ);
+    this.world._updateWalls(this.cameraZ);
+    this.world._updateBanners(this.clock.elapsedTime, this.cameraZ);
+    this.world._updateFog(this.clock.elapsedTime, this.cameraZ);
     this._updatePathObstacles();
 
     // 4b. Obstacle collision
