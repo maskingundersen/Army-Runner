@@ -460,6 +460,16 @@ class EffectsManager {
   }
   
   /**
+   * Trigger camera shake (delegates to CameraController)
+   * @param {number} intensity - Shake intensity
+   */
+  cameraShake(intensity) {
+    if (this.camCtrl && this.camCtrl.shake) {
+      this.camCtrl.shake(intensity);
+    }
+  }
+  
+  /**
    * Update all effects each frame
    * @param {number} dt - Delta time in seconds
    */

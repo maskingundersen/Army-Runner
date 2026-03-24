@@ -1208,8 +1208,7 @@ class EnemyManager {
       
       // Hit flash — two-phase: 0.05s ramp to white, 0.1s fade back
       if (enemy.hitFlash > 0) {
-        const total = 0.15;
-        const elapsed = total - enemy.hitFlash;
+        const elapsed = 0.15 - enemy.hitFlash;
         enemy.hitFlash -= dt;
         if (enemy.hitFlash < 0) enemy.hitFlash = 0;
         
