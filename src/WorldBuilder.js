@@ -18,8 +18,8 @@ class WorldBuilder {
     const ambient = new THREE.AmbientLight(0xb0c8e0, 0.9);
     this.scene.add(ambient);
 
-    // Directional sun light - stronger with better shadows
-    const sun = new THREE.DirectionalLight(0xfff5e0, 1.6);
+    // Directional moonlight - cool blue tone
+    const sun = new THREE.DirectionalLight(0x9999cc, 0.7);
     sun.position.set(8, 20, 10);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
@@ -33,6 +33,11 @@ class WorldBuilder {
     sun.shadow.normalBias = 0.02;
     this.scene.add(sun);
     this.sun = sun;
+
+    // Second dim warm DirectionalLight — torch glow on army from below-front
+    const torchFill = new THREE.DirectionalLight(0x664422, 0.3);
+    torchFill.position.set(0, -2, 8);
+    this.scene.add(torchFill);
 
     // Hemisphere light for natural sky/ground color bleeding
     const hemi = new THREE.HemisphereLight(0x87ceeb, 0x3a6a2a, 0.4);
@@ -48,10 +53,59 @@ class WorldBuilder {
   }
 
   setupSky() {
+    // Gradient sky dome: dark navy at top → dark purple-blue at horizon
+    const skyCanvas = document.createElement('canvas');
+    skyCanvas.width = 2;
+    skyCanvas.height = 256;
+    const skyCtx = skyCanvas.getContext('2d');
+    const skyGrad = skyCtx.createLinearGradient(0, 0, 0, 256);
+    skyGrad.addColorStop(0, '#0a1020');
+    skyGrad.addColorStop(1, '#1a1535');
+    skyCtx.fillStyle = skyGrad;
+    skyCtx.fillRect(0, 0, 2, 256);
+    const skyTex = new THREE.CanvasTexture(skyCanvas);
+
     const skyGeo = new THREE.SphereGeometry(500, 32, 16);
-    const skyMat = new THREE.MeshBasicMaterial({ color: 0x1a2a4a, side: THREE.BackSide });
+    const skyMat = new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide });
     this.skyDome = new THREE.Mesh(skyGeo, skyMat);
     this.scene.add(this.skyDome);
+
+    // Moon
+    const moonGeo = new THREE.SphereGeometry(3, 8, 8);
+    const moonMat = new THREE.MeshStandardMaterial({
+      color: 0xeeeedd,
+      emissive: 0xeeeedd,
+      emissiveIntensity: 0.6,
+    });
+    const moon = new THREE.Mesh(moonGeo, moonMat);
+    moon.position.set(-80, 120, -300);
+    this.scene.add(moon);
+
+    // Stars
+    const starCanvas = document.createElement('canvas');
+    starCanvas.width = 16;
+    starCanvas.height = 16;
+    const starCtx = starCanvas.getContext('2d');
+    const starGrad = starCtx.createRadialGradient(8, 8, 0, 8, 8, 8);
+    starGrad.addColorStop(0, 'rgba(255,255,255,1)');
+    starGrad.addColorStop(0.4, 'rgba(255,255,255,0.7)');
+    starGrad.addColorStop(1, 'rgba(255,255,255,0)');
+    starCtx.fillStyle = starGrad;
+    starCtx.fillRect(0, 0, 16, 16);
+    const starTex = new THREE.CanvasTexture(starCanvas);
+    const starMat = new THREE.SpriteMaterial({ map: starTex, transparent: true, depthWrite: false });
+
+    for (let i = 0; i < 20; i++) {
+      const star = new THREE.Sprite(starMat.clone());
+      star.position.set(
+        (Math.random() - 0.5) * 700,
+        80 + Math.random() * 250,
+        -100 - Math.random() * 350
+      );
+      const sz = 3 + Math.random() * 5;
+      star.scale.set(sz, sz, 1);
+      this.scene.add(star);
+    }
   }
 
   buildRoad() {
@@ -100,7 +154,7 @@ class WorldBuilder {
     this.roadMesh.receiveShadow = true;
     this.scene.add(this.roadMesh);
 
-    // Subtle road crack lines
+    // Subtle road crack lines (longitudinal)
     const crackMat = new THREE.MeshStandardMaterial({ color: 0x333344, roughness: 0.95, metalness: 0.0 });
     const crackOffsets = [-3.2, -0.8, 1.5, 4.1];
     for (let i = 0; i < crackOffsets.length; i++) {
@@ -108,6 +162,37 @@ class WorldBuilder {
       const crack = new THREE.Mesh(crackGeo, crackMat);
       crack.position.set(crackOffsets[i], 0.001, -120 + i * 70);
       this.scene.add(crack);
+    }
+
+    // Horizontal crack lines across road every ~8 units
+    const hCrackGeo = new THREE.BoxGeometry(20, 0.02, 0.08);
+    for (let i = 0; i < 50; i++) {
+      const hCrack = new THREE.Mesh(hCrackGeo, crackMat);
+      hCrack.position.set(0, 0.01, -320 + i * 8);
+      this.scene.add(hCrack);
+    }
+
+    // Road tile variation: every 3rd tile (tile = 8 units), darken by ~10%
+    const tileDarkMat = new THREE.MeshStandardMaterial({ color: 0x4a4a55, roughness: 0.92, metalness: 0.05 });
+    const tileVarGeo = new THREE.BoxGeometry(20, 0.005, 8);
+    for (let i = 0; i < 17; i++) {
+      const tile = new THREE.Mesh(tileVarGeo, tileDarkMat);
+      tile.position.set(0, 0.0, -320 + i * 24);
+      this.scene.add(tile);
+    }
+
+    // Puddle reflective patches on road (1–2 per segment, ~30 total)
+    const puddleMat = new THREE.MeshStandardMaterial({ color: 0x445566, metalness: 1.0, roughness: 0.1 });
+    const puddleGeo = new THREE.CircleGeometry(0.6, 8);
+    for (let i = 0; i < 30; i++) {
+      const puddle = new THREE.Mesh(puddleGeo, puddleMat);
+      puddle.rotation.x = -Math.PI / 2;
+      puddle.position.set(
+        (Math.random() - 0.5) * 16,
+        0.02,
+        -320 + Math.random() * 400
+      );
+      this.scene.add(puddle);
     }
 
     // Stone tile dividing dashes (center line)
@@ -338,6 +423,7 @@ class WorldBuilder {
   applyEnvPalette(segmentCycle) {
     const palette = ENV_PALETTES[segmentCycle % ENV_PALETTES.length];
     if (this.skyDome) {
+      // Tint the gradient texture with the palette sky color
       this.skyDome.material.color.setHex(palette.skyColor);
     }
     this.scene.background = new THREE.Color(palette.skyColor);
@@ -346,5 +432,210 @@ class WorldBuilder {
     this.scene.fog.far = palette.fogFar;
     this.groundMesh.material.color.setHex(palette.groundColor);
     this.roadMesh.material.color.setHex(palette.roadColor);
+  }
+
+  // ── Castle Wall Pool ──────────────────────────────────────────────────────
+
+  _buildWallPool() {
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x887766, roughness: 0.95, metalness: 0.0 });
+    const torchStickMat = new THREE.MeshStandardMaterial({ color: 0x5a3a20, roughness: 0.9, metalness: 0.0 });
+    const skullMat = new THREE.MeshStandardMaterial({ color: 0xddddcc, roughness: 0.9, metalness: 0.0 });
+    const shieldMat = new THREE.MeshStandardMaterial({ color: 0x663322, roughness: 0.9, metalness: 0.0 });
+
+    // Shared geometries to avoid duplication
+    const baseGeo = new THREE.BoxGeometry(4, 3, 0.8);
+    const merGeo = new THREE.BoxGeometry(0.8, 1.0, 0.8);
+    const skullGeo = new THREE.SphereGeometry(0.2, 5, 4);
+    const shieldGeo = new THREE.BoxGeometry(0.6, 0.8, 0.08);
+    const stickGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.8, 5);
+    const flameGeo = new THREE.SphereGeometry(0.12, 6, 4);
+    const flameMat = new THREE.MeshBasicMaterial({ color: 0xff8800 });
+
+    const numWalls = 8;
+    const spacing = 25;
+    this._wallData = [];
+
+    for (let i = 0; i < numWalls; i++) {
+      const side = i % 2 === 0 ? -1 : 1;
+      const x = side * 10;
+      const baseZ = i * spacing - numWalls * spacing * 0.5;
+      const hasTorch = (i % 2 === 0);
+
+      const group = new THREE.Group();
+
+      // Base wall
+      const baseMesh = new THREE.Mesh(baseGeo, wallMat);
+      baseMesh.position.set(0, 1.5, 0);
+      baseMesh.castShadow = true;
+      group.add(baseMesh);
+
+      // 3 merlons on top, evenly spaced along wall width
+      for (let m = 0; m < 3; m++) {
+        const mer = new THREE.Mesh(merGeo, wallMat);
+        mer.position.set(-1.2 + m * 1.2, 3.5, 0);
+        mer.castShadow = true;
+        group.add(mer);
+      }
+
+      // Optional torch every other section
+      if (hasTorch) {
+        const stick = new THREE.Mesh(stickGeo, torchStickMat);
+        stick.position.set(0, 4.4, 0.25);
+        group.add(stick);
+
+        const flame = new THREE.Mesh(flameGeo, flameMat);
+        flame.position.set(0, 4.85, 0.25);
+        group.add(flame);
+
+        const torchLight = new THREE.PointLight(0xff6600, 1.2, 7);
+        torchLight.position.set(0, 4.85, 0.25);
+        group.add(torchLight);
+      }
+
+      // Debris: 2–4 scattered objects near wall base
+      const numDebris = 2 + Math.floor(Math.random() * 3);
+      for (let d = 0; d < numDebris; d++) {
+        if (Math.random() > 0.5) {
+          // Skull
+          const skull = new THREE.Mesh(skullGeo, skullMat);
+          skull.scale.y = 0.8;
+          skull.position.set(
+            (Math.random() - 0.5) * 3,
+            0.16,
+            (Math.random() - 0.5) * 4
+          );
+          group.add(skull);
+        } else {
+          // Broken shield lying flat
+          const shield = new THREE.Mesh(shieldGeo, shieldMat);
+          shield.rotation.x = Math.PI / 2;
+          shield.rotation.z = Math.random() * Math.PI * 2;
+          shield.position.set(
+            (Math.random() - 0.5) * 3,
+            0.04,
+            (Math.random() - 0.5) * 4
+          );
+          group.add(shield);
+        }
+      }
+
+      group.position.set(x, 0, baseZ);
+      this.scene.add(group);
+      this._wallData.push({ group, x, baseZ });
+    }
+
+    this._wallWrapDist = numWalls * spacing;
+  }
+
+  _updateWalls(cameraZ) {
+    const wrapDist = this._wallWrapDist;
+    for (const wall of this._wallData) {
+      let visualZ = wall.baseZ - cameraZ;
+      while (visualZ > 15) visualZ -= wrapDist;
+      while (visualZ < -(wrapDist - 15)) visualZ += wrapDist;
+      wall.group.position.z = visualZ;
+    }
+  }
+
+  // ── Hanging Banner Pool ───────────────────────────────────────────────────
+
+  _buildBannerPool() {
+    const poleMat = new THREE.MeshStandardMaterial({ color: 0x5a3a20, roughness: 0.9, metalness: 0.0 });
+    const bannerMat = new THREE.MeshStandardMaterial({ color: 0xaa1111, roughness: 0.8, metalness: 0.0 });
+    const poleGeo = new THREE.CylinderGeometry(0.05, 0.05, 2.5, 6);
+    const bannerGeo = new THREE.BoxGeometry(1.2, 2.0, 0.05);
+
+    const numBanners = 6;
+    const spacing = 40;
+    this._bannerData = [];
+
+    for (let i = 0; i < numBanners; i++) {
+      const side = i % 2 === 0 ? -1 : 1;
+      const x = side * 10.5;
+      const baseZ = i * spacing - numBanners * spacing * 0.5;
+      const offset = (i / numBanners) * Math.PI * 2;
+
+      const group = new THREE.Group();
+
+      // Pole above banner
+      const pole = new THREE.Mesh(poleGeo, poleMat);
+      pole.position.set(0, 4.25, 0);
+      group.add(pole);
+
+      // Banner cloth
+      const bannerMesh = new THREE.Mesh(bannerGeo, bannerMat);
+      bannerMesh.position.set(0, 2.5, 0);
+      group.add(bannerMesh);
+
+      group.position.set(x, 0, baseZ);
+      this.scene.add(group);
+      this._bannerData.push({ group, x, baseZ, offset, bannerMesh });
+    }
+
+    this._bannerWrapDist = numBanners * spacing;
+  }
+
+  _updateBanners(time, cameraZ) {
+    const wrapDist = this._bannerWrapDist;
+    for (const b of this._bannerData) {
+      let visualZ = b.baseZ - cameraZ;
+      while (visualZ > 15) visualZ -= wrapDist;
+      while (visualZ < -(wrapDist - 15)) visualZ += wrapDist;
+      b.group.position.z = visualZ;
+      // Subtle sway
+      b.bannerMesh.rotation.z = Math.sin(time * 1.5 + b.offset) * 0.05;
+    }
+  }
+
+  // ── Ground Fog Patches ────────────────────────────────────────────────────
+
+  _buildFogPatches() {
+    // Radial gradient canvas texture
+    const fogCanvas = document.createElement('canvas');
+    fogCanvas.width = 128;
+    fogCanvas.height = 128;
+    const fogCtx = fogCanvas.getContext('2d');
+    const fogGrad = fogCtx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    fogGrad.addColorStop(0, 'rgba(255,255,255,1)');
+    fogGrad.addColorStop(1, 'rgba(255,255,255,0)');
+    fogCtx.fillStyle = fogGrad;
+    fogCtx.fillRect(0, 0, 128, 128);
+
+    const fogTex = new THREE.CanvasTexture(fogCanvas);
+    const fogMat = new THREE.SpriteMaterial({
+      map: fogTex,
+      transparent: true,
+      opacity: 0.12,
+      depthWrite: false,
+    });
+
+    const numFog = 12;
+    const wrapDist = 200;
+    this._fogData = [];
+
+    for (let i = 0; i < numFog; i++) {
+      const sprite = new THREE.Sprite(fogMat.clone());
+      sprite.scale.set(8, 2, 1);
+      const x = (Math.random() - 0.5) * 16;
+      const baseZ = (i / numFog) * wrapDist - 100;
+      const offset = (i / numFog) * Math.PI * 2;
+
+      sprite.position.set(x, 0.3, baseZ);
+      this.scene.add(sprite);
+      this._fogData.push({ sprite, x, baseZ, offset });
+    }
+
+    this._fogWrapDist = wrapDist;
+  }
+
+  _updateFog(time, cameraZ) {
+    const wrapDist = this._fogWrapDist;
+    for (const fog of this._fogData) {
+      let visualZ = fog.baseZ - cameraZ;
+      while (visualZ > 15) visualZ -= wrapDist;
+      while (visualZ < -(wrapDist - 15)) visualZ += wrapDist;
+      fog.sprite.position.x = fog.x + Math.sin(time * 0.3 + fog.offset);
+      fog.sprite.position.z = visualZ;
+    }
   }
 }
