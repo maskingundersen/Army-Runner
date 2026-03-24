@@ -10,53 +10,53 @@ class ArmyManager {
     const bodyGeo = new THREE.CylinderGeometry(0.22, 0.2, 0.85, 8);
     const bodyMat = new THREE.MeshStandardMaterial({ color: 0x8899aa, roughness: 0.3, metalness: 0.6 });
     this.bodyInst = new THREE.InstancedMesh(bodyGeo, bodyMat, this.MAX);
-    this.bodyInst.castShadow = true;
-    this.bodyInst.receiveShadow = true;
+    this.bodyInst.castShadow = false;
+    this.bodyInst.receiveShadow = false;
     this.scene.add(this.bodyInst);
     
     // Head - skin color (sphere, slightly smaller for helmet fit)
     const headGeo = new THREE.SphereGeometry(0.15, 10, 8);
     const headMat = new THREE.MeshStandardMaterial({ color: 0xe8b89a, roughness: 0.6, metalness: 0.0 });
     this.headInst = new THREE.InstancedMesh(headGeo, headMat, this.MAX);
-    this.headInst.castShadow = true;
+    this.headInst.castShadow = false;
     this.scene.add(this.headInst);
     
     // Helmet - dark steel medieval dome
     const helmetGeo = new THREE.SphereGeometry(0.21, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.6);
     const helmetMat = new THREE.MeshStandardMaterial({ color: 0x556677, roughness: 0.3, metalness: 0.5 });
     this.helmetInst = new THREE.InstancedMesh(helmetGeo, helmetMat, this.MAX);
-    this.helmetInst.castShadow = true;
+    this.helmetInst.castShadow = false;
     this.scene.add(this.helmetInst);
     
     // Helmet Cone - knight's helm point on top
     const helmetConeGeo = new THREE.ConeGeometry(0.08, 0.2, 8);
     const helmetConeMat = new THREE.MeshStandardMaterial({ color: 0x556677, roughness: 0.3, metalness: 0.5 });
     this.helmetConeInst = new THREE.InstancedMesh(helmetConeGeo, helmetConeMat, this.MAX);
-    this.helmetConeInst.castShadow = true;
+    this.helmetConeInst.castShadow = false;
     this.scene.add(this.helmetConeInst);
     
     // Left Arm - green (cylinder)
     const armGeo = new THREE.CylinderGeometry(0.07, 0.08, 0.5, 6);
     const armMat = new THREE.MeshStandardMaterial({ color: 0x4a7c45, roughness: 0.7, metalness: 0.1 });
     this.lArmInst = new THREE.InstancedMesh(armGeo, armMat, this.MAX);
-    this.lArmInst.castShadow = true;
+    this.lArmInst.castShadow = false;
     this.scene.add(this.lArmInst);
     
     // Right Arm - green
     this.rArmInst = new THREE.InstancedMesh(armGeo, armMat.clone(), this.MAX);
-    this.rArmInst.castShadow = true;
+    this.rArmInst.castShadow = false;
     this.scene.add(this.rArmInst);
     
     // Left Leg - dark pants (cylinder)
     const legGeo = new THREE.CylinderGeometry(0.08, 0.1, 0.5, 6);
     const legMat = new THREE.MeshStandardMaterial({ color: 0x2a3a5a, roughness: 0.8, metalness: 0.05 });
     this.lLegInst = new THREE.InstancedMesh(legGeo, legMat, this.MAX);
-    this.lLegInst.castShadow = true;
+    this.lLegInst.castShadow = false;
     this.scene.add(this.lLegInst);
     
     // Right Leg - dark pants
     this.rLegInst = new THREE.InstancedMesh(legGeo, legMat.clone(), this.MAX);
-    this.rLegInst.castShadow = true;
+    this.rLegInst.castShadow = false;
     this.scene.add(this.rLegInst);
     
     // Gun - dark metal (default handgun, cylinder barrel)
@@ -70,7 +70,7 @@ class ArmyManager {
     };
     const gunMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.3, metalness: 0.8 });
     this.gunInst = new THREE.InstancedMesh(this._weaponGeos.handgun, gunMat, this.MAX);
-    this.gunInst.castShadow = true;
+    this.gunInst.castShadow = false;
     this.scene.add(this.gunInst);
     this._currentWeaponType = 'handgun';
     
@@ -78,14 +78,14 @@ class ArmyManager {
     const shieldGeo = new THREE.BoxGeometry(0.25, 0.35, 0.06);
     const shieldMat = new THREE.MeshStandardMaterial({ color: 0xcc3322, roughness: 0.5, metalness: 0.15 });
     this.shieldInst = new THREE.InstancedMesh(shieldGeo, shieldMat, this.MAX);
-    this.shieldInst.castShadow = true;
+    this.shieldInst.castShadow = false;
     this.scene.add(this.shieldInst);
     
     // Cape - dark red cloth behind body
     const capeGeo = new THREE.BoxGeometry(0.3, 0.4, 0.03);
     const capeMat = new THREE.MeshStandardMaterial({ color: 0xaa2222, roughness: 0.8, metalness: 0.0 });
     this.capeInst = new THREE.InstancedMesh(capeGeo, capeMat, this.MAX);
-    this.capeInst.castShadow = true;
+    this.capeInst.castShadow = false;
     this.scene.add(this.capeInst);
     
     // Initialize all instances to scale(0,0,0)
@@ -153,6 +153,28 @@ class ArmyManager {
     this._tempM4c = new THREE.Matrix4();
     
     this._activeCount = 0;
+    
+    // Frame counter for animation throttling (march animation every 2nd frame)
+    this._frameCount = 0;
+    
+    // Track last soldier count for formation recalc optimization
+    this._lastFormationCount = -1;
+    
+    // Fake shadow ellipse beneath the army group
+    const shadowGeo = new THREE.CircleGeometry(2, 16);
+    const shadowMat = new THREE.MeshBasicMaterial({
+      color: 0x222222,
+      transparent: true,
+      opacity: 0.3,
+      depthWrite: false
+    });
+    this._fakeShadow = new THREE.Mesh(shadowGeo, shadowMat);
+    this._fakeShadow.rotation.x = -Math.PI / 2;
+    this._fakeShadow.position.y = 0.01;
+    this.scene.add(this._fakeShadow);
+    
+    // Max rendered soldiers (hard cap for draw calls)
+    this.MAX_RENDERED = 30;
     
     this._createCompanions();
   }
@@ -343,24 +365,29 @@ class ArmyManager {
   setCount(count, armyX) {
     count = Math.min(count, this.MAX);
     
+    // Hard cap rendered soldiers at 30 — pack tighter if more
+    const renderedCount = Math.min(count, this.MAX_RENDERED);
+    // If count > MAX_RENDERED, reduce spacing for denser look
+    const densityFactor = count > this.MAX_RENDERED ? this.MAX_RENDERED / count : 1;
+    
     // Flow formation: wider front, organic depth
     const width = this.formationWidth;
-    const spacing = ArmyManager.BASE_SPREAD;
+    const spacing = ArmyManager.BASE_SPREAD * densityFactor;
     // Max soldiers per row based on available width
     const maxCols = Math.max(2, Math.floor(width / spacing));
-    const cols = Math.min(maxCols, Math.ceil(Math.sqrt(count * 1.5)));
+    const cols = Math.min(maxCols, Math.ceil(Math.sqrt(renderedCount * 1.5)));
     
     // Activate/deactivate soldiers
     for (let i = 0; i < this.MAX; i++) {
       const soldier = this._soldiers[i];
       const wasActive = soldier.active;
-      soldier.active = i < count;
+      soldier.active = i < renderedCount;
       
       if (soldier.active) {
         // Flow formation: stagger rows, vary spacing
         const row = Math.floor(i / cols);
         const col = i % cols;
-        const rowWidth = Math.min(cols, count - row * cols);
+        const rowWidth = Math.min(cols, renderedCount - row * cols);
         const rowStagger = (row % 2) * ArmyManager.ROW_STAGGER;
         const xOff = (col - (rowWidth - 1) / 2) * spacing + rowStagger;
         const zOff = row * spacing * ArmyManager.DEPTH_COMPRESSION;
@@ -412,12 +439,19 @@ class ArmyManager {
    * @param {number} time - Total elapsed time
    */
   update(dt, armyX, time, upgrades) {
-    // Recalculate formation targets
+    this._frameCount++;
+    
+    // Only recalculate formation when soldier count changes
     const count = this._activeCount;
+    const renderedCount = Math.min(count, this.MAX_RENDERED);
+    const densityFactor = count > this.MAX_RENDERED ? this.MAX_RENDERED / count : 1;
     const width = this.formationWidth;
-    const spacing = ArmyManager.BASE_SPREAD;
+    const spacing = ArmyManager.BASE_SPREAD * densityFactor;
     const maxCols = Math.max(2, Math.floor(width / spacing));
-    const cols = Math.min(maxCols, Math.ceil(Math.sqrt(count * 1.5)));
+    const cols = Math.min(maxCols, Math.ceil(Math.sqrt(renderedCount * 1.5)));
+    
+    // Marching animation: only update every 2nd frame
+    const updateAnimation = (this._frameCount % 2 === 0);
     
     let activeIdx = 0;
     
@@ -449,7 +483,7 @@ class ArmyManager {
       // Update target position (flow formation with staggered rows)
       const row = Math.floor(activeIdx / cols);
       const col = activeIdx % cols;
-      const rowWidth = Math.min(cols, count - row * cols);
+      const rowWidth = Math.min(cols, renderedCount - row * cols);
       const rowStagger = (row % 2) * ArmyManager.ROW_STAGGER;
       const xOff = (col - (rowWidth - 1) / 2) * spacing + rowStagger;
       const zOff = row * spacing * ArmyManager.DEPTH_COMPRESSION;
@@ -468,8 +502,10 @@ class ArmyManager {
         if (soldier.spawnScale > 1) soldier.spawnScale = 1;
       }
       
-      // Walk animation phase
-      soldier.phase += dt * 5;
+      // Walk animation phase (throttled to every 2nd frame)
+      if (updateAnimation) {
+        soldier.phase += dt * 5 * 2; // Compensate for skipped frames
+      }
       
       activeIdx++;
     }
@@ -486,6 +522,13 @@ class ArmyManager {
     }
     
     this._markNeedsUpdate();
+    
+    // Update fake shadow position and scale based on army size
+    if (this._fakeShadow) {
+      this._fakeShadow.position.set(armyX, 0.01, 0);
+      const shadowScale = 1 + Math.min(renderedCount, 30) * 0.1;
+      this._fakeShadow.scale.set(shadowScale, shadowScale, 1);
+    }
     
     if (upgrades) {
       this.updateCompanions(dt, armyX, upgrades);

@@ -6,7 +6,7 @@ class EffectsManager {
     this.camCtrl = cameraController;
     
     // Particle system using InstancedMesh
-    this.MAX_PARTICLES = 600;
+    this.MAX_PARTICLES = 40;
     this._particles = [];
     this._particlePool = [];
     
@@ -229,6 +229,14 @@ class EffectsManager {
    * @param {number} count - Soldiers gained (positive) or lost (negative)
    */
   soldierCountText(x, count) {
+    // Limit to 3 floating texts — remove oldest if at cap
+    while (this._floatingTexts.length >= 3) {
+      const oldest = this._floatingTexts.shift();
+      this.scene.remove(oldest.sprite);
+      oldest.sprite.material.map.dispose();
+      oldest.sprite.material.dispose();
+    }
+    
     const canvas = document.createElement('canvas');
     canvas.width = 128;
     canvas.height = 64;
@@ -280,7 +288,7 @@ class EffectsManager {
    * @param {number} z - World Z position
    */
   dustTrail(x, z) {
-    const count = 1 + Math.floor(Math.random() * 2);
+    const count = 1;
     for (let i = 0; i < count; i++) {
       const idx = this._particlePool.pop();
       if (idx === undefined) break;

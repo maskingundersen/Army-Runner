@@ -19,14 +19,15 @@ class ArmyRunnerGame {
   constructor() {
     // THREE.js setup
     this.canvas = document.getElementById('game-canvas');
+    const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+    this.isMobile = isMobile;
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
-      antialias: true,
+      antialias: false,
       powerPreference: 'high-performance'
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.setPixelRatio(isMobile ? 1 : Math.min(window.devicePixelRatio, 1.5));
+    this.renderer.shadowMap.enabled = false;
 
     this.scene = new THREE.Scene();
 
@@ -43,7 +44,11 @@ class ArmyRunnerGame {
 
     // Background / sky
     this.scene.background = new THREE.Color(ENV_PALETTES[0].skyColor);
-    this.scene.fog = new THREE.Fog(ENV_PALETTES[0].skyColor, ENV_PALETTES[0].fogNear, ENV_PALETTES[0].fogFar);
+    if (isMobile) {
+      this.scene.fog = new THREE.Fog(ENV_PALETTES[0].skyColor, 20, 60);
+    } else {
+      this.scene.fog = new THREE.Fog(ENV_PALETTES[0].skyColor, ENV_PALETTES[0].fogNear, ENV_PALETTES[0].fogFar);
+    }
 
     this.world.buildRoad();
     this.world.buildTrees();
@@ -235,8 +240,8 @@ class ArmyRunnerGame {
     const wallMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.6, metalness: 0.2 });
 
     const wall = new THREE.Mesh(wallGeo, wallMat);
-    wall.castShadow = true;
-    wall.receiveShadow = true;
+    wall.castShadow = false;
+    wall.receiveShadow = false;
     this.scene.add(wall);
     this._pathObstacles.push({ mesh: wall, worldZ: worldZ, localY: wallHeight / 2, localZ: wallLength / 2 - 10, localX: 0 });
 
@@ -247,7 +252,7 @@ class ArmyRunnerGame {
       const lz = 5 + i * 4.5 + (Math.random() - 0.5) * 1.5;
       const lx = (Math.random() - 0.5) * 0.4;
       rock.rotation.y = Math.random() * 0.5;
-      rock.castShadow = true;
+      rock.castShadow = false;
       this.scene.add(rock);
       this._pathObstacles.push({ mesh: rock, worldZ: worldZ, localY: 0.6, localZ: lz, localX: lx });
     }
@@ -259,7 +264,7 @@ class ArmyRunnerGame {
         const barrier = new THREE.Mesh(barrierGeo, barrierMat);
         const lz = 6 + i * 5;
         const lx = 3.2 + Math.random() * 0.5;
-        barrier.castShadow = true;
+        barrier.castShadow = false;
         this.scene.add(barrier);
         this._pathObstacles.push({ mesh: barrier, worldZ: worldZ, localY: 1.0, localZ: lz, localX: lx });
       }
@@ -472,7 +477,8 @@ class ArmyRunnerGame {
 
     // 9b. Continuous enemy pressure
     this._continuousSpawnTimer += dt;
-    if (this._continuousSpawnTimer >= this._continuousSpawnInterval) {
+    const maxActiveEnemies = this.isMobile ? 8 : Infinity;
+    if (this._continuousSpawnTimer >= this._continuousSpawnInterval && this.enemyMgr.enemies.length < maxActiveEnemies) {
       this._continuousSpawnTimer = 0;
       this._continuousSpawnInterval = Math.max(1.2, 2.0 - Math.min(this.segmentCycle, 7) * 0.1);
       const spawnTypes = ['zombie', 'fast', 'zombie', 'fast', 'exploding'];

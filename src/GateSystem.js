@@ -29,12 +29,22 @@ class GateSystem {
     rightGateGroup.position.x = gateWidth / 2 + gateSpacing / 2;
     group.add(rightGateGroup);
 
+    // Single shared PointLight per gate pair (centered between gates)
+    const sharedLightColor = leftData.good ? 0x00ff44 : 0xff2222;
+    const sharedLight = new THREE.PointLight(sharedLightColor, 1.2, 12);
+    sharedLight.position.set(0, 4, 0);
+    sharedLight.castShadow = false;
+    group.add(sharedLight);
+    // Store on both gate groups for animation compatibility
+    leftGateGroup.userData.pointLight = sharedLight;
+    rightGateGroup.userData.pointLight = sharedLight;
+
     // Center divider pillar
     const dividerGeo = new THREE.BoxGeometry(0.3, 8, 0.3);
     const dividerMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5, metalness: 0.3 });
     const divider = new THREE.Mesh(dividerGeo, dividerMat);
     divider.position.y = 4;
-    divider.castShadow = true;
+    divider.castShadow = false;
     group.add(divider);
 
     group.position.z = worldZ;
@@ -80,20 +90,20 @@ class GateSystem {
     const pillarGeo = new THREE.CylinderGeometry(0.4, 0.4, pillarHeight, 12);
     const leftPillar = new THREE.Mesh(pillarGeo, archMat.clone());
     leftPillar.position.set(-gateWidth / 2, pillarHeight / 2, 0);
-    leftPillar.castShadow = true;
+    leftPillar.castShadow = false;
     group.add(leftPillar);
 
     // Right pillar — cylinder
     const rightPillar = new THREE.Mesh(pillarGeo, archMat.clone());
     rightPillar.position.set(gateWidth / 2, pillarHeight / 2, 0);
-    rightPillar.castShadow = true;
+    rightPillar.castShadow = false;
     group.add(rightPillar);
 
     // Crossbar on top
     const crossbarGeo = new THREE.BoxGeometry(gateWidth, 0.6, 0.6);
     const crossbar = new THREE.Mesh(crossbarGeo, archMat.clone());
     crossbar.position.set(0, pillarHeight, 0);
-    crossbar.castShadow = true;
+    crossbar.castShadow = false;
     group.add(crossbar);
 
     // Collect emissive material refs for pulse animation
@@ -103,10 +113,7 @@ class GateSystem {
       crossbar.material
     ];
 
-    // Point light inside the gate
-    const pointLight = new THREE.PointLight(emissiveColor, 2, 12);
-    pointLight.position.set(0, 4, 0);
-    group.add(pointLight);
+    // No individual PointLight — shared light is created in createGate()
 
     // Label billboard sprite
     const textSprite = this._createTextSprite(labelText, isGood);
@@ -114,13 +121,13 @@ class GateSystem {
     textSprite.scale.set(4, 1.5, 1);
     group.add(textSprite);
 
-    // Store references for animation
+    // Store references for animation (pointLight will be set by createGate)
     group.userData = {
       leftPillar,
       rightPillar,
       crossbar,
       emissiveMaterials,
-      pointLight,
+      pointLight: null,
       textSprite,
       isGood
     };

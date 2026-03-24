@@ -15,7 +15,7 @@ class BarrelSystem {
     const mat = new THREE.MeshStandardMaterial({ color: barrelColor, roughness: 0.5, metalness: 0.3 });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.y = 0.6;
-    mesh.castShadow = true;
+    mesh.castShadow = false;
     const xPos = (Math.random() - 0.5) * (ArmyManager.ROAD_HALF * 2 - 4);
     mesh.position.x = xPos;
 
