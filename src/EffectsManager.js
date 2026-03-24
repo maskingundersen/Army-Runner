@@ -99,6 +99,23 @@ class EffectsManager {
     // Floating text sprites
     this._floatingTexts = [];
     
+    // Dust trail particle pool (dedicated meshes, capped at 25)
+    this._dustPool = [];
+    this._activeDust = [];
+    const dustGeo = new THREE.SphereGeometry(0.12, 4, 4);
+    const dustMat = new THREE.MeshBasicMaterial({ color: 0xccbbaa, transparent: true, opacity: 0.5 });
+    for (let i = 0; i < 25; i++) {
+      const mesh = new THREE.Mesh(dustGeo, dustMat.clone());
+      mesh.visible = false;
+      this.scene.add(mesh);
+      this._dustPool.push(mesh);
+    }
+    this.marchDust = false;
+    
+    // Gate approach ambient light
+    this._gateAmbientLight = new THREE.AmbientLight(0x00ff44, 0);
+    this.scene.add(this._gateAmbientLight);
+    
     // Temp objects for calculations
     this._tempMatrix = new THREE.Matrix4();
     this._tempColor = new THREE.Color();
@@ -256,7 +273,51 @@ class EffectsManager {
     sprite.scale.set(2, 1, 1);
     this.scene.add(sprite);
 
-    this._floatingTexts.push({ sprite, life: 0, maxLife: 1.0, texture });
+    this._floatingTexts.push({ sprite, life: 0, maxLife: 1.0, texture, speed: 2 });
+  }
+  
+  /**
+   * Spawn floating count number above the army (e.g. "+20" or "-5")
+   * White text with colored stroke
+   * @param {number} value - Soldiers gained (positive) or lost (negative)
+   * @param {number} armyX - Army X position
+   * @param {number} armyZ - Army Z position
+   */
+  spawnCountNumber(value, armyX, armyZ) {
+    // Cap at MAX_FLOATING_TEXTS — evict oldest if over limit
+    if (this._floatingTexts.length >= this.MAX_FLOATING_TEXTS) {
+      const oldest = this._floatingTexts.shift();
+      this.scene.remove(oldest.sprite);
+      oldest.texture.dispose();
+      oldest.sprite.material.dispose();
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, 128, 64);
+    
+    const text = (value > 0 ? '+' : '') + value;
+    const strokeColor = value > 0 ? '#00ff44' : '#ff2222';
+    
+    ctx.font = 'bold 48px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = 4;
+    ctx.strokeText(text, 64, 32);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(text, 64, 32);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    const mat = new THREE.SpriteMaterial({ map: texture, transparent: true, opacity: 1.0 });
+    const sprite = new THREE.Sprite(mat);
+    sprite.position.set(armyX, 4.5, armyZ - 2);
+    sprite.scale.set(2, 1, 1);
+    this.scene.add(sprite);
+    
+    this._floatingTexts.push({ sprite, life: 0, maxLife: 1.2, texture, speed: 1.5 });
   }
   
   /**
@@ -306,6 +367,110 @@ class EffectsManager {
     p.color = 0xccbbaa;
 
     this._particles.push(idx);
+  }
+  
+  /**
+   * Spawn an expanding shockwave ring on the ground
+   * @param {number} x - World X position
+   * @param {number} z - World Z position
+   * @param {number} color - Hex color (default 0xff6600)
+   */
+  spawnShockwave(x, z, color) {
+    const ring = this._shockwavePool.pop();
+    if (!ring) return;
+    
+    ring.visible = true;
+    ring.position.set(x, 0.05, z);
+    ring.scale.set(1, 1, 1);
+    ring.material.color.setHex(color || 0xff6600);
+    ring.material.opacity = 0.7;
+    
+    this._shockwaves.push({
+      mesh: ring,
+      life: 0,
+      maxLife: 0.6,
+      color: color || 0xff6600,
+      targetScale: 8
+    });
+  }
+  
+  /**
+   * Update gate approach ambient light
+   * @param {number} distance - Distance to nearest gate
+   * @param {number} gateColor - Hex color of the nearest gate
+   */
+  updateGateAmbient(distance, gateColor) {
+    if (distance <= 20) {
+      this._gateAmbientLight.color.setHex(gateColor);
+      this._gateAmbientLight.intensity = 0.15 * Math.max(0, 1 - distance / 20);
+    } else {
+      this._gateAmbientLight.intensity = Math.max(0, this._gateAmbientLight.intensity - 0.05);
+    }
+  }
+  
+  /**
+   * Update persistent dust trail system each frame while army is marching
+   * @param {number} dt - Delta time
+   * @param {number} armyX - Army X position
+   * @param {number} armyZ - Army Z position
+   * @param {number} formationWidth - Width of army formation
+   * @param {number} formationDepth - Depth of army formation
+   */
+  updateDustTrail(dt, armyX, armyZ, formationWidth, formationDepth) {
+    // Only emit when marchDust is enabled
+    if (this.marchDust) {
+      // Spawn 2-3 new particles per frame
+      const spawnCount = 2 + Math.floor(Math.random() * 2);
+      for (let i = 0; i < spawnCount; i++) {
+        if (this._dustPool.length === 0) break;
+        const mesh = this._dustPool.pop();
+        mesh.visible = true;
+        mesh.position.set(
+          armyX + (Math.random() - 0.5) * formationWidth,
+          0.1,
+          armyZ + (Math.random() - 0.5) * formationDepth
+        );
+        mesh.scale.set(1, 1, 1);
+        mesh.material.opacity = 0.5;
+        this._activeDust.push({
+          mesh,
+          vx: (Math.random() - 0.5) * 0.3,
+          vy: Math.random() * 0.15 + 0.05,
+          vz: 0.4 + Math.random() * 0.3,
+          life: 0,
+          maxLife: 0.8
+        });
+      }
+    }
+    
+    // Always update active dust particles (even if not spawning new ones)
+    for (let i = this._activeDust.length - 1; i >= 0; i--) {
+      const d = this._activeDust[i];
+      d.life += dt;
+      if (d.life >= d.maxLife) {
+        d.mesh.visible = false;
+        this._dustPool.push(d.mesh);
+        this._activeDust.splice(i, 1);
+        continue;
+      }
+      const t = d.life / d.maxLife;
+      d.mesh.position.x += d.vx * dt;
+      d.mesh.position.y += d.vy * dt;
+      d.mesh.position.z += d.vz * dt;
+      d.mesh.material.opacity = 0.5 * (1 - t);
+      const s = 1 + 0.8 * t; // scale 1 → 1.8
+      d.mesh.scale.set(s, s, s);
+    }
+  }
+  
+  /**
+   * Trigger camera shake (delegates to CameraController)
+   * @param {number} intensity - Shake intensity
+   */
+  cameraShake(intensity) {
+    if (this.camCtrl && this.camCtrl.shake) {
+      this.camCtrl.shake(intensity);
+    }
   }
   
   /**
@@ -436,7 +601,7 @@ class EffectsManager {
         continue;
       }
       
-      ft.sprite.position.y += dt * 2;
+      ft.sprite.position.y += dt * (ft.speed || 2);
       ft.sprite.material.opacity = 1 - t;
     }
     
@@ -499,5 +664,16 @@ class EffectsManager {
       ft.sprite.material.dispose();
     }
     this._floatingTexts.length = 0;
+    
+    // Clear dust particles
+    for (const d of this._activeDust) {
+      d.mesh.visible = false;
+      this._dustPool.push(d.mesh);
+    }
+    this._activeDust.length = 0;
+    this.marchDust = false;
+    
+    // Reset gate ambient light
+    this._gateAmbientLight.intensity = 0;
   }
 }

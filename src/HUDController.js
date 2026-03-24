@@ -159,4 +159,20 @@ class HUDController {
       g._cycleMsg.style.opacity = '0';
     }, 500);
   }
+
+  /**
+   * Update gate approach indicator arrow
+   * @param {number} nearestGateDistance - Distance to nearest gate in world units
+   * @param {boolean} gateIsPositive - Whether the nearest approachable gate side is positive
+   */
+  updateGateArrow(nearestGateDistance, gateIsPositive) {
+    const el = document.getElementById('gate-arrow');
+    if (!el) return;
+    if (nearestGateDistance <= 40) {
+      el.style.display = '';
+      el.style.color = gateIsPositive ? '#00ff44' : '#ff2222';
+    } else {
+      el.style.display = 'none';
+    }
+  }
 }
