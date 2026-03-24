@@ -101,7 +101,7 @@ class BarrelSystem {
       const dx = Math.abs(bx - barrel.xPos);
       const dz = Math.abs(bz - visualZ);
 
-      if (dx < 1.0 && dz < 1.0 && by < 2.0) {
+      if (dx < 1.0 && dz < 1.0 && by < 2.5) {
         barrel.hp--;
         barrel.hitFlash = 1.0;
 

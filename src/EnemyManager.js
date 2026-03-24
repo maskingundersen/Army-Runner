@@ -1389,9 +1389,9 @@ class EnemyManager {
       const hitW = (def.size.body[0] / 2 + 0.3) * scale;
       const hitD = (def.size.body[2] / 2 + 0.4) * scale;
       
-      if (dx < hitW && dz < hitD && by > 0 && by < 2.5 * scale) {
+      if (dx < hitW && dz < hitD && by > 0 && by < 2.5 * Math.max(1, scale)) {
         // Jumping enemies: bullets miss during jump (check bullet Y vs enemy total Y position)
-        if (def.jumps && enemy.jumpY > 1.0 && by < (enemy.jumpY + 2.5 * scale)) {
+        if (def.jumps && enemy.jumpY > 1.0 && by < (enemy.jumpY + 2.5 * Math.max(1, scale))) {
           continue;
         }
         return enemy;
