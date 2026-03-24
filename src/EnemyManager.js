@@ -68,7 +68,7 @@ const ENEMY_DEFS_3D = {
     hp: 40,
     maxHp: 40,
     scale: 1.4,
-    color: 0x444444,     // dark grey
+    color: 0x445544,     // dark grey-green
     hitColor: 0xffffff,
     coinValue: 3,
     size: { body: [0.9, 1.2, 0.5], head: [0.55, 0.5, 0.5] },
@@ -90,7 +90,7 @@ const ENEMY_DEFS_3D = {
     hp: 600,
     maxHp: 600,
     scale: 4.5,
-    color: 0x556655,     // stone grey
+    color: 0x888888,     // stone grey
     hitColor: 0xffffff,
     coinValue: 25,
     size: { body: [1.5, 2.2, 0.8], head: [1.0, 1.0, 1.0] },
@@ -135,7 +135,7 @@ const ENEMY_DEFS_3D = {
     hp: 15,
     maxHp: 15,
     scale: 1.1,
-    color: 0xcc8800,
+    color: 0xff4400,
     hitColor: 0xffffff,
     coinValue: 2,
     size: { body: [0.65, 0.9, 0.35], head: [0.42, 0.42, 0.42] },
@@ -288,17 +288,30 @@ class EnemyManager {
     const group = new THREE.Group();
     const s = def.size;
 
-    // Body — rounded cylinder torso
+    // Body — type-aware geometry
     const bodyRadX = s.body[0] / 2;
     const bodyRadZ = s.body[2] / 2;
     const bodyRad = (bodyRadX + bodyRadZ) / 2;
-    const bodyGeo = new THREE.CylinderGeometry(bodyRad * 0.85, bodyRad, s.body[1], 12);
-    const bodyMat = new THREE.MeshStandardMaterial({
-      color: def.color, roughness: 0.7, metalness: 0.15
-    });
+    let bodyGeo, bodyMat;
+    if (type === 'exploding') {
+      bodyGeo = new THREE.SphereGeometry(0.7, 14, 12);
+      bodyMat = new THREE.MeshStandardMaterial({
+        color: def.color, roughness: 0.3, metalness: 0.2,
+        emissive: 0xff4400, emissiveIntensity: 0.4
+      });
+    } else {
+      bodyGeo = new THREE.CylinderGeometry(bodyRad * 0.85, bodyRad, s.body[1], 12);
+      bodyMat = new THREE.MeshStandardMaterial({
+        color: def.color, roughness: 0.7, metalness: 0.15
+      });
+    }
     const body = new THREE.Mesh(bodyGeo, bodyMat);
     body.position.y = s.body[1] / 2 + 0.3;
     body.castShadow = true;
+    if (type === 'tank') {
+      body.scale.x = 1.8;
+      body.scale.y = 1.3;
+    }
     group.add(body);
 
     // Head — sphere
@@ -366,7 +379,7 @@ class EnemyManager {
     group.add(rEye);
 
     // --- Type-specific visual features ---
-    this._addTypeFeatures(type, def, group, body, head);
+    this._addTypeFeatures(type, def, group, body, head, lArm, rArm, lLeg, rLeg);
 
     // --- HP bar (always-face-camera sprite) ---
     const hpBar = this._createHPBar(def);
@@ -374,7 +387,7 @@ class EnemyManager {
     hpBar.position.set(0, hpBarY, 0);
     group.add(hpBar);
 
-    return {
+    const enemy = {
       type,
       def,
       group,
@@ -406,12 +419,20 @@ class EnemyManager {
       bossChargeSpeed: 0,
       bossEnraged: false
     };
+
+    // Copy special animation references stored during _addTypeFeatures
+    if (group._explodingBody) enemy._explodingBody = group._explodingBody;
+    if (group._fireParticles) enemy._fireParticles = group._fireParticles;
+    if (group._giantLArm) enemy._giantLArm = group._giantLArm;
+    if (group._giantRArm) enemy._giantRArm = group._giantRArm;
+
+    return enemy;
   }
   
   /**
    * Add type-specific visual features for distinct silhouettes
    */
-  _addTypeFeatures(type, def, group, body, head) {
+  _addTypeFeatures(type, def, group, body, head, lArm, rArm, lLeg, rLeg) {
     const s = def.size;
     const bY = body.position.y;
     const hY = head.position.y;
@@ -424,20 +445,25 @@ class EnemyManager {
       case 'zombie': {
         // Hunched posture
         body.rotation.x = 0.15;
+        body.scale.y = 0.85;
         head.position.z = headRad * 0.3;
 
         // Asymmetric head (squished)
         head.scale.set(1.1, 0.85, 0.95);
 
-        // Bone protrusions
+        // Arms forward and downward at ~45°
+        lArm.rotation.x = -0.8;
+        rArm.rotation.x = -0.8;
+
+        // Bone protrusions (simplified)
         const boneMat = new THREE.MeshStandardMaterial({ color: 0xe8dcc8, roughness: 0.5, metalness: 0.05 });
-        for (let i = 0; i < 3; i++) {
-          const boneGeo = new THREE.ConeGeometry(0.04 * (1 + i * 0.2), 0.18 + i * 0.06, 5);
+        for (let i = 0; i < 2; i++) {
+          const boneGeo = new THREE.ConeGeometry(0.04 * (1 + i * 0.3), 0.2 + i * 0.08, 5);
           const bone = new THREE.Mesh(boneGeo, boneMat);
-          const angle = (i / 3) * Math.PI * 1.5 - 0.5;
+          const angle = (i / 2) * Math.PI * 1.5 - 0.5;
           bone.position.set(
             Math.cos(angle) * bodyRad * 0.9,
-            bY + (i - 1) * s.body[1] * 0.2,
+            bY + (i - 0.5) * s.body[1] * 0.2,
             Math.sin(angle) * bodyRad * 0.9
           );
           bone.rotation.z = Math.cos(angle) * 0.6;
@@ -445,9 +471,9 @@ class EnemyManager {
           group.add(bone);
         }
 
-        // Torn flesh patches
+        // Torn flesh patches (simplified)
         const fleshMat = new THREE.MeshStandardMaterial({ color: 0x3a5a2a, roughness: 0.9, metalness: 0.0 });
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < 2; i++) {
           const pw = 0.08 + Math.random() * 0.1;
           const patchGeo = new THREE.BoxGeometry(pw, pw, 0.02);
           const patch = new THREE.Mesh(patchGeo, fleshMat);
@@ -473,6 +499,9 @@ class EnemyManager {
         // Lean forward tilt
         body.rotation.x = 0.2;
         head.position.z = headRad * 0.4;
+
+        // Smaller head
+        head.scale.set(0.8, 0.8, 0.8);
 
         // Arms trail back
         group.children.forEach(c => {
@@ -509,8 +538,28 @@ class EnemyManager {
       }
 
       case 'tank': {
-        // Double body width
-        body.scale.x = 2.0;
+        // Wide and tall body
+        body.scale.x = 1.8;
+        body.scale.y = 1.3;
+
+        // Heavy brow ridge over eyes
+        const browGeoT = new THREE.BoxGeometry(headRad * 1.8, headRad * 0.2, headRad * 0.35);
+        const browMatT = new THREE.MeshStandardMaterial({ color: 0x3a4a3a, roughness: 0.8, metalness: 0.1 });
+        const browT = new THREE.Mesh(browGeoT, browMatT);
+        browT.position.set(0, hY + headRad * 0.45, headRad * 0.6);
+        group.add(browT);
+
+        // Thick box arms replacing cylinder arms
+        const boxArmW = s.body[0] * 0.2;
+        const boxArmH = s.body[1] * 0.6;
+        const boxArmGeo = new THREE.BoxGeometry(boxArmW, boxArmH, boxArmW);
+        const boxArmMat = new THREE.MeshStandardMaterial({ color: def.color, roughness: 0.7, metalness: 0.15 });
+        lArm.geometry.dispose();
+        lArm.geometry = boxArmGeo;
+        lArm.material = boxArmMat;
+        rArm.geometry.dispose();
+        rArm.geometry = boxArmGeo;
+        rArm.material = boxArmMat.clone();
 
         const armorCol = 0x665533;
         const armorMat = new THREE.MeshStandardMaterial({ color: armorCol, roughness: 0.4, metalness: 0.5 });
@@ -553,11 +602,21 @@ class EnemyManager {
       }
 
       case 'exploding': {
-        // Glowing body material
+        // Glowing body material (body already uses SphereGeometry from _createEnemy)
         body.material = new THREE.MeshStandardMaterial({
           color: 0xff6600, roughness: 0.3, metalness: 0.2,
-          emissive: 0xff4400, emissiveIntensity: 0.6
+          emissive: 0xff4400, emissiveIntensity: 0.4
         });
+
+        // Store body reference for pulsing animation
+        group._explodingBody = body;
+
+        // Stubby legs (shorter)
+        const stubbyScale = 0.6;
+        lLeg.scale.y = stubbyScale;
+        rLeg.scale.y = stubbyScale;
+        lLeg.position.y *= stubbyScale;
+        rLeg.position.y *= stubbyScale;
 
         // Fuse on top
         const fuseGeo = new THREE.CylinderGeometry(0.025, 0.025, headRad * 1.5, 6);
@@ -667,6 +726,14 @@ class EnemyManager {
       }
 
       case 'fireDragon': {
+        // Neck extension forward
+        const neckGeo = new THREE.CylinderGeometry(headRad * 0.4, headRad * 0.55, headRad * 1.2, 8);
+        const neckMat = new THREE.MeshStandardMaterial({ color: 0xcc3300, roughness: 0.6, metalness: 0.15 });
+        const neck = new THREE.Mesh(neckGeo, neckMat);
+        neck.position.set(0, hY - headRad * 0.5, headRad * 0.6);
+        neck.rotation.x = Math.PI / 2.5;
+        group.add(neck);
+
         // Long snout extending from head
         const snoutGeo = new THREE.ConeGeometry(headRad * 0.35, headRad * 1.4, 6);
         const snoutMat = new THREE.MeshStandardMaterial({ color: 0xcc3300, roughness: 0.6, metalness: 0.15 });
@@ -734,6 +801,23 @@ class EnemyManager {
         const belly = new THREE.Mesh(bellyGeo, bellyMat);
         belly.position.set(0, bY - s.body[1] * 0.2, bodyRad * 0.2);
         group.add(belly);
+
+        // Fire particles for orbit animation
+        const fireParticles = [];
+        const firePartMat = new THREE.MeshBasicMaterial({ color: 0xff8800 });
+        for (let i = 0; i < 10; i++) {
+          const fpGeo = new THREE.SphereGeometry(0.06, 6, 6);
+          const fp = new THREE.Mesh(fpGeo, firePartMat.clone());
+          const angle = (i / 10) * Math.PI * 2;
+          fp.position.set(
+            Math.cos(angle) * headRad * 0.8,
+            hY + Math.sin(angle) * headRad * 0.5,
+            headRad * 1.2
+          );
+          group.add(fp);
+          fireParticles.push(fp);
+        }
+        group._fireParticles = fireParticles;
         break;
       }
 
@@ -774,6 +858,21 @@ class EnemyManager {
           group.add(rock);
         }
 
+        // Cracked texture: dark lines across body
+        const crackLineMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9, metalness: 0.0 });
+        const crackLines = [
+          { w: s.body[0] * 0.6, h: 0.02, oY: s.body[1] * 0.15 },
+          { w: s.body[0] * 0.5, h: 0.02, oY: -s.body[1] * 0.05 },
+          { w: s.body[0] * 0.4, h: 0.02, oY: -s.body[1] * 0.2 },
+          { w: s.body[0] * 0.35, h: 0.02, oY: s.body[1] * 0.3 },
+        ];
+        crackLines.forEach(({ w, h, oY }) => {
+          const clGeo = new THREE.BoxGeometry(w, h, 0.03);
+          const cl = new THREE.Mesh(clGeo, crackLineMat);
+          cl.position.set(0, bY + oY, bodyRad + 0.02);
+          group.add(cl);
+        });
+
         // Glowing rune lines on chest
         const runeMat = new THREE.MeshBasicMaterial({ color: 0x66ffff });
         const runePatterns = [
@@ -789,7 +888,7 @@ class EnemyManager {
         });
 
         // Massive fists (oversized spheres on arm ends)
-        const fistMat = new THREE.MeshStandardMaterial({ color: 0x556655, roughness: 0.8, metalness: 0.15 });
+        const fistMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.8, metalness: 0.15 });
         const fistRad = s.body[0] * 0.22;
         const fistGeo = new THREE.SphereGeometry(fistRad, 10, 8);
         for (let side = -1; side <= 1; side += 2) {
@@ -797,16 +896,18 @@ class EnemyManager {
           fist.position.set(side * armXOffset, bY - s.body[1] * 0.6 * 0.45, 0);
           group.add(fist);
         }
+
+        // Store arm references for slow arm-swing animation
+        group._giantLArm = lArm;
+        group._giantRArm = rArm;
         break;
       }
 
       case 'shield': {
-        // Large front-covering shield (thick box)
-        const shieldW = Math.max(s.body[0], s.body[1]) * 1.2;
-        const shieldH = s.body[1] * 1.1;
-        const shieldGeo = new THREE.BoxGeometry(shieldW, shieldH, 0.12);
+        // Large front-covering shield
+        const shieldGeo = new THREE.BoxGeometry(0.8, 1.1, 0.1);
         const shieldMat = new THREE.MeshStandardMaterial({
-          color: 0x5588cc, roughness: 0.25, metalness: 0.7,
+          color: 0x8888cc, roughness: 0.25, metalness: 0.7,
           transparent: true, opacity: 0.9
         });
         const shieldMesh = new THREE.Mesh(shieldGeo, shieldMat);
@@ -815,7 +916,7 @@ class EnemyManager {
         group.add(shieldMesh);
 
         // Shield boss/emblem in center
-        const bossGeo = new THREE.SphereGeometry(shieldRad * 0.25, 8, 8);
+        const bossGeo = new THREE.SphereGeometry(0.8 * 0.25, 8, 8);
         const bossMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.15, metalness: 0.85 });
         const bossMesh = new THREE.Mesh(bossGeo, bossMat);
         bossMesh.position.set(0, bY, bodyRad + 0.16);
@@ -926,24 +1027,20 @@ class EnemyManager {
       }
 
       case 'charger': {
-        // Central horn/spike pointing forward
-        const centralHornGeo = new THREE.ConeGeometry(headRad * 0.22, headRad * 2.0, 6);
-        const centralHornMat = new THREE.MeshStandardMaterial({ color: 0xeeddaa, roughness: 0.3, metalness: 0.3 });
-        const centralHorn = new THREE.Mesh(centralHornGeo, centralHornMat);
-        centralHorn.position.set(0, hY + headRad * 0.1, headRad * 1.2);
-        centralHorn.rotation.x = Math.PI / 2;
-        group.add(centralHorn);
+        // Body tilted 30° forward
+        body.rotation.x = 0.52;
 
-        // Large forward-facing horns
-        const hornMat = new THREE.MeshStandardMaterial({ color: 0xeeddaa, roughness: 0.3, metalness: 0.3 });
-        for (let side = -1; side <= 1; side += 2) {
-          const hornGeo = new THREE.ConeGeometry(headRad * 0.18, headRad * 1.5, 6);
-          const horn = new THREE.Mesh(hornGeo, hornMat);
-          horn.position.set(side * headRad * 0.5, hY + headRad * 0.3, headRad * 0.7);
-          horn.rotation.x = Math.PI / 2;
-          horn.rotation.z = side * -0.15;
-          group.add(horn);
-        }
+        // Single horn pointing forward
+        const singleHornGeo = new THREE.ConeGeometry(0.12, 0.4, 5);
+        const singleHornMat = new THREE.MeshStandardMaterial({ color: 0xeeddaa, roughness: 0.3, metalness: 0.3 });
+        const singleHorn = new THREE.Mesh(singleHornGeo, singleHornMat);
+        singleHorn.position.set(0, hY + headRad * 0.1, headRad * 1.0);
+        singleHorn.rotation.x = Math.PI / 2;
+        group.add(singleHorn);
+
+        // Arms thrust forward
+        lArm.rotation.x = -0.5;
+        rArm.rotation.x = -0.5;
 
         // Nose ring
         const ringGeo = new THREE.TorusGeometry(headRad * 0.2, 0.02, 6, 12);
@@ -1175,6 +1272,33 @@ class EnemyManager {
       enemy.rLeg.rotation.x = legSwing;
       enemy.bodyMesh.position.y = def.size.body[1] / 2 + 0.3 + bounce;
       enemy.headMesh.position.y = enemy.bodyMesh.position.y + def.size.body[1] / 2 + def.size.head[1] / 2;
+      
+      // Type-specific animations
+      if (enemy._explodingBody) {
+        // Pulsing scale for exploding enemies
+        const pulse = 1 + Math.sin(enemy.walkPhase) * 0.08;
+        enemy._explodingBody.scale.set(pulse, pulse, pulse);
+      }
+      if (enemy._fireParticles) {
+        // Orbit fire particles around head area
+        const headY = enemy.headMesh.position.y;
+        const headRad = Math.max(def.size.head[0], def.size.head[1], def.size.head[2]) / 2;
+        for (let fp = 0; fp < enemy._fireParticles.length; fp++) {
+          const p = enemy._fireParticles[fp];
+          const angle = enemy.walkPhase * 0.5 + (fp / enemy._fireParticles.length) * Math.PI * 2;
+          p.position.set(
+            Math.cos(angle) * headRad * 1.2,
+            headY + Math.sin(angle * 1.5) * headRad * 0.5,
+            headRad * 1.0 + Math.sin(angle) * headRad * 0.4
+          );
+        }
+      }
+      if (enemy._giantLArm && enemy._giantRArm) {
+        // Slow arm-swing for giant boss
+        const slowSwing = Math.sin(enemy.walkPhase * 0.3) * 0.3;
+        enemy._giantLArm.rotation.x = slowSwing;
+        enemy._giantRArm.rotation.x = -slowSwing;
+      }
       
       // Hit flash decay
       if (enemy.hitFlash > 0) {

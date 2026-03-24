@@ -1,173 +1,145 @@
-// src/ArmyManager.js — Manages soldier army using THREE.InstancedMesh for performance
+// src/ArmyManager.js — Manages soldier army using THREE.Group per soldier
 
 class ArmyManager {
   constructor(threeScene) {
     this.scene = threeScene;
     this.MAX = 200;
-    
-    // Create instanced meshes for soldier body parts
-    // Body - steel armor torso (rounded cylinder)
-    const bodyGeo = new THREE.CylinderGeometry(0.22, 0.2, 0.85, 8);
-    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x8899aa, roughness: 0.3, metalness: 0.6 });
-    this.bodyInst = new THREE.InstancedMesh(bodyGeo, bodyMat, this.MAX);
-    this.bodyInst.castShadow = true;
-    this.bodyInst.receiveShadow = true;
-    this.scene.add(this.bodyInst);
-    
-    // Head - skin color (sphere, slightly smaller for helmet fit)
-    const headGeo = new THREE.SphereGeometry(0.15, 10, 8);
-    const headMat = new THREE.MeshStandardMaterial({ color: 0xe8b89a, roughness: 0.6, metalness: 0.0 });
-    this.headInst = new THREE.InstancedMesh(headGeo, headMat, this.MAX);
-    this.headInst.castShadow = true;
-    this.scene.add(this.headInst);
-    
-    // Helmet - dark steel medieval dome
-    const helmetGeo = new THREE.SphereGeometry(0.21, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.6);
-    const helmetMat = new THREE.MeshStandardMaterial({ color: 0x556677, roughness: 0.3, metalness: 0.5 });
-    this.helmetInst = new THREE.InstancedMesh(helmetGeo, helmetMat, this.MAX);
-    this.helmetInst.castShadow = true;
-    this.scene.add(this.helmetInst);
-    
-    // Helmet Cone - knight's helm point on top
-    const helmetConeGeo = new THREE.ConeGeometry(0.08, 0.2, 8);
-    const helmetConeMat = new THREE.MeshStandardMaterial({ color: 0x556677, roughness: 0.3, metalness: 0.5 });
-    this.helmetConeInst = new THREE.InstancedMesh(helmetConeGeo, helmetConeMat, this.MAX);
-    this.helmetConeInst.castShadow = true;
-    this.scene.add(this.helmetConeInst);
-    
-    // Left Arm - green (cylinder)
-    const armGeo = new THREE.CylinderGeometry(0.07, 0.08, 0.5, 6);
-    const armMat = new THREE.MeshStandardMaterial({ color: 0x4a7c45, roughness: 0.7, metalness: 0.1 });
-    this.lArmInst = new THREE.InstancedMesh(armGeo, armMat, this.MAX);
-    this.lArmInst.castShadow = true;
-    this.scene.add(this.lArmInst);
-    
-    // Right Arm - green
-    this.rArmInst = new THREE.InstancedMesh(armGeo, armMat.clone(), this.MAX);
-    this.rArmInst.castShadow = true;
-    this.scene.add(this.rArmInst);
-    
-    // Left Leg - dark pants (cylinder)
-    const legGeo = new THREE.CylinderGeometry(0.08, 0.1, 0.5, 6);
-    const legMat = new THREE.MeshStandardMaterial({ color: 0x2a3a5a, roughness: 0.8, metalness: 0.05 });
-    this.lLegInst = new THREE.InstancedMesh(legGeo, legMat, this.MAX);
-    this.lLegInst.castShadow = true;
-    this.scene.add(this.lLegInst);
-    
-    // Right Leg - dark pants
-    this.rLegInst = new THREE.InstancedMesh(legGeo, legMat.clone(), this.MAX);
-    this.rLegInst.castShadow = true;
-    this.scene.add(this.rLegInst);
-    
-    // Gun - dark metal (default handgun, cylinder barrel)
-    this._weaponGeos = {
-      handgun:  new THREE.CylinderGeometry(0.02, 0.02, 1.2, 6),
-      assault:  new THREE.CylinderGeometry(0.025, 0.03, 0.6, 6),
-      shotgun:  new THREE.CylinderGeometry(0.04, 0.04, 0.45, 6),
-      minigun:  new THREE.CylinderGeometry(0.05, 0.05, 0.7, 8),
-      rocket:   new THREE.CylinderGeometry(0.06, 0.06, 0.55, 8),
-      sniper:   new THREE.CylinderGeometry(0.02, 0.025, 0.8, 6),
+    this.MAX_VISIBLE = 60;
+
+    this._sharedGeo = {
+      body:       new THREE.CapsuleGeometry(0.28, 0.6, 4, 8),
+      head:       new THREE.SphereGeometry(0.18, 6, 5),
+      helmet:     new THREE.ConeGeometry(0.22, 0.3, 6),
+      helmetBrim: new THREE.CylinderGeometry(0.26, 0.26, 0.06, 6),
+      arm:        new THREE.CylinderGeometry(0.07, 0.07, 0.45, 5),
+      shield:     new THREE.BoxGeometry(0.35, 0.5, 0.06),
+      spearShaft: new THREE.CylinderGeometry(0.03, 0.03, 1.4, 5),
+      spearTip:   new THREE.ConeGeometry(0.06, 0.2, 5),
+      cape:       new THREE.BoxGeometry(0.4, 0.55, 0.05),
+      leg:        new THREE.CylinderGeometry(0.09, 0.08, 0.5, 5)
     };
-    const gunMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.3, metalness: 0.8 });
-    this.gunInst = new THREE.InstancedMesh(this._weaponGeos.handgun, gunMat, this.MAX);
-    this.gunInst.castShadow = true;
-    this.scene.add(this.gunInst);
+
     this._currentWeaponType = 'handgun';
-    
-    // Shield - red medieval shield on left arm
-    const shieldGeo = new THREE.BoxGeometry(0.25, 0.35, 0.06);
-    const shieldMat = new THREE.MeshStandardMaterial({ color: 0xcc3322, roughness: 0.5, metalness: 0.15 });
-    this.shieldInst = new THREE.InstancedMesh(shieldGeo, shieldMat, this.MAX);
-    this.shieldInst.castShadow = true;
-    this.scene.add(this.shieldInst);
-    
-    // Cape - dark red cloth behind body
-    const capeGeo = new THREE.BoxGeometry(0.3, 0.4, 0.03);
-    const capeMat = new THREE.MeshStandardMaterial({ color: 0xaa2222, roughness: 0.8, metalness: 0.0 });
-    this.capeInst = new THREE.InstancedMesh(capeGeo, capeMat, this.MAX);
-    this.capeInst.castShadow = true;
-    this.scene.add(this.capeInst);
-    
-    // Initialize all instances to scale(0,0,0)
-    const hideMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
-    for (let i = 0; i < this.MAX; i++) {
-      this.bodyInst.setMatrixAt(i, hideMatrix);
-      this.headInst.setMatrixAt(i, hideMatrix);
-      this.helmetInst.setMatrixAt(i, hideMatrix);
-      this.helmetConeInst.setMatrixAt(i, hideMatrix);
-      this.lArmInst.setMatrixAt(i, hideMatrix);
-      this.rArmInst.setMatrixAt(i, hideMatrix);
-      this.lLegInst.setMatrixAt(i, hideMatrix);
-      this.rLegInst.setMatrixAt(i, hideMatrix);
-      this.gunInst.setMatrixAt(i, hideMatrix);
-      this.shieldInst.setMatrixAt(i, hideMatrix);
-      this.capeInst.setMatrixAt(i, hideMatrix);
+    this._weaponGeos = {
+      handgun: null, assault: null, shotgun: null,
+      minigun: null, rocket: null, sniper: null
+    };
+
+    this._soldierGroups = [];
+    for (let i = 0; i < this.MAX_VISIBLE; i++) {
+      this._soldierGroups.push(this._createSoldierGroup());
     }
-    this._markNeedsUpdate();
-    
-    // Per-instance color variation for body and helmet
-    const _tmpColor = new THREE.Color();
-    for (let i = 0; i < this.MAX; i++) {
-      _tmpColor.setHex(0x8899aa);
-      _tmpColor.r += (Math.random() - 0.5) * 0.06;
-      _tmpColor.g += (Math.random() - 0.5) * 0.06;
-      _tmpColor.b += (Math.random() - 0.5) * 0.06;
-      this.bodyInst.setColorAt(i, _tmpColor);
-      
-      _tmpColor.setHex(0x556677);
-      _tmpColor.r += (Math.random() - 0.5) * 0.06;
-      _tmpColor.g += (Math.random() - 0.5) * 0.06;
-      _tmpColor.b += (Math.random() - 0.5) * 0.06;
-      this.helmetInst.setColorAt(i, _tmpColor);
-      this.helmetConeInst.setColorAt(i, _tmpColor);
-    }
-    this.bodyInst.instanceColor.needsUpdate = true;
-    this.helmetInst.instanceColor.needsUpdate = true;
-    this.helmetConeInst.instanceColor.needsUpdate = true;
-    
-    // Per-soldier data
+
     this._soldiers = [];
     for (let i = 0; i < this.MAX; i++) {
       this._soldiers.push({
         active: false,
-        x: 0,
-        z: 0,
-        prevX: 0,
-        targetX: 0,
-        targetZ: 0,
-        phase: Math.random() * Math.PI * 2, // Walk animation phase
+        x: 0, z: 0, prevX: 0,
+        targetX: 0, targetZ: 0,
+        phase: Math.random() * Math.PI * 2,
         spawnScale: 0,
-        deathTimer: -1, // -1 = alive, >=0 = dying
+        deathTimer: -1,
         deathAngle: 0,
-        offsetX: (Math.random() - 0.5) * 0.3, // Slight random formation offset
+        offsetX: (Math.random() - 0.5) * 0.3,
         offsetZ: (Math.random() - 0.5) * 0.3
       });
     }
-    
-    // Pre-allocate temp objects to avoid GC
-    this._tempM4 = new THREE.Matrix4();
-    this._tempQ = new THREE.Quaternion();
-    this._tempV3 = new THREE.Vector3();
-    this._tempE = new THREE.Euler();
-    this._tempM4b = new THREE.Matrix4();
-    this._tempM4c = new THREE.Matrix4();
-    
+
     this._activeCount = 0;
-    
     this._createCompanions();
   }
 
+  _createSoldierGroup() {
+    const group = new THREE.Group();
+
+    const armorColor = new THREE.Color();
+    armorColor.setHSL(210 / 360, 0.2 + Math.random() * 0.1, 0.55 + Math.random() * 0.1);
+    const helmetColor = new THREE.Color();
+    helmetColor.setHSL(210 / 360, 0.15 + Math.random() * 0.1, 0.4 + Math.random() * 0.1);
+
+    const armorMat = new THREE.MeshStandardMaterial({ color: armorColor, metalness: 0.6, roughness: 0.3 });
+    const helmetMat = new THREE.MeshStandardMaterial({ color: helmetColor });
+
+    const body = new THREE.Mesh(this._sharedGeo.body, armorMat);
+    body.position.y = 0.7;
+    body.castShadow = true; body.receiveShadow = true;
+    group.add(body);
+
+    const head = new THREE.Mesh(this._sharedGeo.head,
+      new THREE.MeshStandardMaterial({ color: 0xddbb99 }));
+    head.position.y = 1.38;
+    head.castShadow = true; head.receiveShadow = true;
+    group.add(head);
+
+    const helmet = new THREE.Mesh(this._sharedGeo.helmet, helmetMat);
+    helmet.position.y = 1.62;
+    helmet.castShadow = true; helmet.receiveShadow = true;
+    group.add(helmet);
+
+    const helmetBrim = new THREE.Mesh(this._sharedGeo.helmetBrim, helmetMat.clone());
+    helmetBrim.position.y = 1.5;
+    helmetBrim.castShadow = true; helmetBrim.receiveShadow = true;
+    group.add(helmetBrim);
+
+    const lArm = new THREE.Mesh(this._sharedGeo.arm, armorMat.clone());
+    lArm.position.set(-0.32, 1.0, 0);
+    lArm.rotation.z = 0.6;
+    lArm.castShadow = true; lArm.receiveShadow = true;
+    group.add(lArm);
+
+    const rArm = new THREE.Mesh(this._sharedGeo.arm, armorMat.clone());
+    rArm.position.set(0.32, 1.0, 0);
+    rArm.rotation.z = -0.6;
+    rArm.castShadow = true; rArm.receiveShadow = true;
+    group.add(rArm);
+
+    const shield = new THREE.Mesh(this._sharedGeo.shield,
+      new THREE.MeshStandardMaterial({ color: 0xcc3322, metalness: 0.3 }));
+    shield.position.set(-0.45, 0.95, 0.1);
+    shield.castShadow = true; shield.receiveShadow = true;
+    group.add(shield);
+
+    const spearShaft = new THREE.Mesh(this._sharedGeo.spearShaft,
+      new THREE.MeshStandardMaterial({ color: 0x885533 }));
+    spearShaft.position.set(0.38, 1.35, 0);
+    spearShaft.castShadow = true; spearShaft.receiveShadow = true;
+    group.add(spearShaft);
+
+    const spearTip = new THREE.Mesh(this._sharedGeo.spearTip,
+      new THREE.MeshStandardMaterial({ color: 0xaaaacc, metalness: 0.8 }));
+    spearTip.position.set(0.38, 2.1, 0);
+    spearTip.castShadow = true; spearTip.receiveShadow = true;
+    group.add(spearTip);
+
+    const cape = new THREE.Mesh(this._sharedGeo.cape,
+      new THREE.MeshStandardMaterial({ color: 0xaa2222 }));
+    cape.position.set(0, 0.9, -0.18);
+    cape.castShadow = true; cape.receiveShadow = true;
+    group.add(cape);
+
+    const lLeg = new THREE.Mesh(this._sharedGeo.leg, armorMat.clone());
+    lLeg.position.set(-0.13, 0.2, 0);
+    lLeg.castShadow = true; lLeg.receiveShadow = true;
+    group.add(lLeg);
+
+    const rLeg = new THREE.Mesh(this._sharedGeo.leg, armorMat.clone());
+    rLeg.position.set(0.13, 0.2, 0);
+    rLeg.castShadow = true; rLeg.receiveShadow = true;
+    group.add(rLeg);
+
+    group.visible = false;
+    this.scene.add(group);
+
+    return { group, body, head, helmet, lArm, rArm, lLeg, rLeg, cape };
+  }
+
   setWeaponType(type) {
-    if (type === this._currentWeaponType) return;
-    if (!this._weaponGeos[type]) return;
-    this._currentWeaponType = type;
-    // Swap geometry on gun instanced mesh (don't dispose — geometries are reused)
-    this.gunInst.geometry = this._weaponGeos[type];
-    this._markNeedsUpdate();
+    if (this._weaponGeos[type] !== undefined) {
+      this._currentWeaponType = type;
+    }
   }
 
   _createCompanions() {
-    // Drone - sleek metallic body with spinning propellers
     const droneGroup = new THREE.Group();
     const droneBody = new THREE.Mesh(
       new THREE.CylinderGeometry(0.2, 0.15, 0.15, 8),
@@ -186,7 +158,6 @@ class ArmyManager {
       arm.position.x = Math.cos((i / 4) * Math.PI * 2) * 0.3;
       arm.position.z = Math.sin((i / 4) * Math.PI * 2) * 0.3;
       droneGroup.add(arm);
-      // Add rotor disc
       const rotor = new THREE.Mesh(
         new THREE.CylinderGeometry(0.12, 0.12, 0.01, 12),
         new THREE.MeshStandardMaterial({ color: 0x99aacc, roughness: 0.5, metalness: 0.3, transparent: true, opacity: 0.6 })
@@ -201,86 +172,73 @@ class ArmyManager {
     droneGroup.visible = false;
     this.scene.add(droneGroup);
     this._drone = droneGroup;
-    
-    // Dragon - larger flying creature with proper dragon shape
+
     this._dragons = [];
     for (let d = 0; d < 3; d++) {
-      const dragonGroup = new THREE.Group();
-      const dragonBody = new THREE.Mesh(
+      const dg = new THREE.Group();
+      const db = new THREE.Mesh(
         new THREE.CylinderGeometry(0.2, 0.25, 1.2, 8),
         new THREE.MeshStandardMaterial({ color: 0xcc3300, roughness: 0.5, metalness: 0.2 })
       );
-      dragonBody.position.y = 5;
-      dragonBody.rotation.x = Math.PI / 2;
-      dragonGroup.add(dragonBody);
-      // Wings - membrane style
-      const wingGeo = new THREE.BoxGeometry(1.5, 0.03, 0.8);
-      const wingMat = new THREE.MeshStandardMaterial({ color: 0xff4400, roughness: 0.6, metalness: 0.1, transparent: true, opacity: 0.85 });
-      const lWing = new THREE.Mesh(wingGeo, wingMat);
-      lWing.position.set(-0.9, 5, 0);
-      lWing.rotation.z = 0.2;
-      dragonGroup.add(lWing);
-      const rWing = new THREE.Mesh(wingGeo, wingMat.clone());
-      rWing.position.set(0.9, 5, 0);
-      rWing.rotation.z = -0.2;
-      dragonGroup.add(rWing);
-      // Dragon head with snout
-      const dragonHead = new THREE.Mesh(
+      db.position.y = 5; db.rotation.x = Math.PI / 2;
+      dg.add(db);
+      const wg = new THREE.BoxGeometry(1.5, 0.03, 0.8);
+      const wm = new THREE.MeshStandardMaterial({ color: 0xff4400, roughness: 0.6, metalness: 0.1, transparent: true, opacity: 0.85 });
+      const lW = new THREE.Mesh(wg, wm);
+      lW.position.set(-0.9, 5, 0); lW.rotation.z = 0.2;
+      dg.add(lW);
+      const rW = new THREE.Mesh(wg, wm.clone());
+      rW.position.set(0.9, 5, 0); rW.rotation.z = -0.2;
+      dg.add(rW);
+      const dh = new THREE.Mesh(
         new THREE.SphereGeometry(0.18, 8, 6),
         new THREE.MeshStandardMaterial({ color: 0xcc3300, roughness: 0.5, metalness: 0.2 })
       );
-      dragonHead.position.set(0, 5.1, -0.7);
-      dragonGroup.add(dragonHead);
-      const snout = new THREE.Mesh(
+      dh.position.set(0, 5.1, -0.7);
+      dg.add(dh);
+      const sn = new THREE.Mesh(
         new THREE.ConeGeometry(0.08, 0.25, 6),
         new THREE.MeshStandardMaterial({ color: 0xdd4400, roughness: 0.5, metalness: 0.2 })
       );
-      snout.position.set(0, 5.05, -0.95);
-      snout.rotation.x = -Math.PI / 2;
-      dragonGroup.add(snout);
-      dragonGroup.visible = false;
-      this.scene.add(dragonGroup);
-      this._dragons.push(dragonGroup);
+      sn.position.set(0, 5.05, -0.95); sn.rotation.x = -Math.PI / 2;
+      dg.add(sn);
+      dg.visible = false;
+      this.scene.add(dg);
+      this._dragons.push(dg);
     }
-    
-    // Auto-turret - rotating gun platform with dome
+
     this._turrets = [];
     for (let t = 0; t < 2; t++) {
-      const turretGroup = new THREE.Group();
-      // Base
-      const turretBase = new THREE.Mesh(
+      const tg = new THREE.Group();
+      const tb = new THREE.Mesh(
         new THREE.CylinderGeometry(0.25, 0.3, 0.3, 8),
         new THREE.MeshStandardMaterial({ color: 0x556655, roughness: 0.4, metalness: 0.5 })
       );
-      turretBase.position.y = 0.15;
-      turretGroup.add(turretBase);
-      // Gun barrel
-      const turretBarrel = new THREE.Mesh(
+      tb.position.y = 0.15;
+      tg.add(tb);
+      const tbar = new THREE.Mesh(
         new THREE.CylinderGeometry(0.03, 0.035, 0.5, 6),
         new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.3, metalness: 0.8 })
       );
-      turretBarrel.position.set(0, 0.35, -0.2);
-      turretBarrel.rotation.x = Math.PI / 2;
-      turretGroup.add(turretBarrel);
-      // Top dome
-      const turretDome = new THREE.Mesh(
+      tbar.position.set(0, 0.35, -0.2); tbar.rotation.x = Math.PI / 2;
+      tg.add(tbar);
+      const tdome = new THREE.Mesh(
         new THREE.SphereGeometry(0.18, 8, 6),
         new THREE.MeshStandardMaterial({ color: 0x778877, roughness: 0.4, metalness: 0.4 })
       );
-      turretDome.position.y = 0.4;
-      turretGroup.add(turretDome);
-      turretGroup.visible = false;
-      this.scene.add(turretGroup);
-      this._turrets.push(turretGroup);
+      tdome.position.y = 0.4;
+      tg.add(tdome);
+      tg.visible = false;
+      this.scene.add(tg);
+      this._turrets.push(tg);
     }
-    
+
     this._companionPhase = 0;
   }
-  
+
   updateCompanions(dt, armyX, upgrades) {
     this._companionPhase += dt * 2;
-    
-    // Drone
+
     const hasDrone = (upgrades.sideCannons || 0) > 0;
     this._drone.visible = hasDrone;
     if (hasDrone) {
@@ -289,8 +247,7 @@ class ArmyManager {
       this._drone.position.set(armyX + dx, 0, dz);
       this._drone.children[0].position.y = 3.5 + Math.sin(this._companionPhase * 3) * 0.15;
     }
-    
-    // Dragons (stackable, up to 3)
+
     const dragonCount = Math.min(upgrades.dragon || 0, MAX_DRAGON_COUNT);
     for (let d = 0; d < this._dragons.length; d++) {
       const hasDragon = d < dragonCount;
@@ -305,8 +262,7 @@ class ArmyManager {
         this._dragons[d].children[2].rotation.z = -0.2 - flapAngle;
       }
     }
-    
-    // Auto-turrets
+
     const turretCount = Math.min(upgrades.autoTurret || 0, 2);
     for (let t = 0; t < this._turrets.length; t++) {
       const hasTurret = t < turretCount;
@@ -314,89 +270,68 @@ class ArmyManager {
       if (hasTurret) {
         const side = t === 0 ? -1.5 : 1.5;
         this._turrets[t].position.set(armyX + side, 0, 0.5);
-        // Rotate turret barrel to point forward
         this._turrets[t].rotation.y = Math.sin(this._companionPhase * 3 + t) * 0.3;
       }
     }
   }
-  
-  /**
-   * Set soldier count and reset positions
-   * @param {number} count - Desired soldier count
-   * @param {number} armyX - Army center X position
-   */
-  // Flow formation constants
-  static BASE_SPREAD = 1.1;       // Base spacing between soldiers
-  static ROW_STAGGER = 0.35;      // Horizontal offset for odd rows
-  static DEPTH_COMPRESSION = 0.9; // Tighter depth spacing
-  
-  // Steering / physics constants
-  static SEP_RADIUS = 0.75;   // Minimum desired distance between soldiers (units)
-  static SEP_STRENGTH = 6.0;  // Separation push force magnitude
-  static ROAD_HALF = 9.5;     // Half-width of the playable road (units)
-  static DEATH_DURATION = 0.5; // Seconds before a dead soldier is removed
-  static DEATH_ANIM_END = 0.4; // Seconds at which the fall animation completes
-  
-  // Available formation width (can be narrowed by obstacles)
+
+  static BASE_SPREAD = 1.1;
+  static ROW_STAGGER = 0.35;
+  static DEPTH_COMPRESSION = 0.9;
+  static SEP_RADIUS = 0.75;
+  static SEP_STRENGTH = 6.0;
+  static ROAD_HALF = 9.5;
+  static DEATH_DURATION = 0.5;
+  static DEATH_ANIM_END = 0.4;
+
   formationWidth = 18.0;
-  
+
   setCount(count, armyX) {
     count = Math.min(count, this.MAX);
-    
-    // Flow formation: wider front, organic depth
+
     const width = this.formationWidth;
     const spacing = ArmyManager.BASE_SPREAD;
-    // Max soldiers per row based on available width
     const maxCols = Math.max(2, Math.floor(width / spacing));
     const cols = Math.min(maxCols, Math.ceil(Math.sqrt(count * 1.5)));
-    
-    // Activate/deactivate soldiers
+
     for (let i = 0; i < this.MAX; i++) {
       const soldier = this._soldiers[i];
       const wasActive = soldier.active;
       soldier.active = i < count;
-      
+
       if (soldier.active) {
-        // Flow formation: stagger rows, vary spacing
         const row = Math.floor(i / cols);
         const col = i % cols;
         const rowWidth = Math.min(cols, count - row * cols);
         const rowStagger = (row % 2) * ArmyManager.ROW_STAGGER;
         const xOff = (col - (rowWidth - 1) / 2) * spacing + rowStagger;
         const zOff = row * spacing * ArmyManager.DEPTH_COMPRESSION;
-        
+
         soldier.targetX = armyX + xOff + soldier.offsetX;
         soldier.targetZ = -zOff + soldier.offsetZ;
-        
+
         if (!wasActive) {
-          // Newly spawned soldier
           soldier.x = soldier.targetX;
-          soldier.z = soldier.targetZ + 2; // Start slightly behind
+          soldier.z = soldier.targetZ + 2;
           soldier.spawnScale = 0;
           soldier.deathTimer = -1;
           soldier.phase = Math.random() * Math.PI * 2;
         }
       } else if (wasActive && soldier.deathTimer < 0) {
-        // Deactivated without death animation - just hide
         soldier.deathTimer = -1;
       }
     }
-    
+
     this._activeCount = count;
   }
-  
-  /**
-   * Kill one random active soldier (death animation)
-   */
+
   killSoldier() {
-    // Find an active soldier that isn't already dying
     const alive = [];
     for (let i = 0; i < this.MAX; i++) {
       if (this._soldiers[i].active && this._soldiers[i].deathTimer < 0) {
         alive.push(i);
       }
     }
-    
     if (alive.length > 0) {
       const idx = alive[Math.floor(Math.random() * alive.length)];
       const soldier = this._soldiers[idx];
@@ -404,114 +339,120 @@ class ArmyManager {
       soldier.deathAngle = (Math.random() - 0.5) * 0.5;
     }
   }
-  
-  /**
-   * Update all soldiers each frame
-   * @param {number} dt - Delta time in seconds
-   * @param {number} armyX - Current army center X
-   * @param {number} time - Total elapsed time
-   */
+
   update(dt, armyX, time, upgrades) {
-    // Recalculate formation targets
     const count = this._activeCount;
     const width = this.formationWidth;
     const spacing = ArmyManager.BASE_SPREAD;
     const maxCols = Math.max(2, Math.floor(width / spacing));
     const cols = Math.min(maxCols, Math.ceil(Math.sqrt(count * 1.5)));
-    
+
     let activeIdx = 0;
-    
-    // Pass 1: Update targets, movement, and animation state
+
     for (let i = 0; i < this.MAX; i++) {
       const soldier = this._soldiers[i];
-      
-      if (!soldier.active) {
-        // Hide this soldier
-        this._hideInstance(i);
-        continue;
-      }
-      
-      // Save previous X position for obstacle collision resolution
+      if (!soldier.active) continue;
+
       soldier.prevX = soldier.x;
-      
-      // Death animation — keep position fixed, just advance timer
+
       if (soldier.deathTimer >= 0) {
         soldier.deathTimer += dt;
         if (soldier.deathTimer > ArmyManager.DEATH_DURATION) {
-          // Fully dead - deactivate
           soldier.active = false;
-          this._hideInstance(i);
         }
         activeIdx++;
         continue;
       }
-      
-      // Update target position (flow formation with staggered rows)
+
       const row = Math.floor(activeIdx / cols);
       const col = activeIdx % cols;
       const rowWidth = Math.min(cols, count - row * cols);
       const rowStagger = (row % 2) * ArmyManager.ROW_STAGGER;
       const xOff = (col - (rowWidth - 1) / 2) * spacing + rowStagger;
       const zOff = row * spacing * ArmyManager.DEPTH_COMPRESSION;
-      
+
       soldier.targetX = armyX + xOff + soldier.offsetX;
       soldier.targetZ = -zOff + soldier.offsetZ;
-      
-      // Smooth movement toward target
+
       const moveSpeed = 8;
       soldier.x += (soldier.targetX - soldier.x) * Math.min(1, dt * moveSpeed);
       soldier.z += (soldier.targetZ - soldier.z) * Math.min(1, dt * moveSpeed);
-      
-      // Animate spawn scale
+
       if (soldier.spawnScale < 1) {
         soldier.spawnScale += dt * 5;
         if (soldier.spawnScale > 1) soldier.spawnScale = 1;
       }
-      
-      // Walk animation phase
-      soldier.phase += dt * 5;
-      
+
       activeIdx++;
     }
-    
-    // Pass 2: Apply separation forces so soldiers don't overlap (steering behavior)
+
     this._applySeparation(dt);
-    
-    // Pass 3: Update visual transforms for all still-active soldiers
+
+    let visibleIdx = 0;
     for (let i = 0; i < this.MAX; i++) {
       const soldier = this._soldiers[i];
-      if (soldier.active) {
-        this._updateSoldierParts(i, soldier, time);
+      if (!soldier.active) continue;
+      if (soldier.spawnScale <= 0) { visibleIdx++; continue; }
+
+      if (visibleIdx < this.MAX_VISIBLE) {
+        const sg = this._soldierGroups[visibleIdx];
+        sg.group.visible = true;
+
+        const scale = soldier.spawnScale;
+        const phase = soldier.phase;
+
+        if (soldier.deathTimer >= 0) {
+          const t = Math.min(soldier.deathTimer / ArmyManager.DEATH_ANIM_END, 1);
+          const deathLean = t * (Math.PI / 2 + 0.2);
+          const deathDrop = t * 0.6;
+          sg.group.position.set(soldier.x, -deathDrop, soldier.z);
+          sg.group.rotation.set(deathLean, soldier.deathAngle, 0);
+          sg.group.scale.set(scale, scale, scale);
+          sg.lLeg.rotation.x = 0;
+          sg.rLeg.rotation.x = 0;
+          sg.lArm.rotation.x = 0;
+          sg.rArm.rotation.x = 0;
+          sg.cape.rotation.x = 0;
+        } else {
+          const marchBob = Math.sin(time * 8 + phase) * 0.05;
+          sg.group.position.set(soldier.x, marchBob, soldier.z);
+          sg.group.rotation.set(0, 0, 0);
+          sg.group.scale.set(scale, scale, scale);
+
+          sg.lLeg.rotation.x = Math.sin(time * 8 + phase) * 0.4;
+          sg.rLeg.rotation.x = Math.sin(time * 8 + phase + Math.PI) * 0.4;
+          sg.lArm.rotation.x = Math.sin(time * 8 + phase + Math.PI) * 0.3;
+          sg.rArm.rotation.x = Math.sin(time * 8 + phase) * 0.3;
+          sg.cape.rotation.x = Math.sin(time * 8 + phase) * 0.08;
+        }
       }
+
+      visibleIdx++;
     }
-    
-    this._markNeedsUpdate();
-    
+
+    for (let i = visibleIdx; i < this.MAX_VISIBLE; i++) {
+      this._soldierGroups[i].group.visible = false;
+    }
+
     if (upgrades) {
       this.updateCompanions(dt, armyX, upgrades);
     }
   }
-  
-  /**
-   * Apply pairwise separation forces and road-boundary clamping.
-   * Prevents soldiers from overlapping each other and clipping off road.
-   * O(n²) over active alive soldiers — acceptable for n ≤ MAX (200).
-   */
+
   _applySeparation(dt) {
-    // Pairwise separation
     for (let i = 0; i < this.MAX; i++) {
       const s1 = this._soldiers[i];
       if (!s1.active || s1.deathTimer >= 0) continue;
-      
+
       for (let j = i + 1; j < this.MAX; j++) {
         const s2 = this._soldiers[j];
         if (!s2.active || s2.deathTimer >= 0) continue;
-        
+
         const dx = s1.x - s2.x;
         const dz = s1.z - s2.z;
         const distSq = dx * dx + dz * dz;
         const sep = ArmyManager.SEP_RADIUS;
-        
+
         if (distSq < sep * sep && distSq > 0.0001) {
           const dist = Math.sqrt(distSq);
           const overlap = sep - dist;
@@ -525,53 +466,41 @@ class ArmyManager {
         }
       }
     }
-    
-    // Clamp every alive soldier to road bounds
+
     for (let i = 0; i < this.MAX; i++) {
       const s = this._soldiers[i];
       if (!s.active || s.deathTimer >= 0) continue;
       s.x = Math.max(-ArmyManager.ROAD_HALF, Math.min(ArmyManager.ROAD_HALF, s.x));
     }
   }
-  
-  /**
-   * Push soldiers out of obstacles (walls/barriers).
-   * @param {Array} obstacles - Array of { mesh } with position set in scene space
-   */
+
   applyObstacleCollision(obstacles) {
     if (!obstacles || obstacles.length === 0) return;
-    
+
     for (const obs of obstacles) {
       const mesh = obs.mesh;
       if (!mesh || !mesh.geometry) continue;
-      
-      // Get obstacle bounding box in scene space
+
       if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
       const bb = mesh.geometry.boundingBox;
       const pos = mesh.position;
-      const halfW = (bb.max.x - bb.min.x) / 2 + 0.3; // padding for soldier radius
+      const halfW = (bb.max.x - bb.min.x) / 2 + 0.3;
       const halfD = (bb.max.z - bb.min.z) / 2 + 0.3;
-      
+
       for (let i = 0; i < this.MAX; i++) {
         const s = this._soldiers[i];
         if (!s.active || s.deathTimer >= 0) continue;
-        
+
         const dx = s.x - pos.x;
         const dz = s.z - pos.z;
-        
-        // AABB collision check
+
         if (Math.abs(dx) < halfW && Math.abs(dz) < halfD) {
           const overlapX = halfW - Math.abs(dx);
           const overlapZ = halfD - Math.abs(dz);
-          
-          // Use previous X position to determine which side the soldier came from
-          // This prevents tunneling through thin walls
           const prevDx = s.prevX - pos.x;
-          
+
           if (overlapX < overlapZ) {
-            // Push out on X axis — use previous position to decide direction
             if (Math.abs(prevDx) >= halfW) {
-              // Soldier was outside on X last frame — push back to that side
               s.x = pos.x + (prevDx > 0 ? halfW : -halfW);
             } else {
               s.x += dx > 0 ? overlapX : -overlapX;
@@ -582,205 +511,32 @@ class ArmyManager {
         }
       }
     }
-    
-    // Re-clamp all soldiers to road bounds after obstacle push-out
+
     for (let i = 0; i < this.MAX; i++) {
       const s = this._soldiers[i];
       if (!s.active || s.deathTimer >= 0) continue;
       s.x = Math.max(-ArmyManager.ROAD_HALF, Math.min(ArmyManager.ROAD_HALF, s.x));
     }
   }
-  
-  /**
-   * Update instanced mesh matrices for a single soldier
-   */
-  _updateSoldierParts(index, soldier, time) {
-    const scale = soldier.spawnScale;
-    if (scale <= 0) {
-      this._hideInstance(index);
-      return;
-    }
-    
-    const phase = soldier.phase;
-    const x = soldier.x;
-    const z = soldier.z;
-    
-    // Death animation
-    let deathLean = 0;
-    let deathDrop = 0;
-    if (soldier.deathTimer >= 0) {
-      const t = Math.min(soldier.deathTimer / ArmyManager.DEATH_ANIM_END, 1);
-      deathLean = t * (Math.PI / 2 + 0.2);
-      deathDrop = t * 0.6;
-    }
-    
-    // Y-axis marching bob
-    const marchBob = Math.sin(time * 8 + soldier.phase) * 0.05;
-    
-    // Body bounce
-    const bounce = Math.abs(Math.sin(phase)) * 0.07;
-    const bodyY = 0.85 + bounce - deathDrop + marchBob;
-    
-    // Body transform
-    this._tempE.set(deathLean, soldier.deathAngle, 0);
-    this._tempQ.setFromEuler(this._tempE);
-    this._tempV3.set(x, bodyY, z);
-    this._tempM4.compose(this._tempV3, this._tempQ, new THREE.Vector3(scale, scale, scale));
-    this.bodyInst.setMatrixAt(index, this._tempM4);
-    
-    // Head (above body)
-    const headY = bodyY + 0.61;
-    this._tempV3.set(x, headY, z);
-    this._tempM4.compose(this._tempV3, this._tempQ, new THREE.Vector3(scale, scale, scale));
-    this.headInst.setMatrixAt(index, this._tempM4);
-    
-    // Helmet (above head)
-    const helmetY = headY + 0.20;
-    this._tempV3.set(x, helmetY, z);
-    this._tempM4.compose(this._tempV3, this._tempQ, new THREE.Vector3(scale, scale, scale));
-    this.helmetInst.setMatrixAt(index, this._tempM4);
-    
-    // Helmet cone (on top of helmet dome)
-    const coneY = helmetY + 0.15;
-    this._tempV3.set(x, coneY, z);
-    this._tempM4.compose(this._tempV3, this._tempQ, new THREE.Vector3(scale, scale, scale));
-    this.helmetConeInst.setMatrixAt(index, this._tempM4);
-    
-    // Arm swing angles
-    const armSwing = Math.sin(phase) * 0.65;
-    const lArmAngle = armSwing;
-    const rArmAngle = -armSwing;
-    
-    // Left Arm
-    this._tempE.set(lArmAngle + deathLean, soldier.deathAngle, 0);
-    this._tempQ.setFromEuler(this._tempE);
-    const lArmX = x - 0.38 * scale;
-    const lArmY = bodyY + 0.1 - deathDrop * 0.3;
-    this._tempV3.set(lArmX, lArmY, z);
-    this._tempM4.compose(this._tempV3, this._tempQ, new THREE.Vector3(scale, scale, scale));
-    this.lArmInst.setMatrixAt(index, this._tempM4);
-    
-    // Shield (attached to left arm, offset outward)
-    const shieldX = lArmX - 0.12 * scale;
-    const shieldY = lArmY + 0.05;
-    this._tempV3.set(shieldX, shieldY, z);
-    this._tempM4.compose(this._tempV3, this._tempQ, new THREE.Vector3(scale, scale, scale));
-    this.shieldInst.setMatrixAt(index, this._tempM4);
-    
-    // Right Arm (holds spear/weapon)
-    this._tempE.set(rArmAngle + deathLean - 0.3, soldier.deathAngle, 0);
-    this._tempQ.setFromEuler(this._tempE);
-    const rArmX = x + 0.38 * scale;
-    const rArmY = bodyY + 0.1 - deathDrop * 0.3;
-    this._tempV3.set(rArmX, rArmY, z);
-    this._tempM4.compose(this._tempV3, this._tempQ, new THREE.Vector3(scale, scale, scale));
-    this.rArmInst.setMatrixAt(index, this._tempM4);
-    
-    // Leg swing
-    const legSwing = Math.sin(phase) * 0.65;
-    
-    // Left Leg
-    this._tempE.set(-legSwing + deathLean, soldier.deathAngle, 0);
-    this._tempQ.setFromEuler(this._tempE);
-    const lLegY = 0.35 - deathDrop * 0.7 + marchBob;
-    this._tempV3.set(x - 0.14 * scale, lLegY, z);
-    this._tempM4.compose(this._tempV3, this._tempQ, new THREE.Vector3(scale, scale, scale));
-    this.lLegInst.setMatrixAt(index, this._tempM4);
-    
-    // Right Leg
-    this._tempE.set(legSwing + deathLean, soldier.deathAngle, 0);
-    this._tempQ.setFromEuler(this._tempE);
-    this._tempV3.set(x + 0.14 * scale, lLegY, z);
-    this._tempM4.compose(this._tempV3, this._tempQ, new THREE.Vector3(scale, scale, scale));
-    this.rLegInst.setMatrixAt(index, this._tempM4);
-    
-    // Weapon (follows right arm — CylinderGeometry is Y-up, rotate -90° to align with Z-axis)
-    this._tempE.set(rArmAngle + deathLean - 0.3 - Math.PI / 2, soldier.deathAngle, 0);
-    this._tempQ.setFromEuler(this._tempE);
-    const gunY = rArmY - 0.15;
-    const gunZ = z - 0.25 * scale;
-    this._tempV3.set(rArmX, gunY, gunZ);
-    this._tempM4.compose(this._tempV3, this._tempQ, new THREE.Vector3(scale, scale, scale));
-    this.gunInst.setMatrixAt(index, this._tempM4);
-    
-    // Cape (behind body)
-    this._tempE.set(deathLean, soldier.deathAngle, 0);
-    this._tempQ.setFromEuler(this._tempE);
-    const capeY = bodyY - 0.05;
-    const capeZ = z + 0.18 * scale;
-    this._tempV3.set(x, capeY, capeZ);
-    this._tempM4.compose(this._tempV3, this._tempQ, new THREE.Vector3(scale, scale, scale));
-    this.capeInst.setMatrixAt(index, this._tempM4);
-  }
-  
-  /**
-   * Hide a soldier instance (scale 0)
-   */
-  _hideInstance(index) {
-    this._tempM4.makeScale(0, 0, 0);
-    this.bodyInst.setMatrixAt(index, this._tempM4);
-    this.headInst.setMatrixAt(index, this._tempM4);
-    this.helmetInst.setMatrixAt(index, this._tempM4);
-    this.helmetConeInst.setMatrixAt(index, this._tempM4);
-    this.lArmInst.setMatrixAt(index, this._tempM4);
-    this.rArmInst.setMatrixAt(index, this._tempM4);
-    this.lLegInst.setMatrixAt(index, this._tempM4);
-    this.rLegInst.setMatrixAt(index, this._tempM4);
-    this.gunInst.setMatrixAt(index, this._tempM4);
-    this.shieldInst.setMatrixAt(index, this._tempM4);
-    this.capeInst.setMatrixAt(index, this._tempM4);
-  }
-  
-  /**
-   * Mark all instance matrices as needing update
-   */
-  _markNeedsUpdate() {
-    this.bodyInst.instanceMatrix.needsUpdate = true;
-    this.headInst.instanceMatrix.needsUpdate = true;
-    this.helmetInst.instanceMatrix.needsUpdate = true;
-    this.helmetConeInst.instanceMatrix.needsUpdate = true;
-    this.lArmInst.instanceMatrix.needsUpdate = true;
-    this.rArmInst.instanceMatrix.needsUpdate = true;
-    this.lLegInst.instanceMatrix.needsUpdate = true;
-    this.rLegInst.instanceMatrix.needsUpdate = true;
-    this.gunInst.instanceMatrix.needsUpdate = true;
-    this.shieldInst.instanceMatrix.needsUpdate = true;
-    this.capeInst.instanceMatrix.needsUpdate = true;
-  }
-  
-  /**
-   * Get muzzle positions for shooting
-   * @param {number} count - Max positions to return
-   * @returns {Array} Array of {x, y, z} world positions
-   */
+
   getMuzzlePositions(count) {
     const positions = [];
-    // Return up to 'count' positions — one per living soldier
     const maxPos = Math.min(count, this.MAX);
-    
+
     for (let i = 0; i < this.MAX && positions.length < maxPos; i++) {
       const soldier = this._soldiers[i];
       if (soldier.active && soldier.deathTimer < 0 && soldier.spawnScale > 0.8) {
-        // Gun muzzle position (end of gun barrel)
-        const scale = soldier.spawnScale;
-        const phase = soldier.phase;
-        const rArmAngle = -Math.sin(phase) * 0.65;
-        
-        // Approximate muzzle position
-        const muzzleX = soldier.x + 0.38 * scale;
-        const muzzleY = 0.85 + Math.abs(Math.sin(phase)) * 0.07 - 0.05;
-        const muzzleZ = soldier.z - 0.5 * scale;
-        
-        positions.push({ x: muzzleX, y: muzzleY, z: muzzleZ });
+        positions.push({
+          x: soldier.x + 0.38 * soldier.spawnScale,
+          y: 2.1,
+          z: soldier.z - 0.3 * soldier.spawnScale
+        });
       }
     }
-    
+
     return positions;
   }
-  
-  /**
-   * Get active soldier count
-   */
+
   get count() {
     return this._activeCount;
   }
