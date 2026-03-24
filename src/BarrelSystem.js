@@ -1,4 +1,4 @@
-// src/BarrelSystem.js — Weapon barrel spawning, updates, and activation
+// src/BarrelSystem.js — Wooden crate obstacles with hit-point numbers
 
 class BarrelSystem {
   constructor(game) {
@@ -10,65 +10,62 @@ class BarrelSystem {
     const rewards = BARREL_REWARDS;
     const reward = rewards[Math.floor(Math.random() * rewards.length)];
 
-    const geo = new THREE.CylinderGeometry(0.6, 0.6, 1.2, 12);
-    const barrelColor = reward.good ? 0x44aa44 : 0xaa4422;
-    const mat = new THREE.MeshStandardMaterial({ color: barrelColor, roughness: 0.5, metalness: 0.3 });
+    // Random hit-point value displayed on the crate
+    const hp = [12, 25, 50, 100][Math.floor(Math.random() * 4)];
+
+    // Wooden brown crate
+    const geo = new THREE.BoxGeometry(1.2, 1.2, 1.2);
+    const mat = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8, metalness: 0.1 });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.y = 0.6;
     const xPos = (Math.random() - 0.5) * (ArmyManager.ROAD_HALF * 2 - 4);
     mesh.position.x = xPos;
 
-    // Label sprite above barrel
-    const labelSprite = this.createBarrelLabel(reward.label, reward.good);
-    labelSprite.position.set(xPos, 2.5, 0);
-    labelSprite.scale.set(2.5, 1.0, 1);
-
-    // HP bar sprite
-    const hpCanvas = document.createElement('canvas');
-    hpCanvas.width = 64;
-    hpCanvas.height = 8;
-    const hpCtx = hpCanvas.getContext('2d');
-    hpCtx.fillStyle = '#222';
-    hpCtx.fillRect(0, 0, 64, 8);
-    hpCtx.fillStyle = '#44ff44';
-    hpCtx.fillRect(1, 1, 62, 6);
-    const hpTexture = new THREE.CanvasTexture(hpCanvas);
-    const hpSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: hpTexture, transparent: true }));
-    hpSprite.position.set(xPos, 2.0, 0);
-    hpSprite.scale.set(1.5, 0.2, 1);
+    // Number sprite floating above the crate
+    const numCanvas = document.createElement('canvas');
+    numCanvas.width = 256;
+    numCanvas.height = 128;
+    const numSprite = this._createNumberSprite(numCanvas, hp);
+    numSprite.position.set(xPos, 2.2, 0);
+    numSprite.scale.set(2.0, 1.0, 1);
 
     const scene = this.game.scene;
     scene.add(mesh);
-    scene.add(labelSprite);
-    scene.add(hpSprite);
+    scene.add(numSprite);
 
     this.barrels.push({
       mesh, worldZ, xPos, reward,
-      label: labelSprite, hpBar: hpSprite, hpCanvas,
-      hp: 3, maxHp: 3, hitFlash: 0, baseColor: barrelColor
+      numSprite, numCanvas,
+      hp, maxHp: hp, hitFlash: 0
     });
   }
 
-  createBarrelLabel(text, isGood) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 64;
+  _createNumberSprite(canvas, number) {
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = isGood ? 'rgba(0, 140, 60, 0.9)' : 'rgba(170, 40, 0, 0.9)';
-    ctx.fillRect(4, 4, canvas.width - 8, canvas.height - 8);
-    ctx.strokeStyle = isGood ? '#44ff88' : '#ff4444';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 28px Arial, sans-serif';
+    ctx.font = 'bold 72px Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    ctx.shadowBlur = 3;
-    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = 6;
+    ctx.fillText(String(number), canvas.width / 2, canvas.height / 2);
     const texture = new THREE.CanvasTexture(canvas);
     const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true });
     return new THREE.Sprite(spriteMat);
+  }
+
+  _updateNumberSprite(barrel) {
+    const ctx = barrel.numCanvas.getContext('2d');
+    ctx.clearRect(0, 0, barrel.numCanvas.width, barrel.numCanvas.height);
+    ctx.fillStyle = barrel.hp > barrel.maxHp * 0.3 ? '#ffffff' : '#ff4444';
+    ctx.font = 'bold 72px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = 6;
+    ctx.fillText(String(Math.max(0, barrel.hp)), barrel.numCanvas.width / 2, barrel.numCanvas.height / 2);
+    barrel.numSprite.material.map.needsUpdate = true;
   }
 
   updateBarrels(cameraZ) {
@@ -76,24 +73,22 @@ class BarrelSystem {
       const barrel = this.barrels[i];
       const visualZ = barrel.worldZ - cameraZ;
       barrel.mesh.position.z = visualZ;
-      barrel.label.position.z = visualZ;
-      barrel.hpBar.position.z = visualZ;
+      barrel.numSprite.position.z = visualZ;
 
       // Hit flash decay
       if (barrel.hitFlash > 0) {
         barrel.hitFlash -= 0.05;
-        const flashColor = new THREE.Color(barrel.baseColor).lerp(new THREE.Color(0xffffff), Math.max(0, barrel.hitFlash));
-        barrel.mesh.material.color.copy(flashColor);
+        const flash = new THREE.Color(0x8B4513).lerp(new THREE.Color(0xffffff), Math.max(0, barrel.hitFlash));
+        barrel.mesh.material.color.copy(flash);
       }
 
-      // Cleanup barrels far behind camera
       if (visualZ > 30) {
-        this.removeBarrel(i);
+        this._removeBarrel(i);
       }
     }
   }
 
-  checkBarrelBulletHit(bx, by, bz) {
+  _checkHit(bx, by, bz, damage) {
     const g = this.game;
     for (let i = this.barrels.length - 1; i >= 0; i--) {
       const barrel = this.barrels[i];
@@ -102,21 +97,13 @@ class BarrelSystem {
       const dz = Math.abs(bz - visualZ);
 
       if (dx < 1.0 && dz < 1.0 && by < 2.5) {
-        barrel.hp--;
+        barrel.hp -= damage;
         barrel.hitFlash = 1.0;
-
-        // Update HP bar
-        const ratio = Math.max(0, barrel.hp / barrel.maxHp);
-        const ctx = barrel.hpCanvas.getContext('2d');
-        ctx.fillStyle = '#222';
-        ctx.fillRect(0, 0, 64, 8);
-        ctx.fillStyle = ratio > 0.5 ? '#44ff44' : '#ff4444';
-        ctx.fillRect(1, 1, Math.max(0, 62 * ratio), 6);
-        barrel.hpBar.material.map.needsUpdate = true;
+        this._updateNumberSprite(barrel);
 
         if (barrel.hp <= 0) {
-          this.activateBarrel(barrel);
-          this.removeBarrel(i);
+          this._activateBarrel(barrel);
+          this._removeBarrel(i);
         }
         return true;
       }
@@ -124,10 +111,12 @@ class BarrelSystem {
     return false;
   }
 
-  activateBarrel(barrel) {
+  _activateBarrel(barrel) {
     const g = this.game;
     const reward = barrel.reward;
-    g.effects.explode(barrel.xPos, 1.5, barrel.mesh.position.z, reward.good ? 0x44ff88 : 0xff4400, 20, 5);
+
+    // Delegate shatter effect to effects manager
+    g.effects.explode(barrel.xPos, 1.5, barrel.mesh.position.z, 0x8B4513, 20, 5);
     g.effects.screenFlash(reward.good ? 0x44ff88 : 0xff4400, 0.4);
     g.camCtrl.shake(0.4);
 
@@ -158,28 +147,23 @@ class BarrelSystem {
     g.hud.updateHUD();
   }
 
-  removeBarrel(index) {
+  _removeBarrel(index) {
     const barrel = this.barrels[index];
     const scene = this.game.scene;
     scene.remove(barrel.mesh);
-    scene.remove(barrel.label);
-    scene.remove(barrel.hpBar);
+    scene.remove(barrel.numSprite);
     if (barrel.mesh.geometry) barrel.mesh.geometry.dispose();
     if (barrel.mesh.material) barrel.mesh.material.dispose();
-    if (barrel.label.material) {
-      if (barrel.label.material.map) barrel.label.material.map.dispose();
-      barrel.label.material.dispose();
-    }
-    if (barrel.hpBar.material) {
-      if (barrel.hpBar.material.map) barrel.hpBar.material.map.dispose();
-      barrel.hpBar.material.dispose();
+    if (barrel.numSprite.material) {
+      if (barrel.numSprite.material.map) barrel.numSprite.material.map.dispose();
+      barrel.numSprite.material.dispose();
     }
     this.barrels.splice(index, 1);
   }
 
   clearBarrels() {
     for (let i = this.barrels.length - 1; i >= 0; i--) {
-      this.removeBarrel(i);
+      this._removeBarrel(i);
     }
   }
 
@@ -191,8 +175,8 @@ class BarrelSystem {
       const idx = activeList[i];
       const bullet = bullets[idx];
       if (!bullet.active) continue;
-      if (this.checkBarrelBulletHit(bullet.x, bullet.y, bullet.z)) {
-        this.game.projSys._deactivateBullet(i, idx);
+      if (this._checkHit(bullet.x, bullet.y, bullet.z, bullet.damage)) {
+        this.game.projSys._deactivate(i, idx);
       }
     }
   }
