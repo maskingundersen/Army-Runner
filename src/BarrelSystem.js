@@ -153,7 +153,7 @@ class BarrelSystem {
     }
 
     if (window.audioManager) {
-      if (reward.good) window.audioManager.gatGood();
+      if (reward.good) window.audioManager.gateGood();
       else window.audioManager.gateBad();
     }
     g.hud.updateHUD();
