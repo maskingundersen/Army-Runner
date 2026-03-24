@@ -1,16 +1,12 @@
-// src/GateSystem.js — Manages gate pairs with modifiers
+// src/GateSystem.js — Manages gate pairs with dramatic glowing arch gates
 
 class GateSystem {
   constructor(threeScene, effectsMgr) {
     this.scene = threeScene;
     this.effects = effectsMgr;
     this.gates = [];
-    
-    // Temp objects
-    this._tempCanvas = null;
-    this._tempCtx = null;
   }
-  
+
   /**
    * Create a gate pair at world Z position
    * @param {number} worldZ - Z position in world coordinates
@@ -19,45 +15,31 @@ class GateSystem {
    */
   createGate(worldZ, leftData, rightData) {
     const group = new THREE.Group();
-    
-    // Gate dimensions — sized for 20-unit-wide road
+
     const gateWidth = 8.0;
-    const gateHeight = 4.0;
-    const pillarWidth = 0.4;
-    const barHeight = 0.5;
-    const gateSpacing = 1.5; // Gap between gates
-    
+    const gateSpacing = 1.5;
+
     // Left gate
-    const leftGateGroup = this._createSingleGate(
-      leftData.good ? 0x00aa44 : 0xaa2200,
-      leftData.label,
-      leftData.good
-    );
+    const leftGateGroup = this._createSingleGate(leftData.label, leftData.good);
     leftGateGroup.position.x = -gateWidth / 2 - gateSpacing / 2;
     group.add(leftGateGroup);
-    
+
     // Right gate
-    const rightGateGroup = this._createSingleGate(
-      rightData.good ? 0x00aa44 : 0xaa2200,
-      rightData.label,
-      rightData.good
-    );
+    const rightGateGroup = this._createSingleGate(rightData.label, rightData.good);
     rightGateGroup.position.x = gateWidth / 2 + gateSpacing / 2;
     group.add(rightGateGroup);
-    
+
     // Center divider pillar
-    const dividerGeo = new THREE.BoxGeometry(0.3, gateHeight, 0.3);
+    const dividerGeo = new THREE.BoxGeometry(0.3, 8, 0.3);
     const dividerMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5, metalness: 0.3 });
     const divider = new THREE.Mesh(dividerGeo, dividerMat);
-    divider.position.y = gateHeight / 2;
+    divider.position.y = 4;
     divider.castShadow = true;
     group.add(divider);
-    
-    // Add to scene
+
     group.position.z = worldZ;
     this.scene.add(group);
-    
-    // Store gate data
+
     const gateData = {
       worldZ,
       group,
@@ -66,163 +48,203 @@ class GateSystem {
       left: leftData,
       right: rightData,
       passed: false,
-      animationTime: 0
+      animationTime: 0,
+      triggerTime: -1
     };
-    
+
     this.gates.push(gateData);
-    
     return gateData;
   }
-  
+
   /**
-   * Create a single gate structure
+   * Create a single dramatic arch gate
    */
-  _createSingleGate(color, labelText, isGood) {
+  _createSingleGate(labelText, isGood) {
     const group = new THREE.Group();
-    
-    const gateWidth = 7.5;
-    const gateHeight = 4.0;
-    const pillarWidth = 0.35;
-    const barHeight = 0.4;
-    const archDepth = 0.3;
-    
-    // Material
-    const pillarMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.4, metalness: 0.2 });
-    const glowColor = isGood ? 0x44ff88 : 0xff4444;
-    
-    // Left pillar
-    const pillarGeo = new THREE.BoxGeometry(pillarWidth, gateHeight, archDepth);
-    const leftPillar = new THREE.Mesh(pillarGeo, pillarMat);
-    leftPillar.position.set(-gateWidth / 2 + pillarWidth / 2, gateHeight / 2, 0);
+
+    const gateWidth = 8;
+    const pillarHeight = 8;
+    const emissiveColor = isGood ? 0x00ff44 : 0xff2222;
+    const baseColor = isGood ? 0x005511 : 0x551111;
+
+    // Shared emissive material for pillars and crossbar
+    const archMat = new THREE.MeshStandardMaterial({
+      color: baseColor,
+      emissive: emissiveColor,
+      emissiveIntensity: 0.8,
+      roughness: 0.3,
+      metalness: 0.4
+    });
+
+    // Left pillar — cylinder
+    const pillarGeo = new THREE.CylinderGeometry(0.4, 0.4, pillarHeight, 12);
+    const leftPillar = new THREE.Mesh(pillarGeo, archMat.clone());
+    leftPillar.position.set(-gateWidth / 2, pillarHeight / 2, 0);
     leftPillar.castShadow = true;
     group.add(leftPillar);
-    
-    // Right pillar
-    const rightPillar = new THREE.Mesh(pillarGeo, pillarMat.clone());
-    rightPillar.position.set(gateWidth / 2 - pillarWidth / 2, gateHeight / 2, 0);
+
+    // Right pillar — cylinder
+    const rightPillar = new THREE.Mesh(pillarGeo, archMat.clone());
+    rightPillar.position.set(gateWidth / 2, pillarHeight / 2, 0);
     rightPillar.castShadow = true;
     group.add(rightPillar);
-    
-    // Top bar
-    const barGeo = new THREE.BoxGeometry(gateWidth, barHeight, archDepth);
-    const topBar = new THREE.Mesh(barGeo, pillarMat.clone());
-    topBar.position.set(0, gateHeight - barHeight / 2, 0);
-    topBar.castShadow = true;
-    group.add(topBar);
-    
-    // Glow plane (transparent colored backdrop)
-    const glowGeo = new THREE.PlaneGeometry(gateWidth - pillarWidth * 2, gateHeight - barHeight);
-    const glowMat = new THREE.MeshBasicMaterial({
-      color: glowColor,
-      transparent: true,
-      opacity: 0.25,
-      side: THREE.DoubleSide
-    });
-    const glowPlane = new THREE.Mesh(glowGeo, glowMat);
-    glowPlane.position.set(0, (gateHeight - barHeight) / 2, 0.01);
-    group.add(glowPlane);
-    
-    // Text label using canvas texture sprite
+
+    // Crossbar on top
+    const crossbarGeo = new THREE.BoxGeometry(gateWidth, 0.6, 0.6);
+    const crossbar = new THREE.Mesh(crossbarGeo, archMat.clone());
+    crossbar.position.set(0, pillarHeight, 0);
+    crossbar.castShadow = true;
+    group.add(crossbar);
+
+    // Collect emissive material refs for pulse animation
+    const emissiveMaterials = [
+      leftPillar.material,
+      rightPillar.material,
+      crossbar.material
+    ];
+
+    // Point light inside the gate
+    const pointLight = new THREE.PointLight(emissiveColor, 2, 12);
+    pointLight.position.set(0, 4, 0);
+    group.add(pointLight);
+
+    // Label billboard sprite
     const textSprite = this._createTextSprite(labelText, isGood);
-    textSprite.position.set(0, gateHeight / 2, 0.2);
-    textSprite.scale.set(3.5, 1.5, 1);
+    textSprite.position.set(0, pillarHeight + 0.8, 0);
+    textSprite.scale.set(4, 1.5, 1);
     group.add(textSprite);
-    
+
     // Store references for animation
     group.userData = {
       leftPillar,
       rightPillar,
-      topBar,
-      glowPlane,
+      crossbar,
+      emissiveMaterials,
+      pointLight,
       textSprite,
       isGood
     };
-    
+
     return group;
   }
-  
+
   /**
    * Create text sprite using canvas
    */
   _createTextSprite(text, isGood) {
-    // Create canvas
     const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 128;
+    canvas.width = 512;
+    canvas.height = 192;
     const ctx = canvas.getContext('2d');
-    
-    // Background - use roundRect if available, fallback to fillRect
-    ctx.fillStyle = isGood ? 'rgba(0, 170, 68, 0.9)' : 'rgba(170, 34, 0, 0.9)';
+
+    // Colored glow background
+    ctx.fillStyle = isGood ? 'rgba(0, 200, 60, 0.85)' : 'rgba(200, 30, 20, 0.85)';
     if (typeof ctx.roundRect === 'function') {
-      ctx.roundRect(4, 4, canvas.width - 8, canvas.height - 8, 16);
+      ctx.roundRect(8, 8, canvas.width - 16, canvas.height - 16, 24);
       ctx.fill();
     } else {
-      ctx.fillRect(4, 4, canvas.width - 8, canvas.height - 8);
+      ctx.fillRect(8, 8, canvas.width - 16, canvas.height - 16);
     }
-    
-    // Border
+
+    // Bright border
     ctx.strokeStyle = isGood ? '#44ff88' : '#ff4444';
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 6;
     if (typeof ctx.roundRect === 'function') {
-      ctx.roundRect(4, 4, canvas.width - 8, canvas.height - 8, 16);
+      ctx.roundRect(8, 8, canvas.width - 16, canvas.height - 16, 24);
       ctx.stroke();
     } else {
-      ctx.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+      ctx.strokeRect(8, 8, canvas.width - 16, canvas.height - 16);
     }
-    
-    // Text
+
+    // White text
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 48px Arial, sans-serif';
+    ctx.font = 'bold 72px Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    ctx.shadowBlur = 4;
-    ctx.shadowOffsetX = 2;
-    ctx.shadowOffsetY = 2;
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = 6;
+    ctx.shadowOffsetX = 3;
+    ctx.shadowOffsetY = 3;
     ctx.fillText(text, canvas.width / 2, canvas.height / 2);
-    
-    // Create texture and sprite
+
     const texture = new THREE.CanvasTexture(canvas);
     texture.needsUpdate = true;
-    
+
     const spriteMat = new THREE.SpriteMaterial({
       map: texture,
       transparent: true
     });
-    
+
     return new THREE.Sprite(spriteMat);
   }
-  
+
   /**
-   * Update gates each frame
+   * Update gates each frame — positioning, pulse animation, and post-trigger effects
    * @param {number} cameraZ - Current camera Z scroll position
    */
   update(cameraZ) {
+    const time = performance.now() / 1000;
+
     for (const gate of this.gates) {
-      // Convert world Z to visual Z
-      // Gate worldZ is fixed, but visually we offset by cameraZ
-      // When cameraZ = worldZ, gate is at Z=0 (army position)
       gate.group.position.z = gate.worldZ - cameraZ;
-      
-      // Animate passed gates
+
+      // Emissive pulse on all visible gates
+      const pulse = Math.sin(time * 4) * 0.3 + 0.7;
+      this._applyPulse(gate.leftGate, pulse);
+      this._applyPulse(gate.rightGate, pulse);
+
+      // Post-trigger animation (pillar scale + light recovery over 0.5s)
+      if (gate.triggerTime > 0) {
+        const elapsed = time - gate.triggerTime;
+        if (elapsed < 0.5) {
+          const t = elapsed / 0.5;
+          const scale = 1.3 - 0.3 * t; // 1.3 → 1.0
+          const lightInt = 8 - 6 * t;   // 8 → 2
+          this._applyTriggerAnim(gate.leftGate, scale, lightInt);
+          this._applyTriggerAnim(gate.rightGate, scale, lightInt);
+        } else {
+          // Snap back to defaults
+          this._applyTriggerAnim(gate.leftGate, 1.0, 2);
+          this._applyTriggerAnim(gate.rightGate, 1.0, 2);
+          gate.triggerTime = -1;
+        }
+      }
+
+      // Animate passed gates (fade out)
       if (gate.passed) {
         gate.animationTime += 0.016;
-        
-        // Fade out
         const fadeT = Math.min(gate.animationTime / 0.5, 1);
         gate.group.scale.set(1 + fadeT * 0.5, 1 + fadeT * 0.5, 1);
-        
-        // Reduce opacity of glow planes
-        if (gate.leftGate.userData.glowPlane) {
-          gate.leftGate.userData.glowPlane.material.opacity = 0.25 * (1 - fadeT);
-        }
-        if (gate.rightGate.userData.glowPlane) {
-          gate.rightGate.userData.glowPlane.material.opacity = 0.25 * (1 - fadeT);
-        }
       }
     }
   }
-  
+
+  /** Apply emissive pulse to a single gate group */
+  _applyPulse(gateGroup, intensity) {
+    const mats = gateGroup.userData.emissiveMaterials;
+    if (mats) {
+      for (let i = 0; i < mats.length; i++) {
+        mats[i].emissiveIntensity = intensity;
+      }
+    }
+  }
+
+  /** Apply post-trigger scale and light animation */
+  _applyTriggerAnim(gateGroup, scale, lightIntensity) {
+    const ud = gateGroup.userData;
+    if (ud.leftPillar) {
+      ud.leftPillar.scale.x = scale;
+      ud.leftPillar.scale.z = scale;
+    }
+    if (ud.rightPillar) {
+      ud.rightPillar.scale.x = scale;
+      ud.rightPillar.scale.z = scale;
+    }
+    if (ud.pointLight) {
+      ud.pointLight.intensity = lightIntensity;
+    }
+  }
+
   /**
    * Check if army has collided with any gate
    * @param {number} armyX - Army X position
@@ -231,88 +253,100 @@ class GateSystem {
   checkCollision(armyX) {
     for (const gate of this.gates) {
       if (gate.passed) continue;
-      
-      // Check if gate is at army position (Z >= 0)
+
       const visualZ = gate.group.position.z;
-      
+
       if (visualZ >= -0.5 && visualZ <= 1.5) {
-        // Determine which side was hit based on armyX
         const side = armyX < 0 ? 'left' : 'right';
-        
         return { gate, side };
       }
     }
-    
+
     return null;
   }
-  
+
   /**
-   * Trigger visual effect when gate is passed
+   * Trigger dramatic visual effect when gate is passed
    * @param {Object} gate - Gate data
    * @param {string} side - 'left' or 'right'
    */
   triggerEffect(gate, side) {
     const chosen = side === 'left' ? gate.left : gate.right;
     const gateGroup = side === 'left' ? gate.leftGate : gate.rightGate;
-    
-    // Scale pulse animation
-    const userData = gateGroup.userData;
-    if (userData) {
-      // Flash the glow plane
-      if (userData.glowPlane) {
-        userData.glowPlane.material.opacity = 0.8;
-      }
-    }
-    
-    // Particle burst
-    const color = chosen.good ? 0x00ff88 : 0xff3300;
+    const color = chosen.good ? 0x00ff44 : 0xff2222;
+
+    // Burst of 40 particles
     const gateX = gate.group.position.x + gateGroup.position.x;
     const gateZ = gate.group.position.z;
-    
-    this.effects.gateEffect(gateX, 2, gateZ, color);
+    this.effects.explode(gateX, 4, gateZ, color, 40);
+
+    // Pillar scale burst
+    const ud = gateGroup.userData;
+    if (ud.leftPillar) {
+      ud.leftPillar.scale.x *= 1.3;
+      ud.leftPillar.scale.z *= 1.3;
+    }
+    if (ud.rightPillar) {
+      ud.rightPillar.scale.x *= 1.3;
+      ud.rightPillar.scale.z *= 1.3;
+    }
+
+    // PointLight intensity spike
+    if (ud.pointLight) {
+      ud.pointLight.intensity = 8;
+    }
+
+    // Camera shake
+    this.effects.cameraShake(0.5);
+
+    // Screen flash in gate color
+    this.effects.screenFlash(color);
+
+    // Start post-trigger recovery animation
+    gate.triggerTime = performance.now() / 1000;
   }
-  
+
   /**
-   * Clear all gates
+   * Clear all gates — dispose geometries, materials, lights, textures
    */
   clear() {
     for (const gate of this.gates) {
       this.scene.remove(gate.group);
-      
-      // Dispose geometries and materials
-      gate.group.traverse((obj) => {
-        if (obj.geometry) obj.geometry.dispose();
-        if (obj.material) {
-          if (obj.material.map) obj.material.map.dispose();
-          obj.material.dispose();
-        }
-      });
+      this._disposeGroup(gate.group);
     }
-    
     this.gates.length = 0;
   }
-  
+
   /**
-   * Remove gates that are far behind
+   * Remove gates that are far behind — dispose lights too
    */
   cleanup(cameraZ) {
     for (let i = this.gates.length - 1; i >= 0; i--) {
       const gate = this.gates[i];
       const visualZ = gate.group.position.z;
-      
-      // Remove gates far behind camera
+
       if (visualZ > 30) {
         this.scene.remove(gate.group);
-        gate.group.traverse((obj) => {
-          if (obj.geometry) obj.geometry.dispose();
-          if (obj.material) {
-            if (obj.material.map) obj.material.map.dispose();
-            obj.material.dispose();
-          }
-        });
+        this._disposeGroup(gate.group);
         this.gates.splice(i, 1);
       }
     }
+  }
+
+  /** Recursively dispose all geometries, materials, textures, and lights */
+  _disposeGroup(group) {
+    group.traverse((obj) => {
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) {
+        if (obj.material.map) obj.material.map.dispose();
+        if (obj.material.emissiveMap) obj.material.emissiveMap.dispose();
+        obj.material.dispose();
+      }
+      // PointLight cleanup — remove from parent handled by scene.remove
+      if (obj.isLight) {
+        if (obj.shadow && obj.shadow.map) obj.shadow.map.dispose();
+      }
+    });
   }
 }
 

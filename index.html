@@ -41,19 +41,62 @@
       left: 0;
       width: 100%;
       padding: 12px 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
       pointer-events: none;
       z-index: 100;
     }
-    
+
+    .hud-center {
+      text-align: center;
+      margin-bottom: 4px;
+    }
+
+    .hud-soldier-count {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 56px;
+      font-weight: 800;
+      color: #ffffff;
+      text-shadow: 0 0 20px #ffaa00, 0 0 40px #ffaa00, 2px 2px 4px rgba(0,0,0,0.9);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: center;
+    }
+    .hud-soldier-count .icon {
+      font-size: 36px;
+    }
+
+    .hud-army-icons {
+      display: flex;
+      justify-content: center;
+      gap: 2px;
+      font-size: 14px;
+      opacity: 0.7;
+    }
+
+    @keyframes count-pop {
+      0% { transform: scale(1); }
+      30% { transform: scale(1.3); }
+      100% { transform: scale(1); }
+    }
+    .count-pop { animation: count-pop 0.3s ease-out; }
+
     .hud-left, .hud-right {
       display: flex;
       flex-direction: column;
       gap: 8px;
+      position: fixed;
     }
-    
+
+    .hud-left {
+      bottom: 12px;
+      left: 12px;
+    }
+
+    .hud-right {
+      top: 12px;
+      right: 12px;
+    }
+
     .hud-box {
       background: rgba(10, 20, 12, 0.7);
       backdrop-filter: blur(12px);
@@ -70,18 +113,18 @@
       gap: 8px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
     }
-    
+
     .hud-box .icon {
       font-size: 20px;
     }
-    
+
     .hud-box .value {
       color: #ffffff;
       font-size: 22px;
       font-family: 'Orbitron', monospace;
       font-weight: 700;
     }
-    
+
     .hud-level {
       background: rgba(60, 110, 55, 0.6);
       border-color: rgba(130, 200, 110, 0.4);
@@ -89,7 +132,7 @@
       font-size: 13px;
       letter-spacing: 1px;
     }
-    
+
     .hud-milestone {
       background: rgba(80, 65, 20, 0.7);
       border-color: rgba(255, 215, 0, 0.4);
@@ -97,13 +140,46 @@
       font-size: 13px;
       font-family: 'Orbitron', monospace;
     }
-    
+
     .hud-best {
       background: rgba(30, 35, 55, 0.7);
       border-color: rgba(120, 170, 255, 0.35);
       color: #99bbff;
       font-size: 12px;
       font-family: 'Orbitron', monospace;
+    }
+
+    /* Boss HP Bar */
+    .hud-boss-bar {
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60%;
+      text-align: center;
+      z-index: 100;
+      pointer-events: none;
+    }
+    .boss-name {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 16px;
+      color: #ff6644;
+      text-shadow: 0 0 10px rgba(255,100,50,0.5);
+      margin-bottom: 4px;
+    }
+    .boss-bar-bg {
+      background: rgba(0,0,0,0.6);
+      border-radius: 9px;
+      height: 18px;
+      border: 1px solid rgba(255,100,100,0.4);
+      overflow: hidden;
+    }
+    .boss-bar-fill {
+      background: linear-gradient(90deg, #ff2222, #ff6644);
+      height: 100%;
+      width: 100%;
+      border-radius: 8px;
+      transition: width 0.2s ease;
     }
     
     .boot-best {
@@ -174,8 +250,8 @@
     .boot-title-text {
       font-size: 38px;
       font-weight: 800;
-      color: #6aaf5d;
-      text-shadow: 0 0 30px rgba(106,175,93,0.4), 0 0 60px rgba(106,175,93,0.15), 2px 2px 4px rgba(0,0,0,0.9);
+      color: #ffd700;
+      text-shadow: 0 0 30px rgba(255,215,0,0.5), 0 0 60px rgba(255,200,50,0.25), 0 0 100px rgba(255,170,0,0.15), 2px 2px 4px rgba(0,0,0,0.9);
       letter-spacing: 6px;
       margin-bottom: 8px;
       font-family: 'Orbitron', sans-serif;
@@ -184,7 +260,7 @@
     
     .boot-subtitle {
       font-size: 14px;
-      color: rgba(130, 200, 120, 0.5);
+      color: rgba(255, 220, 130, 0.5);
       letter-spacing: 8px;
       text-transform: uppercase;
       margin-bottom: 24px;
@@ -314,6 +390,39 @@
       box-shadow: 0 6px 24px rgba(0,0,0,0.4), 0 0 25px rgba(140,45,40,0.15), inset 0 1px 0 rgba(255,255,255,0.1);
     }
     
+    /* Screen Vignette */
+    #screen-vignette {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+      box-shadow: inset 0 0 80px rgba(0,0,0,0.5);
+      z-index: 45;
+    }
+
+    /* Combat Vignette */
+    #screen-combat-vignette {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+      box-shadow: inset 0 0 60px rgba(180,0,0,0.2);
+      z-index: 44;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+
+    /* Gold accent play button */
+    .game-btn.gold {
+      background: linear-gradient(180deg, rgba(200, 160, 40, 0.9) 0%, rgba(140, 100, 20, 0.95) 100%);
+      border-color: rgba(255, 215, 0, 0.6);
+      box-shadow: 0 6px 24px rgba(0,0,0,0.4), 0 0 40px rgba(255,200,50,0.2), inset 0 1px 0 rgba(255,255,255,0.2);
+      font-size: 22px;
+      padding: 18px 56px;
+    }
+    .game-btn.gold:hover {
+      background: linear-gradient(180deg, rgba(220, 180, 50, 0.95) 0%, rgba(160, 120, 30, 0.95) 100%);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5), 0 0 50px rgba(255,200,50,0.3), inset 0 1px 0 rgba(255,255,255,0.25);
+    }
+
     /* Responsive adjustments */
     @media (max-width: 400px) {
       .boot-title-text {
@@ -331,9 +440,19 @@
       .hud-box .value {
         font-size: 18px;
       }
+      .hud-soldier-count {
+        font-size: 40px;
+      }
+      .hud-soldier-count .icon {
+        font-size: 26px;
+      }
       .game-btn {
         padding: 14px 36px;
         font-size: 16px;
+      }
+      .game-btn.gold {
+        padding: 16px 40px;
+        font-size: 18px;
       }
     }
   </style>
@@ -344,18 +463,33 @@
   
   <!-- HUD Overlay -->
   <div id="hud">
-    <div class="hud-left">
-      <div class="hud-box">
-        <span class="icon">🪖</span>
+    <div class="hud-center">
+      <div class="hud-soldier-count" id="hud-soldier-count-wrapper">
+        <span class="icon">⚔️</span>
         <span class="value" id="hud-soldier-count">1</span>
       </div>
+      <div class="hud-army-icons" id="hud-army-icons"></div>
+    </div>
+    <div class="hud-left">
+      <div class="hud-box hud-level" id="hud-level">1/9: Intro</div>
       <div class="hud-box hud-milestone" id="hud-milestone" style="display:none;"></div>
     </div>
     <div class="hud-right">
-      <div class="hud-box hud-level" id="hud-level">1/9: Intro</div>
       <div class="hud-box hud-best" id="hud-best" style="display:none;"></div>
     </div>
+    <div class="hud-boss-bar" id="hud-boss-bar" style="display:none;">
+      <div class="boss-name" id="boss-name">OGRE</div>
+      <div class="boss-bar-bg">
+        <div class="boss-bar-fill" id="boss-bar-fill"></div>
+      </div>
+    </div>
   </div>
+  
+  <!-- Screen Vignette -->
+  <div id="screen-vignette"></div>
+  
+  <!-- Combat Vignette -->
+  <div id="screen-combat-vignette"></div>
   
   <!-- Screen Flash -->
   <div id="screen-flash"></div>
@@ -364,10 +498,10 @@
   <div id="screen-boot" class="game-screen active">
     <div class="boot-title">⚔️</div>
     <div class="boot-title-text">ARMY RUNNER</div>
-    <div class="boot-subtitle">3D TACTICAL COMBAT</div>
+    <div class="boot-subtitle">HOW FAR CAN YOU MARCH?</div>
     <div class="boot-tagline">Lead your army through enemy territory. Choose your path wisely — SAFE or RISK — and defeat the bosses!</div>
     <div id="boot-best" class="boot-best" style="display:none;"></div>
-    <button class="game-btn" id="boot-play-btn">▶  DEPLOY</button>
+    <button class="game-btn gold" id="boot-play-btn">▶  PLAY</button>
   </div>
   
   <!-- Win Screen -->
@@ -405,6 +539,13 @@
   <script src="src/ProjectileSystem.js"></script>
   <script src="src/GateSystem.js"></script>
   
+  <!-- Extracted Modules -->
+  <script src="src/WorldBuilder.js"></script>
+  <script src="src/SegmentManager.js"></script>
+  <script src="src/BarrelSystem.js"></script>
+  <script src="src/MilestoneSystem.js"></script>
+  <script src="src/HUDController.js"></script>
+
   <!-- Main Game -->
   <script src="src/game.js"></script>
 </body>

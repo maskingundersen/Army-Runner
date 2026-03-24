@@ -6,27 +6,34 @@ class ArmyManager {
     this.MAX = 200;
     
     // Create instanced meshes for soldier body parts
-    // Body - green torso (rounded cylinder)
+    // Body - steel armor torso (rounded cylinder)
     const bodyGeo = new THREE.CylinderGeometry(0.22, 0.2, 0.85, 8);
-    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x4a7c45, roughness: 0.7, metalness: 0.1 });
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x8899aa, roughness: 0.3, metalness: 0.6 });
     this.bodyInst = new THREE.InstancedMesh(bodyGeo, bodyMat, this.MAX);
     this.bodyInst.castShadow = true;
     this.bodyInst.receiveShadow = true;
     this.scene.add(this.bodyInst);
     
-    // Head - skin color (sphere)
-    const headGeo = new THREE.SphereGeometry(0.18, 10, 8);
+    // Head - skin color (sphere, slightly smaller for helmet fit)
+    const headGeo = new THREE.SphereGeometry(0.15, 10, 8);
     const headMat = new THREE.MeshStandardMaterial({ color: 0xe8b89a, roughness: 0.6, metalness: 0.0 });
     this.headInst = new THREE.InstancedMesh(headGeo, headMat, this.MAX);
     this.headInst.castShadow = true;
     this.scene.add(this.headInst);
     
-    // Helmet - dark green (rounded dome)
+    // Helmet - dark steel medieval dome
     const helmetGeo = new THREE.SphereGeometry(0.21, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.6);
-    const helmetMat = new THREE.MeshStandardMaterial({ color: 0x1f3d1f, roughness: 0.4, metalness: 0.3 });
+    const helmetMat = new THREE.MeshStandardMaterial({ color: 0x556677, roughness: 0.3, metalness: 0.5 });
     this.helmetInst = new THREE.InstancedMesh(helmetGeo, helmetMat, this.MAX);
     this.helmetInst.castShadow = true;
     this.scene.add(this.helmetInst);
+    
+    // Helmet Cone - knight's helm point on top
+    const helmetConeGeo = new THREE.ConeGeometry(0.08, 0.2, 8);
+    const helmetConeMat = new THREE.MeshStandardMaterial({ color: 0x556677, roughness: 0.3, metalness: 0.5 });
+    this.helmetConeInst = new THREE.InstancedMesh(helmetConeGeo, helmetConeMat, this.MAX);
+    this.helmetConeInst.castShadow = true;
+    this.scene.add(this.helmetConeInst);
     
     // Left Arm - green (cylinder)
     const armGeo = new THREE.CylinderGeometry(0.07, 0.08, 0.5, 6);
@@ -54,7 +61,7 @@ class ArmyManager {
     
     // Gun - dark metal (default handgun, cylinder barrel)
     this._weaponGeos = {
-      handgun:  new THREE.CylinderGeometry(0.03, 0.03, 0.35, 6),
+      handgun:  new THREE.CylinderGeometry(0.02, 0.02, 1.2, 6),
       assault:  new THREE.CylinderGeometry(0.025, 0.03, 0.6, 6),
       shotgun:  new THREE.CylinderGeometry(0.04, 0.04, 0.45, 6),
       minigun:  new THREE.CylinderGeometry(0.05, 0.05, 0.7, 8),
@@ -67,19 +74,56 @@ class ArmyManager {
     this.scene.add(this.gunInst);
     this._currentWeaponType = 'handgun';
     
+    // Shield - red medieval shield on left arm
+    const shieldGeo = new THREE.BoxGeometry(0.25, 0.35, 0.06);
+    const shieldMat = new THREE.MeshStandardMaterial({ color: 0xcc3322, roughness: 0.5, metalness: 0.15 });
+    this.shieldInst = new THREE.InstancedMesh(shieldGeo, shieldMat, this.MAX);
+    this.shieldInst.castShadow = true;
+    this.scene.add(this.shieldInst);
+    
+    // Cape - dark red cloth behind body
+    const capeGeo = new THREE.BoxGeometry(0.3, 0.4, 0.03);
+    const capeMat = new THREE.MeshStandardMaterial({ color: 0xaa2222, roughness: 0.8, metalness: 0.0 });
+    this.capeInst = new THREE.InstancedMesh(capeGeo, capeMat, this.MAX);
+    this.capeInst.castShadow = true;
+    this.scene.add(this.capeInst);
+    
     // Initialize all instances to scale(0,0,0)
     const hideMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
     for (let i = 0; i < this.MAX; i++) {
       this.bodyInst.setMatrixAt(i, hideMatrix);
       this.headInst.setMatrixAt(i, hideMatrix);
       this.helmetInst.setMatrixAt(i, hideMatrix);
+      this.helmetConeInst.setMatrixAt(i, hideMatrix);
       this.lArmInst.setMatrixAt(i, hideMatrix);
       this.rArmInst.setMatrixAt(i, hideMatrix);
       this.lLegInst.setMatrixAt(i, hideMatrix);
       this.rLegInst.setMatrixAt(i, hideMatrix);
       this.gunInst.setMatrixAt(i, hideMatrix);
+      this.shieldInst.setMatrixAt(i, hideMatrix);
+      this.capeInst.setMatrixAt(i, hideMatrix);
     }
     this._markNeedsUpdate();
+    
+    // Per-instance color variation for body and helmet
+    const _tmpColor = new THREE.Color();
+    for (let i = 0; i < this.MAX; i++) {
+      _tmpColor.setHex(0x8899aa);
+      _tmpColor.r += (Math.random() - 0.5) * 0.06;
+      _tmpColor.g += (Math.random() - 0.5) * 0.06;
+      _tmpColor.b += (Math.random() - 0.5) * 0.06;
+      this.bodyInst.setColorAt(i, _tmpColor);
+      
+      _tmpColor.setHex(0x556677);
+      _tmpColor.r += (Math.random() - 0.5) * 0.06;
+      _tmpColor.g += (Math.random() - 0.5) * 0.06;
+      _tmpColor.b += (Math.random() - 0.5) * 0.06;
+      this.helmetInst.setColorAt(i, _tmpColor);
+      this.helmetConeInst.setColorAt(i, _tmpColor);
+    }
+    this.bodyInst.instanceColor.needsUpdate = true;
+    this.helmetInst.instanceColor.needsUpdate = true;
+    this.helmetConeInst.instanceColor.needsUpdate = true;
     
     // Per-soldier data
     this._soldiers = [];
@@ -437,7 +481,7 @@ class ArmyManager {
     for (let i = 0; i < this.MAX; i++) {
       const soldier = this._soldiers[i];
       if (soldier.active) {
-        this._updateSoldierParts(i, soldier);
+        this._updateSoldierParts(i, soldier, time);
       }
     }
     
@@ -550,7 +594,7 @@ class ArmyManager {
   /**
    * Update instanced mesh matrices for a single soldier
    */
-  _updateSoldierParts(index, soldier) {
+  _updateSoldierParts(index, soldier, time) {
     const scale = soldier.spawnScale;
     if (scale <= 0) {
       this._hideInstance(index);
@@ -566,13 +610,16 @@ class ArmyManager {
     let deathDrop = 0;
     if (soldier.deathTimer >= 0) {
       const t = Math.min(soldier.deathTimer / ArmyManager.DEATH_ANIM_END, 1);
-      deathLean = t * (Math.PI / 2 + 0.2); // Fall forward
-      deathDrop = t * 0.6; // Drop to ground
+      deathLean = t * (Math.PI / 2 + 0.2);
+      deathDrop = t * 0.6;
     }
+    
+    // Y-axis marching bob
+    const marchBob = Math.sin(time * 8 + soldier.phase) * 0.05;
     
     // Body bounce
     const bounce = Math.abs(Math.sin(phase)) * 0.07;
-    const bodyY = 0.85 + bounce - deathDrop;
+    const bodyY = 0.85 + bounce - deathDrop + marchBob;
     
     // Body transform
     this._tempE.set(deathLean, soldier.deathAngle, 0);
@@ -593,6 +640,12 @@ class ArmyManager {
     this._tempM4.compose(this._tempV3, this._tempQ, new THREE.Vector3(scale, scale, scale));
     this.helmetInst.setMatrixAt(index, this._tempM4);
     
+    // Helmet cone (on top of helmet dome)
+    const coneY = helmetY + 0.15;
+    this._tempV3.set(x, coneY, z);
+    this._tempM4.compose(this._tempV3, this._tempQ, new THREE.Vector3(scale, scale, scale));
+    this.helmetConeInst.setMatrixAt(index, this._tempM4);
+    
     // Arm swing angles
     const armSwing = Math.sin(phase) * 0.65;
     const lArmAngle = armSwing;
@@ -607,7 +660,14 @@ class ArmyManager {
     this._tempM4.compose(this._tempV3, this._tempQ, new THREE.Vector3(scale, scale, scale));
     this.lArmInst.setMatrixAt(index, this._tempM4);
     
-    // Right Arm (holds gun)
+    // Shield (attached to left arm, offset outward)
+    const shieldX = lArmX - 0.12 * scale;
+    const shieldY = lArmY + 0.05;
+    this._tempV3.set(shieldX, shieldY, z);
+    this._tempM4.compose(this._tempV3, this._tempQ, new THREE.Vector3(scale, scale, scale));
+    this.shieldInst.setMatrixAt(index, this._tempM4);
+    
+    // Right Arm (holds spear/weapon)
     this._tempE.set(rArmAngle + deathLean - 0.3, soldier.deathAngle, 0);
     this._tempQ.setFromEuler(this._tempE);
     const rArmX = x + 0.38 * scale;
@@ -622,7 +682,7 @@ class ArmyManager {
     // Left Leg
     this._tempE.set(-legSwing + deathLean, soldier.deathAngle, 0);
     this._tempQ.setFromEuler(this._tempE);
-    const lLegY = 0.35 - deathDrop * 0.7;
+    const lLegY = 0.35 - deathDrop * 0.7 + marchBob;
     this._tempV3.set(x - 0.14 * scale, lLegY, z);
     this._tempM4.compose(this._tempV3, this._tempQ, new THREE.Vector3(scale, scale, scale));
     this.lLegInst.setMatrixAt(index, this._tempM4);
@@ -634,7 +694,7 @@ class ArmyManager {
     this._tempM4.compose(this._tempV3, this._tempQ, new THREE.Vector3(scale, scale, scale));
     this.rLegInst.setMatrixAt(index, this._tempM4);
     
-    // Gun (follows right arm, points forward — CylinderGeometry is Y-up, rotate -90° to align barrel with Z-axis)
+    // Weapon (follows right arm — CylinderGeometry is Y-up, rotate -90° to align with Z-axis)
     this._tempE.set(rArmAngle + deathLean - 0.3 - Math.PI / 2, soldier.deathAngle, 0);
     this._tempQ.setFromEuler(this._tempE);
     const gunY = rArmY - 0.15;
@@ -642,6 +702,15 @@ class ArmyManager {
     this._tempV3.set(rArmX, gunY, gunZ);
     this._tempM4.compose(this._tempV3, this._tempQ, new THREE.Vector3(scale, scale, scale));
     this.gunInst.setMatrixAt(index, this._tempM4);
+    
+    // Cape (behind body)
+    this._tempE.set(deathLean, soldier.deathAngle, 0);
+    this._tempQ.setFromEuler(this._tempE);
+    const capeY = bodyY - 0.05;
+    const capeZ = z + 0.18 * scale;
+    this._tempV3.set(x, capeY, capeZ);
+    this._tempM4.compose(this._tempV3, this._tempQ, new THREE.Vector3(scale, scale, scale));
+    this.capeInst.setMatrixAt(index, this._tempM4);
   }
   
   /**
@@ -652,11 +721,14 @@ class ArmyManager {
     this.bodyInst.setMatrixAt(index, this._tempM4);
     this.headInst.setMatrixAt(index, this._tempM4);
     this.helmetInst.setMatrixAt(index, this._tempM4);
+    this.helmetConeInst.setMatrixAt(index, this._tempM4);
     this.lArmInst.setMatrixAt(index, this._tempM4);
     this.rArmInst.setMatrixAt(index, this._tempM4);
     this.lLegInst.setMatrixAt(index, this._tempM4);
     this.rLegInst.setMatrixAt(index, this._tempM4);
     this.gunInst.setMatrixAt(index, this._tempM4);
+    this.shieldInst.setMatrixAt(index, this._tempM4);
+    this.capeInst.setMatrixAt(index, this._tempM4);
   }
   
   /**
@@ -666,11 +738,14 @@ class ArmyManager {
     this.bodyInst.instanceMatrix.needsUpdate = true;
     this.headInst.instanceMatrix.needsUpdate = true;
     this.helmetInst.instanceMatrix.needsUpdate = true;
+    this.helmetConeInst.instanceMatrix.needsUpdate = true;
     this.lArmInst.instanceMatrix.needsUpdate = true;
     this.rArmInst.instanceMatrix.needsUpdate = true;
     this.lLegInst.instanceMatrix.needsUpdate = true;
     this.rLegInst.instanceMatrix.needsUpdate = true;
     this.gunInst.instanceMatrix.needsUpdate = true;
+    this.shieldInst.instanceMatrix.needsUpdate = true;
+    this.capeInst.instanceMatrix.needsUpdate = true;
   }
   
   /**

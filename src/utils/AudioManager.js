@@ -79,14 +79,9 @@ class AudioManager {
     this._play(220, 0.18, 'sine', 80, 0.22);
   }
 
-  /** Ascending tone — good gate */
-  gatGood() {
-    this._play(400, 0.22, 'sine', 620, 0.28);
-  }
-
-  /** Descending harsh tone — bad gate */
+  /** Low thud — bad gate */
   gateBad() {
-    this._play(600, 0.22, 'sawtooth', 180, 0.2);
+    this._play(100, 0.15, 'sine', 50, 0.25);
   }
 
   /** Deep boom — boss takes a hit */
@@ -141,9 +136,140 @@ class AudioManager {
     this._play(280, 0.05, 'square', 180, 0.1);
   }
 
-  /** Deep rumble roar — boss entry */
+  /** Rising chime — good gate (ascending notes, higher pitch) */
+  gateGood() {
+    this._sequence([
+      [520, 0.1, 'triangle', null, 0.3],
+      [660, 0.1, 'triangle', null, 0.3],
+      [830, 0.15, 'triangle', null, 0.35],
+    ]);
+  }
+
+  /** Deep rumble roar — boss entry (layered low + mid oscillators) */
   bossRoar() {
-    this._play(55, 0.55, 'sawtooth', 35, 0.45);
+    this._init();
+    if (!this._ctx) return;
+    const ctx = this._ctx;
+    if (ctx.state === 'suspended') ctx.resume();
+
+    // Low oscillator (60Hz)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.type = 'sawtooth';
+    osc1.frequency.setValueAtTime(60, ctx.currentTime);
+    osc1.frequency.linearRampToValueAtTime(35, ctx.currentTime + 0.6);
+    gain1.gain.setValueAtTime(0.5, ctx.currentTime);
+    gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+    osc1.start(ctx.currentTime);
+    osc1.stop(ctx.currentTime + 0.61);
+
+    // Mid oscillator (200Hz)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.type = 'sawtooth';
+    osc2.frequency.setValueAtTime(200, ctx.currentTime);
+    osc2.frequency.linearRampToValueAtTime(100, ctx.currentTime + 0.4);
+    gain2.gain.setValueAtTime(0.35, ctx.currentTime);
+    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc2.start(ctx.currentTime);
+    osc2.stop(ctx.currentTime + 0.41);
+  }
+
+  /** Continuous low rhythmic march thumping */
+  marchLoop() {
+    this._init();
+    if (!this._ctx) return;
+    if (this._marchInterval) return;
+    const ctx = this._ctx;
+    if (ctx.state === 'suspended') ctx.resume();
+
+    const pulse = () => {
+      if (!this._marchInterval) return;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(80, ctx.currentTime);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.13);
+    };
+
+    pulse();
+    this._marchInterval = setInterval(pulse, 300);
+  }
+
+  marchStop() {
+    if (this._marchInterval) {
+      clearInterval(this._marchInterval);
+      this._marchInterval = null;
+    }
+  }
+
+  /** Short ascending arpeggio — victory fanfare */
+  victory() {
+    this._sequence([
+      [440, 0.12, 'triangle', null, 0.3],
+      [554, 0.12, 'triangle', null, 0.3],
+      [659, 0.12, 'triangle', null, 0.32],
+      [880, 0.25, 'square', null, 0.35],
+    ]);
+  }
+
+  /** Looping combat drum/bass pattern */
+  startCombatMusic() {
+    this._init();
+    if (!this._ctx) return;
+    if (this._combatInterval) return;
+    const ctx = this._ctx;
+    if (ctx.state === 'suspended') ctx.resume();
+
+    let beat = 0;
+    const playBeat = () => {
+      if (!this._combatInterval) return;
+      // Bass note every beat
+      const bassOsc = ctx.createOscillator();
+      const bassGain = ctx.createGain();
+      bassOsc.connect(bassGain);
+      bassGain.connect(ctx.destination);
+      bassOsc.type = 'sine';
+      bassOsc.frequency.setValueAtTime(55, ctx.currentTime);
+      bassGain.gain.setValueAtTime(0.18, ctx.currentTime);
+      bassGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+      bassOsc.start(ctx.currentTime);
+      bassOsc.stop(ctx.currentTime + 0.21);
+
+      // Higher hit every other beat
+      if (beat % 2 === 0) {
+        const hitOsc = ctx.createOscillator();
+        const hitGain = ctx.createGain();
+        hitOsc.connect(hitGain);
+        hitGain.connect(ctx.destination);
+        hitOsc.type = 'square';
+        hitOsc.frequency.setValueAtTime(220, ctx.currentTime);
+        hitGain.gain.setValueAtTime(0.1, ctx.currentTime);
+        hitGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+        hitOsc.start(ctx.currentTime);
+        hitOsc.stop(ctx.currentTime + 0.09);
+      }
+      beat++;
+    };
+
+    playBeat();
+    this._combatInterval = setInterval(playBeat, 500);
+  }
+
+  stopCombatMusic() {
+    if (this._combatInterval) {
+      clearInterval(this._combatInterval);
+      this._combatInterval = null;
+    }
   }
 }
 
