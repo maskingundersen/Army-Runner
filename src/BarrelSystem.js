@@ -7,8 +7,14 @@ class BarrelSystem {
   }
 
   spawnBarrel(worldZ) {
-    const rewards = BARREL_REWARDS;
-    const reward = rewards[Math.floor(Math.random() * rewards.length)];
+    // Simple soldier rewards for crates
+    const soldierRewards = [
+      { count: 3, good: true },
+      { count: 5, good: true },
+      { count: 8, good: true },
+      { count: 10, good: true },
+    ];
+    const reward = soldierRewards[Math.floor(Math.random() * soldierRewards.length)];
 
     // Random hit-point value displayed on the crate
     const hp = [12, 25, 50, 100][Math.floor(Math.random() * 4)];
@@ -115,35 +121,23 @@ class BarrelSystem {
     const g = this.game;
     const reward = barrel.reward;
 
-    // Delegate shatter effect to effects manager
-    g.effects.explode(barrel.xPos, 1.5, barrel.mesh.position.z, 0x8B4513, 20, 5);
-    g.effects.screenFlash(reward.good ? 0x44ff88 : 0xff4400, 0.4);
+    // Shatter effect
+    if (g.effects.spawnCrateShatter) {
+      g.effects.spawnCrateShatter(barrel.xPos, barrel.mesh.position.z);
+    } else {
+      g.effects.explode(barrel.xPos, 1.5, barrel.mesh.position.z, 0x8B4513, 20, 5);
+    }
+    g.effects.screenFlash(0x44ff88, 0.4);
     g.camCtrl.shake(0.4);
 
-    if (reward.type === 'weapon') {
-      g.currentWeapon = reward.id;
-      g.hud.showCycleMessage(WEAPON_TYPES[reward.id].label);
-    } else if (reward.type === 'soldiers') {
-      g.soldierCount = Math.max(1, g.soldierCount + reward.count);
-      g.soldierCount = Math.min(g.soldierCount, ARMY_HARD_CAP);
-      g.armyMgr.setCount(g.soldierCount, g.armyX);
-      g.hud.showCycleMessage(reward.label);
-    } else if (reward.type === 'fireRate') {
-      if (reward.penalty) {
-        g.upgrades[reward.id] = Math.max(0, (g.upgrades[reward.id] || 0) - 1);
-      } else {
-        g.upgrades[reward.id] = (g.upgrades[reward.id] || 0) + 1;
-      }
-      g.hud.showCycleMessage(reward.label);
-    } else if (reward.type === 'damage') {
-      g.upgrades[reward.id] = (g.upgrades[reward.id] || 0) + 1;
-      g.hud.showCycleMessage(reward.label);
-    }
+    // All barrel rewards grant soldiers
+    const soldierBonus = reward.count || 5;
+    g.soldierCount = Math.max(1, g.soldierCount + soldierBonus);
+    g.soldierCount = Math.min(g.soldierCount, ARMY_HARD_CAP);
+    g.armyMgr.setCount(g.soldierCount, g.armyX);
+    g.effects.spawnCountNumber(soldierBonus, g.armyX, 0);
 
-    if (window.audioManager) {
-      if (reward.good) window.audioManager.gateGood();
-      else window.audioManager.gateBad();
-    }
+    if (window.audioManager && window.audioManager.gateGood) window.audioManager.gateGood();
     g.hud.updateHUD();
   }
 
