@@ -24,8 +24,8 @@ const ENEMY_DEFS_3D = {
     walkSpeed: 1.5,
     hp: 280,
     maxHp: 280,
-    scale: 2.0,
-    color: 0x7a5a2a,
+    scale: 3.0,
+    color: 0x5a3a20,
     hitColor: 0xffffff,
     coinValue: 10,
     size: { body: [1.2, 1.8, 0.7], head: [0.9, 0.9, 0.9] },
@@ -35,7 +35,7 @@ const ENEMY_DEFS_3D = {
     walkSpeed: 1.0,
     hp: 850,
     maxHp: 850,
-    scale: 2.8,
+    scale: 5.0,
     color: 0xcc3300,
     hitColor: 0xffff00,
     coinValue: 50,
@@ -48,7 +48,7 @@ const ENEMY_DEFS_3D = {
     hp: 10,
     maxHp: 10,
     scale: 1.0,
-    color: 0x5a8a3a,     // sickly green
+    color: 0x334422,     // dark green
     hitColor: 0xffffff,
     coinValue: 1,
     size: { body: [0.55, 0.85, 0.3], head: [0.4, 0.4, 0.4] },
@@ -58,7 +58,7 @@ const ENEMY_DEFS_3D = {
     hp: 4,
     maxHp: 4,
     scale: 0.8,
-    color: 0x8a3a8a,     // purple
+    color: 0xcc2222,     // red
     hitColor: 0xffffff,
     coinValue: 1,
     size: { body: [0.45, 0.7, 0.25], head: [0.32, 0.32, 0.32] },
@@ -68,7 +68,7 @@ const ENEMY_DEFS_3D = {
     hp: 40,
     maxHp: 40,
     scale: 1.4,
-    color: 0x8a4a2a,     // brown/rust
+    color: 0x444444,     // dark grey
     hitColor: 0xffffff,
     coinValue: 3,
     size: { body: [0.9, 1.2, 0.5], head: [0.55, 0.5, 0.5] },
@@ -89,8 +89,8 @@ const ENEMY_DEFS_3D = {
     walkSpeed: 1.2,
     hp: 600,
     maxHp: 600,
-    scale: 2.4,
-    color: 0x556655,     // dark stone green
+    scale: 4.5,
+    color: 0x556655,     // stone grey
     hitColor: 0xffffff,
     coinValue: 25,
     size: { body: [1.5, 2.2, 0.8], head: [1.0, 1.0, 1.0] },
@@ -101,7 +101,7 @@ const ENEMY_DEFS_3D = {
     hp: 32,
     maxHp: 32,
     scale: 1.2,
-    color: 0x4466aa,
+    color: 0x334477,
     hitColor: 0xffffff,
     coinValue: 3,
     size: { body: [0.7, 1.0, 0.4], head: [0.45, 0.45, 0.45] },
@@ -350,11 +350,12 @@ class EnemyManager {
     rLeg.castShadow = true;
     group.add(rLeg);
 
-    // Eyes — glowing spheres (red for normal, yellow for bosses)
-    const eyeColor = def.isBoss ? 0xffcc00 : 0xff0000;
-    const eyeRad = headRad * 0.18;
+    // Eyes — glowing spheres (red emissive for bosses, red basic for normal)
+    const eyeRad = headRad * (def.isBoss ? 0.25 : 0.18);
     const eyeGeo = new THREE.SphereGeometry(eyeRad, 8, 8);
-    const eyeMat = new THREE.MeshBasicMaterial({ color: eyeColor });
+    const eyeMat = def.isBoss
+      ? new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 1.0 })
+      : new THREE.MeshBasicMaterial({ color: 0xff0000 });
 
     const lEye = new THREE.Mesh(eyeGeo, eyeMat);
     lEye.position.set(-headRad * 0.4, head.position.y + headRad * 0.1, headRad * 0.85);
@@ -508,6 +509,9 @@ class EnemyManager {
       }
 
       case 'tank': {
+        // Double body width
+        body.scale.x = 2.0;
+
         const armorCol = 0x665533;
         const armorMat = new THREE.MeshStandardMaterial({ color: armorCol, roughness: 0.4, metalness: 0.5 });
 
@@ -797,16 +801,16 @@ class EnemyManager {
       }
 
       case 'shield': {
-        // Round shield (cylinder disc with metallic material)
-        const shieldRad = Math.max(s.body[0], s.body[1]) * 0.65;
-        const shieldGeo = new THREE.CylinderGeometry(shieldRad, shieldRad, 0.06, 20);
+        // Large front-covering shield (thick box)
+        const shieldW = Math.max(s.body[0], s.body[1]) * 1.2;
+        const shieldH = s.body[1] * 1.1;
+        const shieldGeo = new THREE.BoxGeometry(shieldW, shieldH, 0.12);
         const shieldMat = new THREE.MeshStandardMaterial({
           color: 0x5588cc, roughness: 0.25, metalness: 0.7,
           transparent: true, opacity: 0.9
         });
         const shieldMesh = new THREE.Mesh(shieldGeo, shieldMat);
-        shieldMesh.position.set(0, bY, bodyRad + 0.12);
-        shieldMesh.rotation.x = Math.PI / 2;
+        shieldMesh.position.set(0, bY, bodyRad + 0.15);
         shieldMesh.userData.isShield = true;
         group.add(shieldMesh);
 
@@ -922,6 +926,14 @@ class EnemyManager {
       }
 
       case 'charger': {
+        // Central horn/spike pointing forward
+        const centralHornGeo = new THREE.ConeGeometry(headRad * 0.22, headRad * 2.0, 6);
+        const centralHornMat = new THREE.MeshStandardMaterial({ color: 0xeeddaa, roughness: 0.3, metalness: 0.3 });
+        const centralHorn = new THREE.Mesh(centralHornGeo, centralHornMat);
+        centralHorn.position.set(0, hY + headRad * 0.1, headRad * 1.2);
+        centralHorn.rotation.x = Math.PI / 2;
+        group.add(centralHorn);
+
         // Large forward-facing horns
         const hornMat = new THREE.MeshStandardMaterial({ color: 0xeeddaa, roughness: 0.3, metalness: 0.3 });
         for (let side = -1; side <= 1; side += 2) {
