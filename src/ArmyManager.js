@@ -4,7 +4,7 @@ class ArmyManager {
   constructor(threeScene) {
     this.scene = threeScene;
     this.MAX = 200;
-    this.MAX_VISIBLE = 60;
+    this.MAX_VISIBLE = 60;    // LOD cap — only render 60 groups to limit draw calls
 
     this._sharedGeo = {
       body:       new THREE.CapsuleGeometry(0.28, 0.6, 4, 8),
@@ -392,7 +392,7 @@ class ArmyManager {
     for (let i = 0; i < this.MAX; i++) {
       const soldier = this._soldiers[i];
       if (!soldier.active) continue;
-      if (soldier.spawnScale <= 0) { visibleIdx++; continue; }
+      if (soldier.spawnScale <= 0) continue;
 
       if (visibleIdx < this.MAX_VISIBLE) {
         const sg = this._soldierGroups[visibleIdx];

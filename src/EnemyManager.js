@@ -538,10 +538,6 @@ class EnemyManager {
       }
 
       case 'tank': {
-        // Wide and tall body
-        body.scale.x = 1.8;
-        body.scale.y = 1.3;
-
         // Heavy brow ridge over eyes
         const browGeoT = new THREE.BoxGeometry(headRad * 1.8, headRad * 0.2, headRad * 0.35);
         const browMatT = new THREE.MeshStandardMaterial({ color: 0x3a4a3a, roughness: 0.8, metalness: 0.1 });
@@ -555,9 +551,11 @@ class EnemyManager {
         const boxArmGeo = new THREE.BoxGeometry(boxArmW, boxArmH, boxArmW);
         const boxArmMat = new THREE.MeshStandardMaterial({ color: def.color, roughness: 0.7, metalness: 0.15 });
         lArm.geometry.dispose();
+        lArm.material.dispose();
         lArm.geometry = boxArmGeo;
         lArm.material = boxArmMat;
         rArm.geometry.dispose();
+        rArm.material.dispose();
         rArm.geometry = boxArmGeo;
         rArm.material = boxArmMat.clone();
 
