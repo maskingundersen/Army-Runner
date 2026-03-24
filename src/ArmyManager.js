@@ -358,6 +358,7 @@ class ArmyManager {
   static ROAD_HALF = 9.5;     // Half-width of the playable road (units)
   static DEATH_DURATION = 0.5; // Seconds before a dead soldier is removed
   static DEATH_ANIM_END = 0.4; // Seconds at which the fall animation completes
+  static ANIM_FRAME_SKIP = 2;  // Update march animation every Nth frame
   
   // Available formation width (can be narrowed by obstacles)
   formationWidth = 18.0;
@@ -450,8 +451,8 @@ class ArmyManager {
     const maxCols = Math.max(2, Math.floor(width / spacing));
     const cols = Math.min(maxCols, Math.ceil(Math.sqrt(renderedCount * 1.5)));
     
-    // Marching animation: only update every 2nd frame
-    const updateAnimation = (this._frameCount % 2 === 0);
+    // Marching animation: only update every Nth frame
+    const updateAnimation = (this._frameCount % ArmyManager.ANIM_FRAME_SKIP === 0);
     
     let activeIdx = 0;
     
@@ -504,7 +505,7 @@ class ArmyManager {
       
       // Walk animation phase (throttled to every 2nd frame)
       if (updateAnimation) {
-        soldier.phase += dt * 5 * 2; // Compensate for skipped frames
+        soldier.phase += dt * 5 * ArmyManager.ANIM_FRAME_SKIP; // Compensate for skipped frames
       }
       
       activeIdx++;
