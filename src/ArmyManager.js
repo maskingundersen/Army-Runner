@@ -1,7 +1,7 @@
 // src/ArmyManager.js — Manages soldier army using THREE.Group per soldier
 
 const ANIM_FRAME_SKIP = 2;
-const MAX_DRAGON_COUNT = 3;
+const MAX_DRAGON_COUNT = 3; // kept for compatibility
 
 class ArmyManager {
   constructor(threeScene) {
@@ -188,7 +188,7 @@ class ArmyManager {
       }
     }
     if (alive.length > 0) {
-      const idx = alive[alive.length - 1]; // rearmost unit
+      const idx = alive[alive.length - 1]; // highest-index alive unit
       const soldier = this._soldiers[idx];
       soldier.deathTimer = 0;
       soldier.deathAngle = (Math.random() - 0.5) * 0.5;
