@@ -370,6 +370,7 @@ class SegmentManager {
       this.spawnEnemies(def);
       g.inCombat = true;
       g.world.combatLight.intensity = 1.5;
+      if (window.audioManager && window.audioManager.startCombatMusic) window.audioManager.startCombatMusic();
     } else if (seg.type === 'boss') {
       this.spawnBoss(def);
     }
@@ -459,6 +460,9 @@ class SegmentManager {
     g.inCombat = true;
     g.world.combatLight.intensity = 2.0;
     g.camCtrl.shake(0.5);
+    g.camCtrl.setBossActive(true);
+    g.hud.showBossBar(bossType);
+    if (window.audioManager && window.audioManager.startCombatMusic) window.audioManager.startCombatMusic();
 
     if (window.audioManager) window.audioManager.bossRoar();
   }

@@ -98,6 +98,9 @@ class ArmyRunnerGame {
     this._continuousSpawnTimer = 0;
     this._continuousSpawnInterval = 2.0;
 
+    // Dust trail timer
+    this._dustTimer = 0;
+
     // Path obstacle tracking
     this._pathObstacles = [];
 
@@ -211,9 +214,16 @@ class ArmyRunnerGame {
 
     this.state = 'running';
     this.hud.updateHUD();
+    this.hud.hideBossBar();
+    this.hud.setCombatVignette(false);
 
     // Reset camera
     this.camCtrl.follow(this.armyX, this.soldierCount);
+    this.camCtrl.setInCombat(false);
+    this.camCtrl.setBossActive(false);
+
+    // Audio
+    if (window.audioManager && window.audioManager.marchLoop) window.audioManager.marchLoop();
   }
 
   // ── Path obstacles (walls/barriers between SAFE and RISK paths) ──
@@ -347,6 +357,17 @@ class ArmyRunnerGame {
     // 4c. Update weapon barrels
     this.barrelSys.updateBarrels(this.cameraZ);
 
+    // 4d. Dust trail behind army
+    this._dustTimer += dt;
+    if (this._dustTimer >= 0.15) {
+      this._dustTimer = 0;
+      this.effects.dustTrail(this.armyX, 0);
+    }
+
+    // 5. Camera combat/boss state
+    this.camCtrl.setInCombat(this.inCombat);
+    this.hud.setCombatVignette(this.inCombat);
+
     // 6. Compute stats
     const stats = this._getStats();
 
@@ -375,6 +396,14 @@ class ArmyRunnerGame {
       this.barrelSys.checkBarrelBulletHitsFromProjectiles();
       this._updateAbilities(dt, stats);
 
+      // Update boss HP bar if a boss is active
+      if (this.currentBoss) {
+        const bossEnemy = this.enemyMgr.enemies.find(e => !e.dead && e.def && e.def.boss);
+        if (bossEnemy) {
+          this.hud.updateBossBar(bossEnemy.hp / bossEnemy.maxHp);
+        }
+      }
+
       if (this.inCombat && this.enemyMgr.count === 0) {
         this.inCombat = false;
         this.world.combatLight.intensity = 0;
@@ -384,7 +413,12 @@ class ArmyRunnerGame {
           else if (this.currentBoss === 'giant') this.milestone = 'Defeated Giant';
           else if (this.currentBoss === 'fireDragon') this.milestone = 'Defeated Fire Dragon';
           this.currentBoss = null;
+          this.camCtrl.setBossActive(false);
+          this.hud.hideBossBar();
+          if (window.audioManager && window.audioManager.victory) window.audioManager.victory();
         }
+
+        if (window.audioManager && window.audioManager.stopCombatMusic) window.audioManager.stopCombatMusic();
 
         this.segMgr.triggerNextSegment();
       }
@@ -605,6 +639,7 @@ class ArmyRunnerGame {
       const delta = this.soldierCount - oldCount;
       if (delta !== 0) {
         this.effects.soldierCountFeedback(this.armyX, delta);
+        this.effects.soldierCountText(this.armyX, delta);
       }
     }
 
@@ -616,7 +651,7 @@ class ArmyRunnerGame {
 
     this.armyMgr.setCount(this.soldierCount, this.armyX);
 
-    if (window.audioManager) window.audioManager.gatGood();
+    if (window.audioManager) window.audioManager.gateGood();
 
     this.hud.updateHUD();
   }
@@ -624,7 +659,11 @@ class ArmyRunnerGame {
   _triggerWin() {
     this.state = 'win';
     this.milestoneSys.saveBestMilestone();
-    if (window.audioManager) window.audioManager.win();
+    if (window.audioManager) {
+      window.audioManager.win();
+      if (window.audioManager.marchStop) window.audioManager.marchStop();
+      if (window.audioManager.stopCombatMusic) window.audioManager.stopCombatMusic();
+    }
 
     const screen = document.getElementById('screen-win');
     screen.classList.add('active');
@@ -635,7 +674,11 @@ class ArmyRunnerGame {
 
   _triggerLose() {
     this.state = 'lose';
-    if (window.audioManager) window.audioManager.lose();
+    if (window.audioManager) {
+      window.audioManager.lose();
+      if (window.audioManager.marchStop) window.audioManager.marchStop();
+      if (window.audioManager.stopCombatMusic) window.audioManager.stopCombatMusic();
+    }
 
     this.milestoneSys.saveBestMilestone();
 
