@@ -16,6 +16,9 @@ const BOSS_CHARGE_DAMAGE_ENRAGED = 2;
 const BOSS_PROJ_HIT_ZONE_Z = 1.5;
 const BOSS_PROJ_HIT_ZONE_X = 3.0;
 
+// Cached white color for hit flash lerping
+const _ENEMY_WHITE = new THREE.Color(0xffffff);
+
 // Road boundary for enemy spawning (road half-width with inward padding)
 const ENEMY_ROAD_HALF = 8.5;
 
@@ -267,9 +270,15 @@ class EnemyManager {
     enemy.group.rotation.set(0, 0, 0);
     enemy.group.scale.set(def.scale, def.scale, def.scale);
     
-    // Reset materials to base color
-    enemy.bodyMesh.material.color.setHex(def.color);
-    enemy.headMesh.material.color.setHex(def.color);
+    // Reset materials to base color (restore all original colors)
+    if (enemy._origColors) {
+      for (const oc of enemy._origColors) {
+        oc.mesh.material.color.copy(oc.color);
+      }
+    } else {
+      enemy.bodyMesh.material.color.setHex(def.color);
+      enemy.headMesh.material.color.setHex(def.color);
+    }
     
     // Reset HP bar
     if (enemy.hpBar) {
@@ -372,8 +381,28 @@ class EnemyManager {
     rEye.position.set(headRad * 0.4, head.position.y + headRad * 0.1, headRad * 0.85);
     group.add(rEye);
 
+    // Boss eye glow — larger semi-transparent spheres for simulated bloom
+    if (def.isBoss) {
+      const glowEyeGeo = new THREE.SphereGeometry(eyeRad * 1.5, 8, 8);
+      const glowEyeMat = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.15 });
+      const lGlow = new THREE.Mesh(glowEyeGeo, glowEyeMat);
+      lGlow.position.copy(lEye.position);
+      group.add(lGlow);
+      const rGlow = new THREE.Mesh(glowEyeGeo, glowEyeMat.clone());
+      rGlow.position.copy(rEye.position);
+      group.add(rGlow);
+    }
+
     // --- Type-specific visual features ---
     this._addTypeFeatures(type, def, group, body, head, lArm, rArm, lLeg, rLeg);
+
+    // Collect original colors for all meshes (for hit flash system)
+    const origColors = [];
+    group.traverse((child) => {
+      if (child.isMesh && child.material && child.material.color) {
+        origColors.push({ mesh: child, color: child.material.color.clone() });
+      }
+    });
 
     // --- HP bar (always-face-camera sprite) ---
     const hpBar = this._createHPBar(def);
@@ -411,7 +440,8 @@ class EnemyManager {
       bossChargeTimer: 0,
       bossCharging: false,
       bossChargeSpeed: 0,
-      bossEnraged: false
+      bossEnraged: false,
+      _origColors: origColors
     };
 
     // Copy special animation references stored during _addTypeFeatures
@@ -1292,18 +1322,25 @@ class EnemyManager {
         enemy._giantRArm.rotation.x = -slowSwing;
       }
       
-      // Hit flash decay
+      // Hit flash — two-phase: 0.05s ramp to white, 0.1s fade back
       if (enemy.hitFlash > 0) {
-        enemy.hitFlash -= dt * 8;
+        const elapsed = 0.15 - enemy.hitFlash;
+        enemy.hitFlash -= dt;
         if (enemy.hitFlash < 0) enemy.hitFlash = 0;
         
-        const flashColor = new THREE.Color().lerpColors(
-          new THREE.Color(def.color),
-          new THREE.Color(0xffffff),
-          enemy.hitFlash
-        );
-        enemy.bodyMesh.material.color.copy(flashColor);
-        enemy.headMesh.material.color.copy(flashColor);
+        let intensity;
+        if (elapsed < 0.05) {
+          intensity = elapsed / 0.05;
+        } else {
+          intensity = 1 - (elapsed - 0.05) / 0.1;
+        }
+        intensity = Math.max(0, Math.min(1, intensity));
+        
+        if (enemy._origColors) {
+          for (const oc of enemy._origColors) {
+            oc.mesh.material.color.lerpColors(oc.color, _ENEMY_WHITE, intensity);
+          }
+        }
       }
       
       // Hit scale pulse decay
@@ -1375,7 +1412,7 @@ class EnemyManager {
     // Shield absorbs damage first
     if (enemy.def.hasShield && enemy.shieldHp > 0) {
       enemy.shieldHp -= damage;
-      enemy.hitFlash = 1.0;
+      enemy.hitFlash = 0.15;
       if (enemy.shieldHp <= 0) {
         enemy.shieldHp = 0;
         // Remove shield visual
@@ -1393,7 +1430,7 @@ class EnemyManager {
     }
     
     enemy.hp -= damage;
-    enemy.hitFlash = 1.0;
+    enemy.hitFlash = 0.15;
     
     // Hit reaction: brief scale pulse
     enemy.hitScale = 1.2;
@@ -1526,6 +1563,7 @@ class EnemyManager {
       
       // Visual feedback — rock throw effect
       this.effects.explode(boss.worldX, 2, boss.worldZ, 0x886644, 12, 4);
+      this.effects.spawnShockwave(boss.worldX, boss.worldZ, 0xff6600);
       if (window.audioManager) window.audioManager.bossAttack();
     }
     
@@ -1608,6 +1646,7 @@ class EnemyManager {
       if (boss.worldZ > -2 && boss.worldZ < 2) {
         soldierLosses += boss.bossEnraged ? BOSS_CHARGE_DAMAGE_ENRAGED : BOSS_CHARGE_DAMAGE;
         this.effects.explode(boss.worldX, 1, 0, 0xff0000, 15, 4);
+        this.effects.spawnShockwave(boss.worldX, 0, 0xff6600);
         if (this.effects.camCtrl) this.effects.camCtrl.shake(1.2);
       }
       

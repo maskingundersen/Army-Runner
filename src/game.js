@@ -369,12 +369,9 @@ class ArmyRunnerGame {
     // 4c. Update weapon barrels
     this.barrelSys.updateBarrels(this.cameraZ);
 
-    // 4d. Dust trail behind army
-    this._dustTimer += dt;
-    if (this._dustTimer >= 0.15) {
-      this._dustTimer = 0;
-      this.effects.dustTrail(this.armyX, 0);
-    }
+    // 4d. Dust trail behind army (dedicated dust system)
+    this.effects.marchDust = (this.state === 'running');
+    this.effects.updateDustTrail(dt, this.armyX, 0, this.armyMgr.formationWidth, 4);
 
     // 5. Camera combat/boss state
     this.camCtrl.setInCombat(this.inCombat);
@@ -396,6 +393,7 @@ class ArmyRunnerGame {
         }
         this.armyMgr.setCount(this.soldierCount, this.armyX);
         this.camCtrl.shake(soldierLosses * 0.8);
+        this.effects.spawnCountNumber(-effectiveLosses, this.armyX, 0);
 
         if (this.soldierCount <= 0) {
           this._triggerLose();
@@ -477,6 +475,24 @@ class ArmyRunnerGame {
     if (gateHit) {
       this._onGateHit(gateHit);
     }
+
+    // 8d. Gate approach indicator + ambient light
+    let nearestGateDist = Infinity;
+    let nearestGatePositive = true;
+    for (const gate of this.gateSys.gates) {
+      if (gate.passed) continue;
+      const visualZ = gate.group.position.z;
+      if (visualZ >= 0) continue;
+      const dist = -visualZ;
+      if (dist < nearestGateDist) {
+        nearestGateDist = dist;
+        const side = this.armyX < 0 ? 'left' : 'right';
+        nearestGatePositive = gate[side].good;
+      }
+    }
+    this.hud.updateGateArrow(nearestGateDist, nearestGatePositive);
+    const gateAmbientColor = nearestGatePositive ? 0x00ff44 : 0xff2222;
+    this.effects.updateGateAmbient(nearestGateDist, gateAmbientColor);
 
     // 9. Cleanup
     this.gateSys.cleanup(this.cameraZ);
@@ -654,7 +670,7 @@ class ArmyRunnerGame {
       const delta = this.soldierCount - oldCount;
       if (delta !== 0) {
         this.effects.soldierCountFeedback(this.armyX, delta);
-        this.effects.soldierCountText(this.armyX, delta);
+        this.effects.spawnCountNumber(delta, this.armyX, 0);
       }
     }
 

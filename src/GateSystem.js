@@ -100,6 +100,23 @@ class GateSystem {
     crossbar.position.set(0, pillarHeight, 0);
     group.add(crossbar);
 
+    // Simulated bloom — glow halo meshes at 102% scale
+    const glowMat = new THREE.MeshBasicMaterial({ color: emissiveColor, transparent: true, opacity: 0.12 });
+    const leftGlow = new THREE.Mesh(pillarGeo, glowMat);
+    leftGlow.position.copy(leftPillar.position);
+    leftGlow.scale.set(1.02, 1.02, 1.02);
+    group.add(leftGlow);
+
+    const rightGlow = new THREE.Mesh(pillarGeo, glowMat.clone());
+    rightGlow.position.copy(rightPillar.position);
+    rightGlow.scale.set(1.02, 1.02, 1.02);
+    group.add(rightGlow);
+
+    const crossGlow = new THREE.Mesh(crossbarGeo, glowMat.clone());
+    crossGlow.position.copy(crossbar.position);
+    crossGlow.scale.set(1.02, 1.02, 1.02);
+    group.add(crossGlow);
+
     // Collect emissive material refs for pulse animation
     const emissiveMaterials = [
       leftPillar.material,
