@@ -21,16 +21,6 @@ class WorldBuilder {
     // Directional moonlight - cool blue tone
     const sun = new THREE.DirectionalLight(0x9999cc, 0.7);
     sun.position.set(8, 20, 10);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.near = 1;
-    sun.shadow.camera.far = 100;
-    sun.shadow.camera.left = -25;
-    sun.shadow.camera.right = 25;
-    sun.shadow.camera.top = 25;
-    sun.shadow.camera.bottom = -25;
-    sun.shadow.bias = -0.0005;
-    sun.shadow.normalBias = 0.02;
     this.scene.add(sun);
     this.sun = sun;
 
@@ -115,7 +105,6 @@ class WorldBuilder {
     this.groundMesh = new THREE.Mesh(groundGeo, groundMat);
     this.groundMesh.rotation.x = -Math.PI / 2;
     this.groundMesh.position.set(0, -0.02, -120);
-    this.groundMesh.receiveShadow = true;
     this.scene.add(this.groundMesh);
 
     // Ground texture variation patches
@@ -131,7 +120,6 @@ class WorldBuilder {
         -0.01,
         -120 + Math.random() * 400
       );
-      patch.receiveShadow = true;
       this.scene.add(patch);
     }
 
@@ -141,7 +129,6 @@ class WorldBuilder {
     this.parallaxGround = new THREE.Mesh(parGeo, parMat);
     this.parallaxGround.rotation.x = -Math.PI / 2;
     this.parallaxGround.position.set(0, -0.1, -180);
-    this.parallaxGround.receiveShadow = true;
     this.scene.add(this.parallaxGround);
     this._parallaxBaseZ = -180;
 
@@ -151,18 +138,17 @@ class WorldBuilder {
     this.roadMesh = new THREE.Mesh(roadGeo, roadMat);
     this.roadMesh.rotation.x = -Math.PI / 2;
     this.roadMesh.position.set(0, -0.01, -120);
-    this.roadMesh.receiveShadow = true;
     this.scene.add(this.roadMesh);
 
-    // Subtle road crack lines (longitudinal)
+    // Subtle road crack lines (longitudinal) — 4 meshes merged to 1
     const crackMat = new THREE.MeshStandardMaterial({ color: 0x333344, roughness: 0.95, metalness: 0.0 });
     const crackOffsets = [-3.2, -0.8, 1.5, 4.1];
-    for (let i = 0; i < crackOffsets.length; i++) {
-      const crackGeo = new THREE.BoxGeometry(0.08, 0.01, 3);
-      const crack = new THREE.Mesh(crackGeo, crackMat);
-      crack.position.set(crackOffsets[i], 0.001, -120 + i * 70);
-      this.scene.add(crack);
-    }
+    const crackGeos = crackOffsets.map((xOff, i) => ({
+      geometry: new THREE.BoxGeometry(0.08, 0.01, 3),
+      position: new THREE.Vector3(xOff, 0.001, -120 + i * 70)
+    }));
+    const mergedCracks = this._mergeGeometries(crackGeos);
+    this.scene.add(new THREE.Mesh(mergedCracks, crackMat));
 
     // Horizontal crack lines across road every ~8 units
     const hCrackGeo = new THREE.BoxGeometry(20, 0.02, 0.08);
@@ -203,16 +189,15 @@ class WorldBuilder {
     this.scene.add(this.dashMesh);
     this.updateDashes(0);
 
-    // Stone kerb road edges
+    // Stone kerb road edges — 2 meshes merged to 1
     const edgeGeo = new THREE.BoxGeometry(0.3, 0.15, 400);
     const edgeMat = new THREE.MeshStandardMaterial({ color: 0x888877, roughness: 0.85, metalness: 0.0 });
-    const leftEdge = new THREE.Mesh(edgeGeo, edgeMat);
-    const rightEdge = new THREE.Mesh(edgeGeo, edgeMat.clone());
-    leftEdge.position.set(-9.8, 0.075, -120);
-    rightEdge.position.set(9.8, 0.075, -120);
-    this.scene.add(leftEdge, rightEdge);
-    this.leftEdge = leftEdge;
-    this.rightEdge = rightEdge;
+    const edgeGeos = [
+      { geometry: edgeGeo, position: new THREE.Vector3(-9.8, 0.075, -120) },
+      { geometry: edgeGeo, position: new THREE.Vector3(9.8, 0.075, -120) }
+    ];
+    const mergedEdges = this._mergeGeometries(edgeGeos);
+    this.scene.add(new THREE.Mesh(mergedEdges, edgeMat));
   }
 
   updateDashes(cameraZ) {
@@ -248,14 +233,12 @@ class WorldBuilder {
 
     const numTrees = 80;
     this.trunkMesh = new THREE.InstancedMesh(trunkGeo, trunkMat, numTrees);
-    this.trunkMesh.castShadow = true;
 
     // One instanced mesh per foliage layer
     this.foliageLayers = [];
     for (let l = 0; l < foliageGeos.length; l++) {
       const mat = foliageMats[l % foliageMats.length];
       const im = new THREE.InstancedMesh(foliageGeos[l], mat, numTrees);
-      im.castShadow = true;
       this.foliageLayers.push(im);
     }
 
@@ -340,7 +323,6 @@ class WorldBuilder {
     this.torchStickMesh = new THREE.InstancedMesh(stickGeo, stickMat, numTorches);
     this.torchFlameMesh = new THREE.InstancedMesh(flameGeo, flameMat, numTorches);
 
-    this.torchLights = [];
     const m = new THREE.Matrix4();
 
     for (let i = 0; i < numTorches; i++) {
@@ -355,22 +337,26 @@ class WorldBuilder {
 
       m.makeTranslation(x, 1.6, z);
       this.torchFlameMesh.setMatrixAt(i, m);
-
-      const light = new THREE.PointLight(0xff6600, 1.5, 8);
-      light.position.set(x, 1.8, z);
-      this.scene.add(light);
-      this.torchLights.push(light);
     }
 
     this.torchStickMesh.instanceMatrix.needsUpdate = true;
     this.torchFlameMesh.instanceMatrix.needsUpdate = true;
     this.scene.add(this.torchStickMesh);
     this.scene.add(this.torchFlameMesh);
+
+    // 2 shared PointLights that hop to nearest torch each frame (one per side)
+    this._torchLightLeft = new THREE.PointLight(0xff6600, 1.5, 8);
+    this._torchLightRight = new THREE.PointLight(0xff6600, 1.5, 8);
+    this.scene.add(this._torchLightLeft);
+    this.scene.add(this._torchLightRight);
   }
 
   updateTorches(cameraZ) {
     const m = new THREE.Matrix4();
     const wrapDist = this.torchData.length * 30;
+
+    let bestLeftZ = Infinity, bestRightZ = Infinity;
+    let bestLeftDist = Infinity, bestRightDist = Infinity;
 
     for (let i = 0; i < this.torchData.length; i++) {
       const t = this.torchData[i];
@@ -385,11 +371,21 @@ class WorldBuilder {
       m.makeTranslation(t.x, 1.6, visualZ);
       this.torchFlameMesh.setMatrixAt(i, m);
 
-      this.torchLights[i].position.set(t.x, 1.8, visualZ);
+      // Track nearest visible torch per side for shared PointLight
+      const dist = Math.abs(visualZ);
+      if (t.x < 0) {
+        if (dist < bestLeftDist) { bestLeftDist = dist; bestLeftZ = visualZ; }
+      } else {
+        if (dist < bestRightDist) { bestRightDist = dist; bestRightZ = visualZ; }
+      }
     }
 
     this.torchStickMesh.instanceMatrix.needsUpdate = true;
     this.torchFlameMesh.instanceMatrix.needsUpdate = true;
+
+    // Move shared lights to nearest torch on each side
+    this._torchLightLeft.position.set(-10.5, 1.8, bestLeftZ);
+    this._torchLightRight.position.set(10.5, 1.8, bestRightZ);
   }
 
   buildMountains() {
@@ -466,14 +462,12 @@ class WorldBuilder {
       // Base wall
       const baseMesh = new THREE.Mesh(baseGeo, wallMat);
       baseMesh.position.set(0, 1.5, 0);
-      baseMesh.castShadow = true;
       group.add(baseMesh);
 
       // 3 merlons on top, evenly spaced along wall width
       for (let m = 0; m < 3; m++) {
         const mer = new THREE.Mesh(merGeo, wallMat);
         mer.position.set(-1.2 + m * 1.2, 3.5, 0);
-        mer.castShadow = true;
         group.add(mer);
       }
 
@@ -486,10 +480,7 @@ class WorldBuilder {
         const flame = new THREE.Mesh(flameGeo, flameMat);
         flame.position.set(0, 4.85, 0.25);
         group.add(flame);
-
-        const torchLight = new THREE.PointLight(0xff6600, 1.2, 7);
-        torchLight.position.set(0, 4.85, 0.25);
-        group.add(torchLight);
+        // No individual PointLight per wall torch — shared lights handle illumination
       }
 
       // Debris: 2–4 scattered objects near wall base
@@ -637,5 +628,78 @@ class WorldBuilder {
       fog.sprite.position.x = fog.x + Math.sin(time * 0.3 + fog.offset);
       fog.sprite.position.z = visualZ;
     }
+  }
+
+  /**
+   * Merge multiple geometries (each with a position offset) into a single BufferGeometry.
+   * Used to reduce draw calls for static geometry. THREE.BufferGeometryUtils is not
+   * bundled in three.min.js, so this is a lightweight manual implementation.
+   * @param {Array<{geometry: THREE.BufferGeometry, position: THREE.Vector3}>} entries
+   * @returns {THREE.BufferGeometry}
+   */
+  _mergeGeometries(entries) {
+    let totalVerts = 0;
+    let totalIndices = 0;
+
+    for (const e of entries) {
+      const pos = e.geometry.getAttribute('position');
+      totalVerts += pos.count;
+      const idx = e.geometry.getIndex();
+      totalIndices += idx ? idx.count : pos.count;
+    }
+
+    const positions = new Float32Array(totalVerts * 3);
+    const normals = new Float32Array(totalVerts * 3);
+    const uvs = new Float32Array(totalVerts * 2);
+    const indices = new Uint32Array(totalIndices);
+
+    let vOff = 0, iOff = 0, vBase = 0;
+
+    for (const e of entries) {
+      const geo = e.geometry;
+      const posAttr = geo.getAttribute('position');
+      const normAttr = geo.getAttribute('normal');
+      const uvAttr = geo.getAttribute('uv');
+      const idxAttr = geo.getIndex();
+      const count = posAttr.count;
+      const px = e.position.x, py = e.position.y, pz = e.position.z;
+
+      for (let i = 0; i < count; i++) {
+        positions[(vOff + i) * 3]     = posAttr.getX(i) + px;
+        positions[(vOff + i) * 3 + 1] = posAttr.getY(i) + py;
+        positions[(vOff + i) * 3 + 2] = posAttr.getZ(i) + pz;
+        if (normAttr) {
+          normals[(vOff + i) * 3]     = normAttr.getX(i);
+          normals[(vOff + i) * 3 + 1] = normAttr.getY(i);
+          normals[(vOff + i) * 3 + 2] = normAttr.getZ(i);
+        }
+        if (uvAttr) {
+          uvs[(vOff + i) * 2]     = uvAttr.getX(i);
+          uvs[(vOff + i) * 2 + 1] = uvAttr.getY(i);
+        }
+      }
+
+      if (idxAttr) {
+        for (let i = 0; i < idxAttr.count; i++) {
+          indices[iOff + i] = idxAttr.getX(i) + vBase;
+        }
+        iOff += idxAttr.count;
+      } else {
+        for (let i = 0; i < count; i++) {
+          indices[iOff + i] = vBase + i;
+        }
+        iOff += count;
+      }
+
+      vBase += count;
+      vOff += count;
+    }
+
+    const merged = new THREE.BufferGeometry();
+    merged.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    merged.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+    merged.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+    merged.setIndex(new THREE.BufferAttribute(indices, 1));
+    return merged;
   }
 }

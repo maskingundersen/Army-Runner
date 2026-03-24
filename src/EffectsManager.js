@@ -6,7 +6,8 @@ class EffectsManager {
     this.camCtrl = cameraController;
     
     // Particle system using InstancedMesh
-    this.MAX_PARTICLES = 600;
+    this.MAX_PARTICLES = 40;
+    this.MAX_FLOATING_TEXTS = 3; // cap on concurrent floating count sprites
     this._particles = [];
     this._particlePool = [];
     
@@ -229,6 +230,14 @@ class EffectsManager {
    * @param {number} count - Soldiers gained (positive) or lost (negative)
    */
   soldierCountText(x, count) {
+    // Cap at MAX_FLOATING_TEXTS — evict oldest if over limit
+    if (this._floatingTexts.length >= this.MAX_FLOATING_TEXTS) {
+      const oldest = this._floatingTexts.shift();
+      this.scene.remove(oldest.sprite);
+      oldest.texture.dispose();
+      oldest.sprite.material.dispose();
+    }
+
     const canvas = document.createElement('canvas');
     canvas.width = 128;
     canvas.height = 64;
@@ -280,26 +289,23 @@ class EffectsManager {
    * @param {number} z - World Z position
    */
   dustTrail(x, z) {
-    const count = 1 + Math.floor(Math.random() * 2);
-    for (let i = 0; i < count; i++) {
-      const idx = this._particlePool.pop();
-      if (idx === undefined) break;
-      
-      const p = this._particleData[idx];
-      p.active = true;
-      p.x = x + (Math.random() - 0.5) * 0.5;
-      p.y = 0.1 + Math.random() * 0.2;
-      p.z = z + (Math.random() - 0.5) * 0.3;
-      p.vx = (Math.random() - 0.5) * 0.5;
-      p.vy = 0.5 + Math.random() * 0.5;
-      p.vz = 1.0 + Math.random() * 0.5; // backward (positive z = behind)
-      p.life = 0.3;
-      p.maxLife = 0.3;
-      p.scale = 0.4 + Math.random() * 0.3;
-      p.color = 0xccbbaa;
-      
-      this._particles.push(idx);
-    }
+    const idx = this._particlePool.pop();
+    if (idx === undefined) return;
+
+    const p = this._particleData[idx];
+    p.active = true;
+    p.x = x + (Math.random() - 0.5) * 0.5;
+    p.y = 0.1 + Math.random() * 0.2;
+    p.z = z + (Math.random() - 0.5) * 0.3;
+    p.vx = (Math.random() - 0.5) * 0.5;
+    p.vy = 0.5 + Math.random() * 0.5;
+    p.vz = 1.0 + Math.random() * 0.5; // backward (positive z = behind)
+    p.life = 0.3;
+    p.maxLife = 0.3;
+    p.scale = 0.4 + Math.random() * 0.3;
+    p.color = 0xccbbaa;
+
+    this._particles.push(idx);
   }
   
   /**

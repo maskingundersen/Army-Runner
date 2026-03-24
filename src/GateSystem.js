@@ -34,8 +34,14 @@ class GateSystem {
     const dividerMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5, metalness: 0.3 });
     const divider = new THREE.Mesh(dividerGeo, dividerMat);
     divider.position.y = 4;
-    divider.castShadow = true;
     group.add(divider);
+
+    // 1 shared PointLight per gate pair (not 2), positioned at center
+    const pairLightColor = leftData.good ? 0x00ff44 : 0xff2222;
+    const pairLight = new THREE.PointLight(pairLightColor, 1.2, 16);
+    pairLight.position.set(0, 4, 0);
+    pairLight.castShadow = false;
+    group.add(pairLight);
 
     group.position.z = worldZ;
     this.scene.add(group);
@@ -49,7 +55,8 @@ class GateSystem {
       right: rightData,
       passed: false,
       animationTime: 0,
-      triggerTime: -1
+      triggerTime: -1,
+      pairLight
     };
 
     this.gates.push(gateData);
@@ -80,20 +87,17 @@ class GateSystem {
     const pillarGeo = new THREE.CylinderGeometry(0.4, 0.4, pillarHeight, 12);
     const leftPillar = new THREE.Mesh(pillarGeo, archMat.clone());
     leftPillar.position.set(-gateWidth / 2, pillarHeight / 2, 0);
-    leftPillar.castShadow = true;
     group.add(leftPillar);
 
     // Right pillar — cylinder
     const rightPillar = new THREE.Mesh(pillarGeo, archMat.clone());
     rightPillar.position.set(gateWidth / 2, pillarHeight / 2, 0);
-    rightPillar.castShadow = true;
     group.add(rightPillar);
 
     // Crossbar on top
     const crossbarGeo = new THREE.BoxGeometry(gateWidth, 0.6, 0.6);
     const crossbar = new THREE.Mesh(crossbarGeo, archMat.clone());
     crossbar.position.set(0, pillarHeight, 0);
-    crossbar.castShadow = true;
     group.add(crossbar);
 
     // Collect emissive material refs for pulse animation
@@ -102,11 +106,6 @@ class GateSystem {
       rightPillar.material,
       crossbar.material
     ];
-
-    // Point light inside the gate
-    const pointLight = new THREE.PointLight(emissiveColor, 2, 12);
-    pointLight.position.set(0, 4, 0);
-    group.add(pointLight);
 
     // Label billboard sprite
     const textSprite = this._createTextSprite(labelText, isGood);
@@ -120,7 +119,6 @@ class GateSystem {
       rightPillar,
       crossbar,
       emissiveMaterials,
-      pointLight,
       textSprite,
       isGood
     };
@@ -199,13 +197,15 @@ class GateSystem {
         if (elapsed < 0.5) {
           const t = elapsed / 0.5;
           const scale = 1.3 - 0.3 * t; // 1.3 → 1.0
-          const lightInt = 8 - 6 * t;   // 8 → 2
-          this._applyTriggerAnim(gate.leftGate, scale, lightInt);
-          this._applyTriggerAnim(gate.rightGate, scale, lightInt);
+          const lightInt = 8 - 6.8 * t;   // 8 → 1.2
+          this._applyTriggerAnim(gate.leftGate, scale);
+          this._applyTriggerAnim(gate.rightGate, scale);
+          if (gate.pairLight) gate.pairLight.intensity = lightInt;
         } else {
           // Snap back to defaults
-          this._applyTriggerAnim(gate.leftGate, 1.0, 2);
-          this._applyTriggerAnim(gate.rightGate, 1.0, 2);
+          this._applyTriggerAnim(gate.leftGate, 1.0);
+          this._applyTriggerAnim(gate.rightGate, 1.0);
+          if (gate.pairLight) gate.pairLight.intensity = 1.2;
           gate.triggerTime = -1;
         }
       }
@@ -229,8 +229,8 @@ class GateSystem {
     }
   }
 
-  /** Apply post-trigger scale and light animation */
-  _applyTriggerAnim(gateGroup, scale, lightIntensity) {
+  /** Apply post-trigger scale animation */
+  _applyTriggerAnim(gateGroup, scale) {
     const ud = gateGroup.userData;
     if (ud.leftPillar) {
       ud.leftPillar.scale.x = scale;
@@ -239,9 +239,6 @@ class GateSystem {
     if (ud.rightPillar) {
       ud.rightPillar.scale.x = scale;
       ud.rightPillar.scale.z = scale;
-    }
-    if (ud.pointLight) {
-      ud.pointLight.intensity = lightIntensity;
     }
   }
 
@@ -291,9 +288,9 @@ class GateSystem {
       ud.rightPillar.scale.z *= 1.3;
     }
 
-    // PointLight intensity spike
-    if (ud.pointLight) {
-      ud.pointLight.intensity = 8;
+    // PointLight intensity spike (pair-level light)
+    if (gate.pairLight) {
+      gate.pairLight.intensity = 8;
     }
 
     // Camera shake
