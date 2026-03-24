@@ -86,8 +86,6 @@ class ArmyRunnerGame {
     this.armyX = 0;
     this.armyTargetX = 0;
     this.score = 0;
-    this.coins = 0;
-    this.shopMeta = UpgradeSystem.loadShopMeta ? UpgradeSystem.loadShopMeta() : {};
 
     // Segment tracking (9-segment endless loop)
     this.currentSegment = 0;
@@ -100,12 +98,6 @@ class ArmyRunnerGame {
     this.internalSegIdx = 0;
     this.inCombat = false;
     this.nextSegmentDist = 80;
-
-    // Active ability cooldown timers
-    this._grenadeCooldown = 0;
-    this._airstrikeCooldown = 0;
-    this._shockwaveCooldown = 0;
-    this._medicTimer = 0;
 
     // Continuous enemy pressure timer
     this._continuousSpawnTimer = 0;
@@ -172,35 +164,17 @@ class ArmyRunnerGame {
     this.cameraZ = 0;
     this.armyX = 0;
     this.armyTargetX = 0;
-    this.coins = 0;
     this.currentSegment = 0;
     this.segmentCycle = 0;
     this.difficultyMult = 1.0;
     this.milestone = '';
     this.currentBoss = null;
     this.inCombat = false;
-
-    // Weapon system
-    this.currentWeapon = 'handgun';
-
-    // Map layout
-    this.mapLayout = Math.floor(Math.random() * MAP_LAYOUTS.length);
-
-    // Reset ability cooldowns
-    this._grenadeCooldown = 0;
-    this._airstrikeCooldown = 0;
-    this._shockwaveCooldown = 0;
-    this._medicTimer = 0;
     this._decayTimer = 0;
 
     // Continuous enemy pressure timer
     this._continuousSpawnTimer = 0;
     this._continuousSpawnInterval = 2.0;
-
-    // Companion attack timers
-    this._dragonAttackTimer = 0;
-    this._turretAttackTimer = 0;
-    this._droneAttackTimer = 0;
 
     // Build internal segment sequence
     this.segMgr.buildInternalSegments();
@@ -350,7 +324,6 @@ class ArmyRunnerGame {
 
     // 3. Update army formation
     this.armyMgr.update(dt, this.armyX, this.clock.elapsedTime, this.upgrades);
-    this.armyMgr.setWeaponType(this.currentWeapon);
     this.camCtrl.follow(this.armyX, this.soldierCount);
 
     // 4. Update road scrolling
@@ -369,7 +342,7 @@ class ArmyRunnerGame {
     // 4c. Update weapon barrels
     this.barrelSys.updateBarrels(this.cameraZ);
 
-    // 4d. Dust trail behind army (dedicated dust system)
+    // 4d. Dust trail behind army
     this.effects.marchDust = (this.state === 'running');
     this.effects.updateDustTrail(dt, this.armyX, 0, this.armyMgr.formationWidth, 4);
 
@@ -404,7 +377,6 @@ class ArmyRunnerGame {
 
       this.projSys.checkHits(this.enemyMgr, stats);
       this.barrelSys.checkBarrelBulletHitsFromProjectiles();
-      this._updateAbilities(dt, stats);
 
       // Update boss HP bar if a boss is active
       if (this.currentBoss) {
@@ -434,21 +406,7 @@ class ArmyRunnerGame {
       }
     }
 
-    // 7b. Medic regen
-    if (stats.hasMedic) {
-      this._medicTimer += dt;
-      if (this._medicTimer >= 8.0) {
-        this._medicTimer = 0;
-        if (this.soldierCount < ARMY_SOFT_CAP) {
-          this.soldierCount = Math.min(ARMY_SOFT_CAP, this.soldierCount + 1);
-          this.armyMgr.setCount(this.soldierCount, this.armyX);
-          this.effects.gateEffect(this.armyX, 0.5, 0, 0x44ff88);
-          this.hud.updateHUD();
-        }
-      }
-    }
-
-    // 7c. Army decay
+    // 7b. Army decay
     if (this.soldierCount > ARMY_DECAY_THRESHOLD) {
       this._decayTimer += dt;
       if (this._decayTimer >= ARMY_DECAY_INTERVAL) {
@@ -530,114 +488,23 @@ class ArmyRunnerGame {
   }
 
   _getStats() {
-    const us = new UpgradeSystem(null);
-    return us.getStats(this.upgrades, this.shopMeta, this.currentWeapon);
-  }
-
-  // ── Active ability system (grenade, airstrike, shockwave) ──
-
-  _updateAbilities(dt, stats) {
-    const enemies = this.enemyMgr.enemies;
-    const aliveEnemies = enemies.filter(e => !e.dead);
-    if (aliveEnemies.length === 0) return;
-
-    if (stats.hasGrenade) {
-      this._grenadeCooldown -= dt;
-      if (this._grenadeCooldown <= 0) {
-        this._grenadeCooldown = 4.0;
-        const target = aliveEnemies[Math.floor(aliveEnemies.length / 2)];
-        if (target) {
-          this.effects.explode(target.worldX, 2, target.worldZ, 0xff4400, 20, 6);
-          this.effects.screenFlash(0xff4400, 0.3);
-          this.camCtrl.shake(0.6);
-          for (const e of aliveEnemies) {
-            const dx = e.worldX - target.worldX;
-            const dz = e.worldZ - target.worldZ;
-            if (dx * dx + dz * dz < stats.grenadeRadius * stats.grenadeRadius) {
-              this.enemyMgr.damageEnemy(e, stats.grenadeDamage);
-            }
-          }
-          if (window.audioManager) window.audioManager.shoot();
-        }
-      }
-    }
-
-    if (stats.hasAirstrike) {
-      this._airstrikeCooldown -= dt;
-      if (this._airstrikeCooldown <= 0) {
-        this._airstrikeCooldown = 8.0;
-        this.effects.screenFlash(0xcc2200, 0.4);
-        this.camCtrl.shake(1.0);
-        for (const e of aliveEnemies) {
-          this.enemyMgr.damageEnemy(e, stats.airstrikeDamage);
-          this.effects.explode(e.worldX, 2, e.worldZ, 0xff6600, 5, 3);
-        }
-        if (window.audioManager) window.audioManager.bossRoar();
-      }
-    }
-
-    if (stats.hasShockwave) {
-      this._shockwaveCooldown -= dt;
-      if (this._shockwaveCooldown <= 0) {
-        this._shockwaveCooldown = 6.0;
-        this.effects.gateEffect(this.armyX, 0.5, 0, 0x8844ff);
-        this.effects.screenFlash(0x8844ff, 0.3);
-        this.camCtrl.shake(0.8);
-        for (const e of aliveEnemies) {
-          const dx = e.worldX - this.armyX;
-          const dz = e.worldZ;
-          const dist = Math.sqrt(dx * dx + dz * dz);
-          if (dist < stats.shockwaveRadius) {
-            this.enemyMgr.damageEnemy(e, stats.shockwaveDamage);
-            if (dist > 0.5) {
-              e.worldZ -= (stats.shockwaveRadius - dist) * 0.5;
-              e.group.position.z = e.worldZ;
-            }
-          }
-        }
-        if (window.audioManager) window.audioManager.shoot();
-      }
-    }
-
-    // Companion damage
-    if (stats.hasDragon) {
-      this._dragonAttackTimer += dt;
-      if (this._dragonAttackTimer >= 2.0) {
-        this._dragonAttackTimer = 0;
-        const dragonDamage = 5 * stats.dragonCount;
-        for (let d = 0; d < stats.dragonCount && d < aliveEnemies.length; d++) {
-          const target = aliveEnemies[d];
-          this.enemyMgr.damageEnemy(target, dragonDamage);
-          this.effects.explode(target.worldX, 2, target.worldZ, 0xff4400, 10, 4);
-        }
-      }
-    }
-
-    if (stats.hasAutoTurret) {
-      this._turretAttackTimer += dt;
-      if (this._turretAttackTimer >= 1.0) {
-        this._turretAttackTimer = 0;
-        const turretDamage = 3;
-        for (let t = 0; t < stats.autoTurretCount && t < aliveEnemies.length; t++) {
-          const target = aliveEnemies[t];
-          this.enemyMgr.damageEnemy(target, turretDamage);
-          this.effects.explode(target.worldX, 1, target.worldZ, 0xaabb44, 5, 2);
-        }
-      }
-    }
-
-    if (stats.hasSideCannons) {
-      this._droneAttackTimer += dt;
-      if (this._droneAttackTimer >= 1.5) {
-        this._droneAttackTimer = 0;
-        const droneDamage = 2;
-        if (aliveEnemies.length > 0) {
-          const fastestEnemy = aliveEnemies.reduce((a, b) => b.worldZ > a.worldZ ? b : a);
-          this.enemyMgr.damageEnemy(fastestEnemy, droneDamage);
-          this.effects.explode(fastestEnemy.worldX, 2, fastestEnemy.worldZ, 0x888899, 5, 2);
-        }
-      }
-    }
+    return {
+      fireInterval: 0.5,
+      damage: 2,
+      bulletSpeedMult: 1,
+      spreadAngles: [0],
+      tripleAngles: [0],
+      hasHoming: false,
+      hasExplosive: false,
+      hasPiercing: false,
+      hasMedic: false,
+      hasGrenade: false,
+      hasAirstrike: false,
+      hasShockwave: false,
+      hasDragon: false,
+      hasAutoTurret: false,
+      hasSideCannons: false,
+    };
   }
 
   _onGateHit(gateHit) {
@@ -646,38 +513,27 @@ class ArmyRunnerGame {
     gate.passed = true;
 
     const chosen = side === 'left' ? gate.left : gate.right;
-    const reward = chosen.reward;
 
-    if (reward && reward.type === 'upgrade') {
-      this.upgrades[reward.id] = (this.upgrades[reward.id] || 0) + 1;
+    // Soldier count reward
+    const effectiveCap = this.segMgr.isBossNearby() ? ARMY_BOSS_CAP : ARMY_HARD_CAP;
+    const oldCount = this.soldierCount;
+    let newCount = Math.max(1, chosen.mod.apply(this.soldierCount));
+    if (newCount > ARMY_SOFT_CAP) {
+      const excess = newCount - ARMY_SOFT_CAP;
+      newCount = ARMY_SOFT_CAP + Math.floor(excess * 0.5);
+    }
+    newCount = Math.min(newCount, effectiveCap);
+    this.soldierCount = newCount;
 
-      const segDef = this.segMgr.getSegDef(this.currentSegment);
-      if (segDef && segDef.riskBonus && side === 'right') {
-        const bonus = segDef.riskBonus;
-        this.upgrades[bonus.id] = (this.upgrades[bonus.id] || 0) + 1;
-      }
-    } else {
-      const effectiveCap = this.segMgr.isBossNearby() ? ARMY_BOSS_CAP : ARMY_HARD_CAP;
-      const oldCount = this.soldierCount;
-      let newCount = Math.max(1, chosen.mod.apply(this.soldierCount));
-      if (newCount > ARMY_SOFT_CAP) {
-        const excess = newCount - ARMY_SOFT_CAP;
-        newCount = ARMY_SOFT_CAP + Math.floor(excess * 0.5);
-      }
-      newCount = Math.min(newCount, effectiveCap);
-      this.soldierCount = newCount;
-
-      const delta = this.soldierCount - oldCount;
-      if (delta !== 0) {
-        this.effects.soldierCountFeedback(this.armyX, delta);
-        this.effects.spawnCountNumber(delta, this.armyX, 0);
-      }
+    const delta = this.soldierCount - oldCount;
+    if (delta !== 0) {
+      this.effects.soldierCountFeedback(this.armyX, delta);
+      this.effects.spawnCountNumber(delta, this.armyX, 0);
     }
 
-    const color = (reward && reward.type === 'upgrade') ? 0xffaa00 : 0x00ff88;
     this.gateSys.triggerEffect(gate, side);
-    this.effects.gateEffect(this.armyX, 1, 0, color);
-    this.effects.screenFlash(color, 0.5);
+    this.effects.gateEffect(this.armyX, 1, 0, 0x00ff88);
+    this.effects.screenFlash(0x00ff88, 0.5);
     this.camCtrl.shake(0.4);
 
     this.armyMgr.setCount(this.soldierCount, this.armyX);
