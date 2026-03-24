@@ -282,14 +282,13 @@ class EnemyManager {
     headMesh.castShadow = true;
     group.add(headMesh);
 
-    // Horns
+    // Horns (separate materials for independent hit-flash tracking)
     const hornGeo = new THREE.ConeGeometry(0.05, 0.15, 4);
-    const hornMat = mat.clone();
-    const leftHorn = new THREE.Mesh(hornGeo, hornMat);
+    const leftHorn = new THREE.Mesh(hornGeo, mat.clone());
     leftHorn.position.set(-0.1, 1.3, 0);
     group.add(leftHorn);
 
-    const rightHorn = new THREE.Mesh(hornGeo, hornMat.clone());
+    const rightHorn = new THREE.Mesh(hornGeo, mat.clone());
     rightHorn.position.set(0.1, 1.3, 0);
     group.add(rightHorn);
 
