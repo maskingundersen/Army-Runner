@@ -47,6 +47,8 @@ class ArmyRunnerGame {
 
     this.world.buildRoad();
     this.world.buildTrees();
+    this.world.buildTorches();
+    this.world.buildMountains();
 
     // Initialize systems
     this.camCtrl = new CameraController(this.camera);
@@ -335,6 +337,8 @@ class ArmyRunnerGame {
     // 4. Update road scrolling
     this.world.updateDashes(this.cameraZ);
     this.world.updateTrees(this.cameraZ);
+    this.world.updateTorches(this.cameraZ);
+    this.world.updateParallax(this.cameraZ);
     this._updatePathObstacles();
 
     // 4b. Obstacle collision
