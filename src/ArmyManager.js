@@ -1,32 +1,33 @@
 // src/ArmyManager.js — Manages soldier army using THREE.Group per soldier
 
-const ANIM_FRAME_SKIP = 2; // only animate every Nth frame
+const ANIM_FRAME_SKIP = 2;
+const MAX_DRAGON_COUNT = 3; // kept for compatibility
 
 class ArmyManager {
   constructor(threeScene) {
     this.scene = threeScene;
     this.MAX = 200;
-    this.MAX_RENDERED = 30;   // hard cap on rendered soldier groups for performance
-    this.MAX_VISIBLE = this.MAX_RENDERED; // alias kept for compatibility
+    this.MAX_RENDERED = 30;
+    this.MAX_VISIBLE = this.MAX_RENDERED;
     this._animFrame = 0;
+    this._recoilEnd = 0;
 
+    // Shared geometries for performance
     this._sharedGeo = {
-      body:       new THREE.CapsuleGeometry(0.28, 0.6, 4, 8),
-      head:       new THREE.SphereGeometry(0.18, 6, 5),
-      helmet:     new THREE.ConeGeometry(0.22, 0.3, 6),
-      helmetBrim: new THREE.CylinderGeometry(0.26, 0.26, 0.06, 6),
-      arm:        new THREE.CylinderGeometry(0.07, 0.07, 0.45, 5),
-      shield:     new THREE.BoxGeometry(0.35, 0.5, 0.06),
-      spearShaft: new THREE.CylinderGeometry(0.03, 0.03, 1.4, 5),
-      spearTip:   new THREE.ConeGeometry(0.06, 0.2, 5),
-      cape:       new THREE.BoxGeometry(0.4, 0.55, 0.05),
-      leg:        new THREE.CylinderGeometry(0.09, 0.08, 0.5, 5)
+      body:    new THREE.BoxGeometry(0.4, 0.5, 0.25),
+      head:    new THREE.SphereGeometry(0.15, 8, 6),
+      helmet:  new THREE.BoxGeometry(0.2, 0.08, 0.2),
+      leg:     new THREE.CylinderGeometry(0.06, 0.06, 0.35, 6),
+      weapon:  new THREE.BoxGeometry(0.04, 0.04, 0.5)
     };
 
-    this._currentWeaponType = 'handgun';
-    this._weaponGeos = {
-      handgun: null, assault: null, shotgun: null,
-      minigun: null, rocket: null, sniper: null
+    // Shared materials
+    this._sharedMat = {
+      body:    new THREE.MeshStandardMaterial({ color: 0x1E90FF }),
+      head:    new THREE.MeshStandardMaterial({ color: 0xFFD580 }),
+      helmet:  new THREE.MeshStandardMaterial({ color: 0xC0C0C0, metalness: 0.6 }),
+      leg:     new THREE.MeshStandardMaterial({ color: 0xF0F0F0 }),
+      weapon:  new THREE.MeshStandardMaterial({ color: 0x444444 })
     };
 
     this._soldierGroups = [];
@@ -34,7 +35,7 @@ class ArmyManager {
       this._soldierGroups.push(this._createSoldierGroup());
     }
 
-    // Fake shadow ellipse beneath the army (one, not per-soldier)
+    // Fake shadow ellipse beneath the army
     const shadowGeo = new THREE.CircleGeometry(3.0, 16);
     const shadowMat = new THREE.MeshBasicMaterial({
       color: 0x222222, transparent: true, opacity: 0.3,
@@ -46,6 +47,23 @@ class ArmyManager {
     this._fakeShadow.renderOrder = -1;
     this.scene.add(this._fakeShadow);
 
+    // Health bar sprite
+    this._healthCanvas = document.createElement('canvas');
+    this._healthCanvas.width = 256;
+    this._healthCanvas.height = 32;
+    this._healthCtx = this._healthCanvas.getContext('2d');
+    this._healthTexture = new THREE.CanvasTexture(this._healthCanvas);
+    const healthMat = new THREE.SpriteMaterial({
+      map: this._healthTexture, transparent: true, depthTest: false
+    });
+    this._healthSprite = new THREE.Sprite(healthMat);
+    this._healthSprite.scale.set(4, 0.4, 1);
+    this._healthSprite.position.y = 2.2;
+    this._healthSprite.renderOrder = 10;
+    this.scene.add(this._healthSprite);
+    this._maxCountSeen = 1;
+
+    // Soldier data pool
     this._soldiers = [];
     for (let i = 0; i < this.MAX; i++) {
       this._soldiers.push({
@@ -68,232 +86,52 @@ class ArmyManager {
   _createSoldierGroup() {
     const group = new THREE.Group();
 
-    const armorColor = new THREE.Color();
-    armorColor.setHSL(210 / 360, 0.2 + Math.random() * 0.1, 0.55 + Math.random() * 0.1);
-    const helmetColor = new THREE.Color();
-    helmetColor.setHSL(210 / 360, 0.15 + Math.random() * 0.1, 0.4 + Math.random() * 0.1);
-
-    const armorMat = new THREE.MeshStandardMaterial({ color: armorColor, metalness: 0.6, roughness: 0.3 });
-    const helmetMat = new THREE.MeshStandardMaterial({ color: helmetColor });
-
-    const body = new THREE.Mesh(this._sharedGeo.body, armorMat);
-    body.position.y = 0.7;
-
+    const body = new THREE.Mesh(this._sharedGeo.body, this._sharedMat.body);
+    body.position.y = 0.6;
     group.add(body);
 
-    const head = new THREE.Mesh(this._sharedGeo.head,
-      new THREE.MeshStandardMaterial({ color: 0xddbb99 }));
-    head.position.y = 1.38;
-
+    const head = new THREE.Mesh(this._sharedGeo.head, this._sharedMat.head);
+    head.position.y = 1.0;
     group.add(head);
 
-    const helmet = new THREE.Mesh(this._sharedGeo.helmet, helmetMat);
-    helmet.position.y = 1.62;
-
+    const helmet = new THREE.Mesh(this._sharedGeo.helmet, this._sharedMat.helmet);
+    helmet.position.y = 1.19;
     group.add(helmet);
 
-    const helmetBrim = new THREE.Mesh(this._sharedGeo.helmetBrim, helmetMat.clone());
-    helmetBrim.position.y = 1.5;
-
-    group.add(helmetBrim);
-
-    const lArm = new THREE.Mesh(this._sharedGeo.arm, armorMat.clone());
-    lArm.position.set(-0.32, 1.0, 0);
-    lArm.rotation.z = 0.6;
-
-    group.add(lArm);
-
-    const rArm = new THREE.Mesh(this._sharedGeo.arm, armorMat.clone());
-    rArm.position.set(0.32, 1.0, 0);
-    rArm.rotation.z = -0.6;
-
-    group.add(rArm);
-
-    const shield = new THREE.Mesh(this._sharedGeo.shield,
-      new THREE.MeshStandardMaterial({ color: 0xcc3322, metalness: 0.3 }));
-    shield.position.set(-0.45, 0.95, 0.1);
-
-    group.add(shield);
-
-    const spearShaft = new THREE.Mesh(this._sharedGeo.spearShaft,
-      new THREE.MeshStandardMaterial({ color: 0x885533 }));
-    spearShaft.position.set(0.38, 1.35, 0);
-
-    group.add(spearShaft);
-
-    const spearTip = new THREE.Mesh(this._sharedGeo.spearTip,
-      new THREE.MeshStandardMaterial({ color: 0xaaaacc, metalness: 0.8 }));
-    spearTip.position.set(0.38, 2.1, 0);
-
-    group.add(spearTip);
-
-    const cape = new THREE.Mesh(this._sharedGeo.cape,
-      new THREE.MeshStandardMaterial({ color: 0xaa2222 }));
-    cape.position.set(0, 0.9, -0.18);
-
-    group.add(cape);
-
-    const lLeg = new THREE.Mesh(this._sharedGeo.leg, armorMat.clone());
-    lLeg.position.set(-0.13, 0.2, 0);
-
+    const lLeg = new THREE.Mesh(this._sharedGeo.leg, this._sharedMat.leg);
+    lLeg.position.set(-0.1, 0.175, 0);
     group.add(lLeg);
 
-    const rLeg = new THREE.Mesh(this._sharedGeo.leg, armorMat.clone());
-    rLeg.position.set(0.13, 0.2, 0);
-
+    const rLeg = new THREE.Mesh(this._sharedGeo.leg, this._sharedMat.leg);
+    rLeg.position.set(0.1, 0.175, 0);
     group.add(rLeg);
+
+    const weapon = new THREE.Mesh(this._sharedGeo.weapon, this._sharedMat.weapon);
+    weapon.position.set(0.28, 0.7, -0.15);
+    group.add(weapon);
 
     group.visible = false;
     this.scene.add(group);
 
-    return { group, body, head, helmet, lArm, rArm, lLeg, rLeg, cape };
+    return { group, body, head, helmet, lLeg, rLeg, weapon };
   }
 
-  setWeaponType(type) {
-    if (this._weaponGeos[type] !== undefined) {
-      this._currentWeaponType = type;
-    }
+  setWeaponType(_type) {
+    // no-op — visual weapon is fixed
   }
 
+  // Companion stubs (dragons, turrets, drones removed)
   _createCompanions() {
-    const droneGroup = new THREE.Group();
-    const droneBody = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.2, 0.15, 0.15, 8),
-      new THREE.MeshStandardMaterial({ color: 0x888899, roughness: 0.3, metalness: 0.7 })
-    );
-    droneBody.position.y = 3.5;
-    droneGroup.add(droneBody);
-    for (let i = 0; i < 4; i++) {
-      const arm = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.015, 0.015, 0.5, 4),
-        new THREE.MeshStandardMaterial({ color: 0x444455, roughness: 0.4, metalness: 0.6 })
-      );
-      arm.position.y = 3.6;
-      arm.rotation.z = Math.PI / 2;
-      arm.rotation.y = (i / 4) * Math.PI * 2;
-      arm.position.x = Math.cos((i / 4) * Math.PI * 2) * 0.3;
-      arm.position.z = Math.sin((i / 4) * Math.PI * 2) * 0.3;
-      droneGroup.add(arm);
-      const rotor = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.12, 0.12, 0.01, 12),
-        new THREE.MeshStandardMaterial({ color: 0x99aacc, roughness: 0.5, metalness: 0.3, transparent: true, opacity: 0.6 })
-      );
-      rotor.position.set(
-        Math.cos((i / 4) * Math.PI * 2) * 0.35,
-        3.65,
-        Math.sin((i / 4) * Math.PI * 2) * 0.35
-      );
-      droneGroup.add(rotor);
-    }
-    droneGroup.visible = false;
-    this.scene.add(droneGroup);
-    this._drone = droneGroup;
-
-    this._dragons = [];
-    for (let d = 0; d < 3; d++) {
-      const dg = new THREE.Group();
-      const db = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.2, 0.25, 1.2, 8),
-        new THREE.MeshStandardMaterial({ color: 0xcc3300, roughness: 0.5, metalness: 0.2 })
-      );
-      db.position.y = 5; db.rotation.x = Math.PI / 2;
-      dg.add(db);
-      const wg = new THREE.BoxGeometry(1.5, 0.03, 0.8);
-      const wm = new THREE.MeshStandardMaterial({ color: 0xff4400, roughness: 0.6, metalness: 0.1, transparent: true, opacity: 0.85 });
-      const lW = new THREE.Mesh(wg, wm);
-      lW.position.set(-0.9, 5, 0); lW.rotation.z = 0.2;
-      dg.add(lW);
-      const rW = new THREE.Mesh(wg, wm.clone());
-      rW.position.set(0.9, 5, 0); rW.rotation.z = -0.2;
-      dg.add(rW);
-      const dh = new THREE.Mesh(
-        new THREE.SphereGeometry(0.18, 8, 6),
-        new THREE.MeshStandardMaterial({ color: 0xcc3300, roughness: 0.5, metalness: 0.2 })
-      );
-      dh.position.set(0, 5.1, -0.7);
-      dg.add(dh);
-      const sn = new THREE.Mesh(
-        new THREE.ConeGeometry(0.08, 0.25, 6),
-        new THREE.MeshStandardMaterial({ color: 0xdd4400, roughness: 0.5, metalness: 0.2 })
-      );
-      sn.position.set(0, 5.05, -0.95); sn.rotation.x = -Math.PI / 2;
-      dg.add(sn);
-      dg.visible = false;
-      this.scene.add(dg);
-      this._dragons.push(dg);
-    }
-
-    this._turrets = [];
-    for (let t = 0; t < 2; t++) {
-      const tg = new THREE.Group();
-      const tb = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.25, 0.3, 0.3, 8),
-        new THREE.MeshStandardMaterial({ color: 0x556655, roughness: 0.4, metalness: 0.5 })
-      );
-      tb.position.y = 0.15;
-      tg.add(tb);
-      const tbar = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.03, 0.035, 0.5, 6),
-        new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.3, metalness: 0.8 })
-      );
-      tbar.position.set(0, 0.35, -0.2); tbar.rotation.x = Math.PI / 2;
-      tg.add(tbar);
-      const tdome = new THREE.Mesh(
-        new THREE.SphereGeometry(0.18, 8, 6),
-        new THREE.MeshStandardMaterial({ color: 0x778877, roughness: 0.4, metalness: 0.4 })
-      );
-      tdome.position.y = 0.4;
-      tg.add(tdome);
-      tg.visible = false;
-      this.scene.add(tg);
-      this._turrets.push(tg);
-    }
-
     this._companionPhase = 0;
   }
 
-  updateCompanions(dt, armyX, upgrades) {
-    this._companionPhase += dt * 2;
-
-    const hasDrone = (upgrades.sideCannons || 0) > 0;
-    this._drone.visible = hasDrone;
-    if (hasDrone) {
-      const dx = Math.cos(this._companionPhase * 1.5) * 2;
-      const dz = Math.sin(this._companionPhase * 1.5) * 2;
-      this._drone.position.set(armyX + dx, 0, dz);
-      this._drone.children[0].position.y = 3.5 + Math.sin(this._companionPhase * 3) * 0.15;
-    }
-
-    const dragonCount = Math.min(upgrades.dragon || 0, MAX_DRAGON_COUNT);
-    for (let d = 0; d < this._dragons.length; d++) {
-      const hasDragon = d < dragonCount;
-      this._dragons[d].visible = hasDragon;
-      if (hasDragon) {
-        const offset = (d * Math.PI * 2) / Math.max(dragonCount, 1);
-        const dx = Math.cos(this._companionPhase + offset) * (3 + d * 0.8);
-        const dz = Math.sin(this._companionPhase + offset) * (3 + d * 0.8) - 2;
-        this._dragons[d].position.set(armyX + dx, 0, dz);
-        const flapAngle = Math.sin(this._companionPhase * 4 + offset) * 0.3;
-        this._dragons[d].children[1].rotation.z = 0.2 + flapAngle;
-        this._dragons[d].children[2].rotation.z = -0.2 - flapAngle;
-      }
-    }
-
-    const turretCount = Math.min(upgrades.autoTurret || 0, 2);
-    for (let t = 0; t < this._turrets.length; t++) {
-      const hasTurret = t < turretCount;
-      this._turrets[t].visible = hasTurret;
-      if (hasTurret) {
-        const side = t === 0 ? -1.5 : 1.5;
-        this._turrets[t].position.set(armyX + side, 0, 0.5);
-        this._turrets[t].rotation.y = Math.sin(this._companionPhase * 3 + t) * 0.3;
-      }
-    }
+  updateCompanions(_dt, _armyX, _upgrades) {
+    // stub
   }
 
-  static BASE_SPREAD = 1.1;
-  static ROW_STAGGER = 0.35;
-  static DEPTH_COMPRESSION = 0.9;
+  static GRID_COLS_MAX = 6;
+  static GRID_SPACING_X = 0.8;
+  static GRID_SPACING_Z = 0.9;
   static SEP_RADIUS = 0.75;
   static SEP_STRENGTH = 6.0;
   static ROAD_HALF = 9.5;
@@ -302,15 +140,15 @@ class ArmyManager {
 
   formationWidth = 18.0;
 
+  _getFormationCols(count) {
+    return Math.min(ArmyManager.GRID_COLS_MAX, count);
+  }
+
   setCount(count, armyX) {
     count = Math.min(count, this.MAX);
+    if (count > this._maxCountSeen) this._maxCountSeen = count;
 
-    const width = this.formationWidth;
-    // Compress spacing when count exceeds MAX_RENDERED for visual density
-    const densityScale = count > this.MAX_RENDERED ? 0.65 : 1.0;
-    const spacing = ArmyManager.BASE_SPREAD * densityScale;
-    const maxCols = Math.max(2, Math.floor(width / spacing));
-    const cols = Math.min(maxCols, Math.ceil(Math.sqrt(count * 1.5)));
+    const cols = this._getFormationCols(count);
 
     for (let i = 0; i < this.MAX; i++) {
       const soldier = this._soldiers[i];
@@ -321,9 +159,8 @@ class ArmyManager {
         const row = Math.floor(i / cols);
         const col = i % cols;
         const rowWidth = Math.min(cols, count - row * cols);
-        const rowStagger = (row % 2) * ArmyManager.ROW_STAGGER;
-        const xOff = (col - (rowWidth - 1) / 2) * spacing + rowStagger;
-        const zOff = row * spacing * ArmyManager.DEPTH_COMPRESSION;
+        const xOff = (col - (rowWidth - 1) / 2) * ArmyManager.GRID_SPACING_X;
+        const zOff = row * ArmyManager.GRID_SPACING_Z;
 
         soldier.targetX = armyX + xOff + soldier.offsetX;
         soldier.targetZ = -zOff + soldier.offsetZ;
@@ -351,24 +188,48 @@ class ArmyManager {
       }
     }
     if (alive.length > 0) {
-      const idx = alive[Math.floor(Math.random() * alive.length)];
+      const idx = alive[alive.length - 1]; // highest-index alive unit
       const soldier = this._soldiers[idx];
       soldier.deathTimer = 0;
       soldier.deathAngle = (Math.random() - 0.5) * 0.5;
     }
   }
 
+  applyRecoil() {
+    this._recoilEnd = performance.now() + 100;
+  }
+
+  _updateHealthBar(currentCount, maxCount) {
+    const ctx = this._healthCtx;
+    const w = this._healthCanvas.width;
+    const h = this._healthCanvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    const ratio = maxCount > 0 ? currentCount / maxCount : 0;
+    const segments = maxCount;
+    const segW = w / Math.max(segments, 1);
+
+    for (let i = 0; i < segments; i++) {
+      if (i < currentCount) {
+        ctx.fillStyle = '#00FF44';
+      } else {
+        ctx.fillStyle = 'rgba(60,60,60,0.4)';
+      }
+      ctx.fillRect(i * segW + 1, 2, Math.max(segW - 2, 1), h - 4);
+    }
+
+    this._healthTexture.needsUpdate = true;
+  }
+
   update(dt, armyX, time, upgrades) {
     const count = this._activeCount;
-    const width = this.formationWidth;
-    // Compress spacing when count exceeds MAX_RENDERED for visual density
-    const densityScale = count > this.MAX_RENDERED ? 0.65 : 1.0;
-    const spacing = ArmyManager.BASE_SPREAD * densityScale;
-    const maxCols = Math.max(2, Math.floor(width / spacing));
-    const cols = Math.min(maxCols, Math.ceil(Math.sqrt(count * 1.5)));
+    const cols = this._getFormationCols(count);
 
     this._animFrame = (this._animFrame + 1) % ANIM_FRAME_SKIP;
     const doAnim = this._animFrame === 0;
+
+    const recoilActive = performance.now() < this._recoilEnd;
+    const recoilZ = recoilActive ? 0.05 : 0;
 
     let activeIdx = 0;
 
@@ -390,9 +251,8 @@ class ArmyManager {
       const row = Math.floor(activeIdx / cols);
       const col = activeIdx % cols;
       const rowWidth = Math.min(cols, count - row * cols);
-      const rowStagger = (row % 2) * ArmyManager.ROW_STAGGER;
-      const xOff = (col - (rowWidth - 1) / 2) * spacing + rowStagger;
-      const zOff = row * spacing * ArmyManager.DEPTH_COMPRESSION;
+      const xOff = (col - (rowWidth - 1) / 2) * ArmyManager.GRID_SPACING_X;
+      const zOff = row * ArmyManager.GRID_SPACING_Z;
 
       soldier.targetX = armyX + xOff + soldier.offsetX;
       soldier.targetZ = -zOff + soldier.offsetZ;
@@ -411,13 +271,20 @@ class ArmyManager {
 
     this._applySeparation(dt);
 
-    // Update fake shadow position and scale
+    // Update fake shadow
     if (this._fakeShadow) {
       const shadowScale = 0.5 + Math.min(count, this.MAX_RENDERED) * 0.1;
       this._fakeShadow.position.set(armyX, 0.01, 0);
       this._fakeShadow.scale.set(shadowScale, shadowScale, 1);
     }
 
+    // Update health bar
+    const aliveCount = this._countAlive();
+    this._updateHealthBar(aliveCount, this._maxCountSeen);
+    this._healthSprite.position.set(armyX, 2.2, 0);
+    this._healthSprite.visible = aliveCount > 0;
+
+    // Update rendered soldier groups
     let visibleIdx = 0;
     for (let i = 0; i < this.MAX; i++) {
       const soldier = this._soldiers[i];
@@ -441,22 +308,16 @@ class ArmyManager {
           if (doAnim) {
             sg.lLeg.rotation.x = 0;
             sg.rLeg.rotation.x = 0;
-            sg.lArm.rotation.x = 0;
-            sg.rArm.rotation.x = 0;
-            sg.cape.rotation.x = 0;
           }
         } else {
-          const marchBob = Math.sin(time * 8 + phase) * 0.05;
-          sg.group.position.set(soldier.x, marchBob, soldier.z);
+          const marchBob = Math.sin(time * 12 + phase) * 0.05;
+          sg.group.position.set(soldier.x, marchBob, soldier.z + recoilZ);
           sg.group.rotation.set(0, 0, 0);
           sg.group.scale.set(scale, scale, scale);
 
           if (doAnim) {
-            sg.lLeg.rotation.x = Math.sin(time * 8 + phase) * 0.4;
-            sg.rLeg.rotation.x = Math.sin(time * 8 + phase + Math.PI) * 0.4;
-            sg.lArm.rotation.x = Math.sin(time * 8 + phase + Math.PI) * 0.3;
-            sg.rArm.rotation.x = Math.sin(time * 8 + phase) * 0.3;
-            sg.cape.rotation.x = Math.sin(time * 8 + phase) * 0.08;
+            sg.lLeg.rotation.x = Math.sin(time * 12 + phase) * 0.4;
+            sg.rLeg.rotation.x = Math.sin(time * 12 + phase + Math.PI) * 0.4;
           }
         }
       }
@@ -471,6 +332,14 @@ class ArmyManager {
     if (upgrades) {
       this.updateCompanions(dt, armyX, upgrades);
     }
+  }
+
+  _countAlive() {
+    let n = 0;
+    for (let i = 0; i < this.MAX; i++) {
+      if (this._soldiers[i].active && this._soldiers[i].deathTimer < 0) n++;
+    }
+    return n;
   }
 
   _applySeparation(dt) {
@@ -561,9 +430,9 @@ class ArmyManager {
       const soldier = this._soldiers[i];
       if (soldier.active && soldier.deathTimer < 0 && soldier.spawnScale > 0.8) {
         positions.push({
-          x: soldier.x + 0.38 * soldier.spawnScale,
-          y: 2.1,
-          z: soldier.z - 0.3 * soldier.spawnScale
+          x: soldier.x + 0.28,
+          y: 0.7,
+          z: soldier.z - 0.4
         });
       }
     }
