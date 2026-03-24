@@ -3,6 +3,7 @@
 class HUDController {
   constructor(game) {
     this.game = game;
+    this._lastCount = null;
   }
 
   setupUI() {
@@ -89,6 +90,22 @@ class HUDController {
         bestEl.style.display = 'none';
       }
     }
+
+    // Army icons — one 🪖 per 5 soldiers, up to 20
+    const iconCount = Math.min(20, Math.floor(g.soldierCount / 5));
+    const iconEl = document.getElementById('hud-army-icons');
+    if (iconEl) {
+      iconEl.textContent = '\uD83E\uDE96'.repeat(iconCount);
+    }
+
+    // Pop animation on count change
+    const wrapper = document.getElementById('hud-soldier-count-wrapper');
+    if (wrapper && g.soldierCount !== this._lastCount) {
+      wrapper.classList.remove('count-pop');
+      void wrapper.offsetWidth;
+      wrapper.classList.add('count-pop');
+      this._lastCount = g.soldierCount;
+    }
   }
 
   updateScreenFlash() {
@@ -104,6 +121,30 @@ class HUDController {
         flashEl.style.opacity = '0';
       }
     }
+  }
+
+  showBossBar(bossName) {
+    const bar = document.getElementById('hud-boss-bar');
+    if (bar) {
+      document.getElementById('boss-name').textContent = bossName.toUpperCase();
+      document.getElementById('boss-bar-fill').style.width = '100%';
+      bar.style.display = '';
+    }
+  }
+
+  hideBossBar() {
+    const bar = document.getElementById('hud-boss-bar');
+    if (bar) bar.style.display = 'none';
+  }
+
+  updateBossBar(ratio) {
+    const fill = document.getElementById('boss-bar-fill');
+    if (fill) fill.style.width = (ratio * 100) + '%';
+  }
+
+  setCombatVignette(active) {
+    const el = document.getElementById('screen-combat-vignette');
+    if (el) el.style.opacity = active ? '1' : '0';
   }
 
   showCycleMessage(text) {
