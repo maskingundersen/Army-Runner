@@ -307,7 +307,6 @@ class EnemyManager {
     }
     const body = new THREE.Mesh(bodyGeo, bodyMat);
     body.position.y = s.body[1] / 2 + 0.3;
-    body.castShadow = true;
     if (type === 'tank') {
       body.scale.x = 1.8;
       body.scale.y = 1.3;
@@ -322,7 +321,6 @@ class EnemyManager {
     });
     const head = new THREE.Mesh(headGeo, headMat);
     head.position.y = body.position.y + s.body[1] / 2 + headRad * 0.85;
-    head.castShadow = true;
     group.add(head);
 
     // Arms — cylinders
@@ -335,13 +333,11 @@ class EnemyManager {
 
     const lArm = new THREE.Mesh(armGeo, armMat);
     lArm.position.set(-bodyRad - armRad * 1.2, body.position.y - 0.1, 0);
-    lArm.castShadow = true;
     lArm.userData.isArm = true;
     group.add(lArm);
 
     const rArm = new THREE.Mesh(armGeo, armMat.clone());
     rArm.position.set(bodyRad + armRad * 1.2, body.position.y - 0.1, 0);
-    rArm.castShadow = true;
     rArm.userData.isArm = true;
     group.add(rArm);
 
@@ -355,12 +351,10 @@ class EnemyManager {
 
     const lLeg = new THREE.Mesh(legGeo, legMat);
     lLeg.position.set(-s.body[0] * 0.25, 0.25, 0);
-    lLeg.castShadow = true;
     group.add(lLeg);
 
     const rLeg = new THREE.Mesh(legGeo, legMat.clone());
     rLeg.position.set(s.body[0] * 0.25, 0.25, 0);
-    rLeg.castShadow = true;
     group.add(rLeg);
 
     // Eyes — glowing spheres (red emissive for bosses, red basic for normal)
@@ -1319,9 +1313,8 @@ class EnemyManager {
         const s = enemy.hitScale * (def.scale || 1);
         enemy.group.scale.set(s, s, s);
       }
-      
-      // Update HP bar
-      this._updateHPBar(enemy);
+
+      // HP bar is updated only on damage (in damageEnemy), not every frame
       
       // Check if reached army
       if (enemy.worldZ > 1.5) {
