@@ -1,7 +1,6 @@
 // src/ArmyManager.js — Manages soldier army using THREE.Group per soldier
 
 const ANIM_FRAME_SKIP = 2;
-const MAX_DRAGON_COUNT = 3; // kept for compatibility
 
 class ArmyManager {
   constructor(threeScene) {
