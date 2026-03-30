@@ -2,6 +2,10 @@
 
 A mobile-first army runner game inspired by "gate mechanic" mobile ads — built with **Phaser 3** and playable directly in Safari on iPhone. No downloads or installs needed!
 
+## 🕹️ Play Now
+
+**👉 [https://maskingundersen.github.io/Army-Runner/](https://maskingundersen.github.io/Army-Runner/)**
+
 ---
 
 ## 🎮 What Is It?
@@ -39,20 +43,23 @@ Steer your army through the right gates, grow your forces, then battle the enemy
 
 ---
 
-## 🚀 How to Enable GitHub Pages (host for free)
-1. Go to your repository on GitHub
-2. Click **Settings** → **Pages**
-3. Under "Source", select **Deploy from a branch** → choose `main` → `/ (root)`
-4. Click **Save**
-5. After a minute, GitHub will give you a URL like `https://yourusername.github.io/Army-Runner/`
+## 🚀 GitHub Pages Deployment
+
+The game is automatically deployed to GitHub Pages via GitHub Actions on every push to `main`. The live URL is:
+
+**[https://maskingundersen.github.io/Army-Runner/](https://maskingundersen.github.io/Army-Runner/)**
+
+To host your own fork:
+1. Fork this repository
+2. Go to **Settings** → **Pages** → set source to **GitHub Actions**
+3. Push to `main` — the workflow will deploy automatically
 
 ---
 
 ## 📲 How to Open on iPhone
-1. Enable GitHub Pages (see above)
-2. Open **Safari** on your iPhone
-3. Navigate to your GitHub Pages URL
-4. **Optional:** Tap the Share button → "Add to Home Screen" to install it like an app!
+1. Open **Safari** on your iPhone
+2. Navigate to **[https://maskingundersen.github.io/Army-Runner/](https://maskingundersen.github.io/Army-Runner/)**
+3. **Optional:** Tap the Share button → "Add to Home Screen" to install it like an app!
 
 ---
 
